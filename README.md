@@ -42,5 +42,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 4.4 Comparison of 2019 LVIS to 2010 lidar - TBD
 
-4.5 ICESat-2 Simulator validation - SH, AN
+4.5 ICESat-2 Simulator validation - MP, SH, AN
+
+4.5.1 Comparison of ICESat-2 RH metrics to GEDI metrics in the simulator. SH, AN
 
