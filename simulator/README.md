@@ -32,5 +32,13 @@ The former will give a metric related to both height and cover and be more compa
 
 ### GEDI
 
+* Mean RH metrics across waveforms
+* Mean log(RH) metrics across waveforms
+* Mean exp(RH) metrics across waveforms
+* Mean RH^2 metrics across waveforms
+* Mean sqrt(RH) metrics across waveforms
+* RH metric of mean waveforms
+
+The former is the simplest, but is unlikely to work due to the non-linearity of RH metrics. The next four transformations will mimic the biomass model. If the biomass model is accurate, then the mean biomass of multiple footprints should give the correct biomass of an area, so linearly combining the RH metrics of the waveforms with the same non-linear transformation should give a mean RH metric that gives the correct mean biomass. The last combines all waveforms (after estimating ground elevation) and calculated the RH metrics for the mean waveform.
 
 
