@@ -81,6 +81,14 @@ def ICESAT2GRD(args):
     sol_az = []     # The direction, eastwards from north, of the sun vector as seen by an observer at the laser ground spot.
     sol_el = []     # Solar Angle above or below the plane tangent to the ellipsoid surface at the laser spot. Positive values mean the sun is above the horizon, while  negative values mean it is below the horizon. The effect of atmospheric refraction is not included. This is a low precision value, with approximately TBD degree accuracy.
 
+    asr = []		# Apparent surface reflectance
+    h_dif_ref = []	# height difference from reference DEM
+    ter_flg = []
+    ph_rem_flg = []
+    dem_rem_flg = []
+    seg_wmask = []
+    lyr_flg = []
+
     # Granule level info
     granule_dt = datetime.strptime(Name.split('_')[1], '%Y%m%d%H%M%S')
     YEAR = granule_dt.year
@@ -137,8 +145,8 @@ def ICESAT2GRD(args):
         h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
         h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
         
-        n_ca_ph.append(f['/' + line    + '/land_segments/canopy/n_ca_photons/'][...,].tolist())
-        n_toc_ph.append(f['/' + line   + '/land_segments/canopy/n_toc_photons/'][...,].tolist())
+        n_ca_ph.append(f['/' + line    	+ '/land_segments/canopy/n_ca_photons/'][...,].tolist())
+        n_toc_ph.append(f['/' + line   	+ '/land_segments/canopy/n_toc_photons/'][...,].tolist())
         can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
         tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
         tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
@@ -158,13 +166,22 @@ def ICESAT2GRD(args):
         sig_topo.append(f['/' + line    + '/land_segments/sigma_topo/'][...,].tolist())
 
         # Terrain fields
-        n_te_ph.append(f['/' + line    + '/land_segments/terrain/n_te_photons/'][...,].tolist())        
+        n_te_ph.append(f['/' + line    	+ '/land_segments/terrain/n_te_photons/'][...,].tolist())        
         h_te_best.append(f['/' + line   + '/land_segments/terrain/h_te_best_fit/'][...,].tolist())
         h_te_unc.append(f['/' + line    + '/land_segments/terrain/h_te_uncertainty/'][...,].tolist())
         ter_slp.append(f['/' + line     + '/land_segments/terrain/terrain_slope/'][...,].tolist())
         snr.append(f['/' + line         + '/land_segments/snr/'][...,].tolist())
         sol_az.append(f['/' + line      + '/land_segments/solar_azimuth/'][...,].tolist())
         sol_el.append(f['/' + line      + '/land_segments/solar_elevation/'][...,].tolist())
+
+    	asr.append(f['/' + line    		+ '/land_segments/asr/'][...,].tolist())    
+    	h_dif_ref.append(f['/' + line   + '/land_segments/h_dif_ref/'][...,].tolist()) 
+    	ter_flg.append(f['/' + line    	+ '/land_segments/terrain_flg/'][...,].tolist()) 
+    	ph_rem_flg.append(f['/' + line  + '/land_segments/ph_removal_flag/'][...,].tolist()) 
+    	dem_rem_flg.append(f['/' + line + '/land_segments/dem_removal_flag/'][...,].tolist()) 
+    	seg_wmask.append(f['/' + line   + '/land_segments/segment_watermask/'][...,].tolist()) 
+    	lyr_flg.append(f['/' + line    	+ '/land_segments/layer_flag/'][...,].tolist())
+
 
     # MW 3/31: Originally a length of 6 was hardcoded into the below calculations because the
     #          assumption was made that 6 lines/lasers worth of data was stored in the arrays. With
@@ -215,6 +232,15 @@ def ICESAT2GRD(args):
     snr         =np.array([snr[l][k] for l in range(nLines) for k in range(len(snr[l]))] )
     sol_az      =np.array([sol_az[l][k] for l in range(nLines) for k in range(len(sol_az[l]))] )
     sol_el      =np.array([sol_el[l][k] for l in range(nLines) for k in range(len(sol_el[l]))] )
+
+    asr 		=np.array([asr[l][k] for l in range(nLines) for k in range(len(asr[l]))] )
+    h_dif_ref 	=np.array([h_dif_ref[l][k] for l in range(nLines) for k in range(len(h_dif_ref[l]))] )
+    ter_flg 	=np.array([ter_flg[l][k] for l in range(nLines) for k in range(len(ter_flg[l]))] )
+    ph_rem_flg	=np.array([ph_rem_flg[l][k] for l in range(nLines) for k in range(len(ph_rem_flg[l]))] )
+    dem_rem_flg =np.array([dem_rem_flg[l][k] for l in range(nLines) for k in range(len(dem_rem_flg[l]))] )
+    seg_wmask	=np.array([seg_wmask[l][k] for l in range(nLines) for k in range(len(seg_wmask[l]))] )
+    lyr_flg		=np.array([lyr_flg[l][k] for l in range(nLines) for k in range(len(lyr_flg[l]))] )
+
 
     print len(latitude), len(sol_el)
     # Default set to 100.0
@@ -299,7 +325,16 @@ def ICESAT2GRD(args):
                     'ter_slp'   :ter_slp,
                     'snr'       :snr,
                     'sol_az'    :sol_az,
-                    'sol_el'    :sol_el
+                    'sol_el'    :sol_el,
+
+    				'asr'		:asr,	
+    				'h_dif_ref'	:h_dif_ref,
+    				'ter_flg'	:ter_flg,
+    				'ph_rem_flg':ph_rem_flg,
+    				'dem_rem_flg':dem_rem_flg,
+    				'seg_wmask' :seg_wmask,
+    				'lyr_flg'	:lyr_flg
+
                      })
 
     # Write out to a csv
