@@ -17,11 +17,13 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 2) ICESat-2 processing
 
-2.1 ICESat-2 data discovery, extraction, filtering + cover? - AN, PM, LD, TF, JW, SH, JA, EG
+2.1 ICESat-2 data search and download - PM
 
-2.2 ICESat-2 biomass algorithm development (including subsetting?) - LD, AR, AN
+2.2 ICESat-2 extraction, filtering + cover? - AN, PM, LD, TF, JW, SH, JA, EG
 
-2.3 ICESat-2 biomass algorithm application (to full boreal) - AR (PM, LD)
+2.3 ICESat-2 biomass algorithm development (including subsetting?) - LD, AR, AN
+
+2.4 ICESat-2 biomass algorithm application (to full boreal) - AR (PM, LD)
 
 3) Gridded product development
 
