@@ -1,7 +1,7 @@
 # icesat2_boreal
 Biomass modeling and mapping in the boreal using NASA's ICESat-2
 
-This repo is developed for a NASA Arctic Boreal Vulnerability Experiment (ABoVE) (PI Laura Duncanson) and ICESat-2 Science Team project (PI Amy Neuenschwander), in collaboration with Paul Montesano, Steve Hancock, Joanne White, Mike Wulder, Eric Guenther, etc.
+This repo is developed for a NASA Arctic Boreal Vulnerability Experiment (ABoVE) (PI Laura Duncanson) and ICESat-2 Science Team project (PI Amy Neuenschwander), in collaboration with Paul Montesano, Nathan Thomas, Carlos Silva, Steve Hancock, Joanne White, Mike Wulder, Eric Guenther, etc.
 
 This is meant to serve as a joint code repository hosting jupyter and/or R notebooks for the following:
 
