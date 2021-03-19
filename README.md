@@ -44,7 +44,11 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 3) Gridded product development
 
-3.1 Create ancillary raster stack - CS, LD, SH (for no snow!), NT
+3.1 Create ancillary raster stack - python - CS, LD, SH (for no snow!), NT
+
+  3.1.1 Greenest Pixel Compositing - python - NT, PM, AM
+
+  3.1.2 Elevation Covariate - python - AM, PM, NT
 
 3.2 Develop gridded algorithm - CS, LD, EG, NT
 
