@@ -5,7 +5,7 @@ This repo is developed for a NASA Arctic Boreal Vulnerability Experiment (ABoVE)
 
 This is meant to serve as a joint code repository hosting jupyter and/or R notebooks for the following:
 
-1) Reference product creation
+## 1) Reference product creation
 
 1.1 Reference biomass modeling (field:discrete return) - R - LD, JA, TF, PM, CS
 
@@ -23,7 +23,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
   - horizontal reprojection
   
 
-2) ICESat-2 processing
+## 2) ICESat-2 processing
 
 2.1 ICESat-2 data search and download - python - PM, CS, NT, AN, EG
 
@@ -42,7 +42,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 2.7 ICESat-2 biomass algorithm application (to full boreal) - CS, NT (PM, LD)
 
 
-3) Gridded product development
+## 3) Gridded product development
 
 3.1 Create ancillary raster stack - python - CS, LD, SH (for no snow!), NT
 
@@ -55,7 +55,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 3.3 Apply gridded algorithm to full boreal - CS, NT (PM, LD)
 
 
-4) Validation
+## 4) Validation
 
 4.1 Comparison of ATL08 heights to ALS heights - EG, AN
 
