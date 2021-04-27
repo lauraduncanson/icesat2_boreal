@@ -7,6 +7,52 @@ from rasterio.warp import array_bounds, calculate_default_transform
 from rio_cogeo.profiles import cog_profiles
 from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
+import geopandas
+
+def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: str = None):
+    '''
+    Given a vector tile index, select by id the polygon and return
+    GPKG is the recommended vector format - single file, includes projection, can contain multiple variants and additional information.
+    TODO: should it be a class or dict
+    
+    
+    vector_path: str
+        Path to GPKG file
+    buffer: float
+        Distance to buffer geometry in units of layer
+    tile_id: int
+        Tile ID to extract/build info for
+        
+    return should include: polygon in original CRS, CRS, polygon in CRS 4326, optional buffered polygon in which CRS?
+        Polygon
+        Polygon
+        Bounds
+        4326 Polygon
+        CRS (Should this be a dict already?)
+    
+    get_index_tile(
+        vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
+        tile_id = 30542,
+        buffer = 120
+        )
+    
+    '''
+    
+    tile_parts = {}
+
+    if layer is None:
+        layer = os.path.splitext(os.path.basename(gpkg))[0]
+    tile_index = geopandas.read_file(vector_path, layer=layer)
+    # In this case tile_id is the row, and since row numbering starts at 0 but tiles at 1, subtract 1
+    # TODO: attribute match the value
+    tile_parts["geom_orig"] = tile_index['geometry'].iloc[(tile_id-1)]
+    tile_parts["in_geom_buffered"] = tile_parts["geom_orig"].buffer(buffer)
+    # TODO: reproject the buffered geometry
+    tile_parts["in_bbox"] = tile_parts["geom_orig"].bounds
+    tile_parts["geom_4326"] = tile_index['geometry'].iloc[(tile_id-1):tile_id].to_crs(4326)
+    out_crs = tile_index.crs
+
+    return tile_parts
 
 def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, clip_geom=None, clip_crs=None, align=False):
     '''
@@ -34,6 +80,8 @@ def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, cli
         True aligns the output raster with the top left corner of the clip_geom. clip_geom CRS must be the same as
         the out_crs.
     '''
+    
+    #TODO: remove print statements, add debugging
     
     if out_crs is None:
         out_crs = in_crs
@@ -133,3 +181,5 @@ def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, cli
                     quiet=False)
 
     print('Image written to disk: ', out_fn)
+    # TODO: return something useful
+    return True
