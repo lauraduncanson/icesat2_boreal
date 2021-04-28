@@ -23,15 +23,24 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: 
     tile_id: int
         Tile ID to extract/build info for
         
-    return should include: polygon in original CRS, CRS, polygon in CRS 4326, optional buffered polygon in which CRS?
-        Geometry - Polygon in original crs
-        Geometry - Polygon of Buffered in original crs
-        List/tuple of Bounds
-        CRS (Should this be a dict already?)
-        Geometry - 4326 Polygon
-        Geometry - Polygon of Buffered in 4326
-        List/tuple of Buffered Bounds in 4326
-    
+    returns:
+        geopandas.geodataframe.GeoDataFrame,
+            Polygon in original crs
+        geopandas.geoseries.GeoSeries,
+            Polygon of Buffered in original crs
+        list,
+            Bounds of original polygon
+        rasterio.crs.CRS,
+            Coordinate Reference System of original tile
+        geopandas.geodataframe.GeoDataFrame,
+            4326 Polygon
+        list,
+            Bounds in 4326
+        geopandas.geoseries.GeoSeries,
+            Polygon of Buffered in 4326
+        list
+            Buffered Bounds in 4326
+    Usage:
     get_index_tile(
         vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
         tile_id = 30542,
