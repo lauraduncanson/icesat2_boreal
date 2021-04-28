@@ -24,11 +24,13 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: 
         Tile ID to extract/build info for
         
     return should include: polygon in original CRS, CRS, polygon in CRS 4326, optional buffered polygon in which CRS?
-        Polygon
-        Polygon
-        Bounds
-        4326 Polygon
+        Geometry - Polygon in original crs
+        Geometry - Polygon of Buffered in original crs
+        List/tuple of Bounds
         CRS (Should this be a dict already?)
+        Geometry - 4326 Polygon
+        Geometry - Polygon of Buffered in 4326
+        List/tuple of Buffered Bounds in 4326
     
     get_index_tile(
         vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
@@ -45,12 +47,16 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: 
     tile_index = geopandas.read_file(vector_path, layer=layer)
     # In this case tile_id is the row, and since row numbering starts at 0 but tiles at 1, subtract 1
     # TODO: attribute match the value
-    tile_parts["geom_orig"] = tile_index['geometry'].iloc[(tile_id-1)]
-    tile_parts["in_geom_buffered"] = tile_parts["geom_orig"].buffer(buffer)
-    # TODO: reproject the buffered geometry
-    tile_parts["in_bbox"] = tile_parts["geom_orig"].bounds
-    tile_parts["geom_4326"] = tile_index['geometry'].iloc[(tile_id-1):tile_id].to_crs(4326)
-    out_crs = tile_index.crs
+    tile_parts["geom_orig"] = tile_index.iloc[(tile_id-1):tile_id]
+    tile_parts["geom_orig_buffered"] = tile_parts["geom_orig"]["geometry"].buffer(buffer)
+    tile_parts["bbox_orig"] = tile_parts["geom_orig"].bounds.iloc[0].to_list()
+    tile_parts["tile_crs"] = CRS.from_wkt(tile_index.crs.to_wkt()) #A rasterio CRS object
+
+    # Properties of 4326 version of tile
+    tile_parts["geom_4326"] = tile_parts["geom_orig"].to_crs(4326)
+    tile_parts["bbox_4326"] = tile_parts["geom_4326"].bounds.iloc[0].to_list()
+    tile_parts["geom_4326_buffered"] =  tile_parts["geom_orig_buffered"].to_crs(4326)
+    tile_parts["bbox_4326_buffered"] = tile_parts["geom_4326_buffered"].bounds.iloc[0].to_list()
 
     return tile_parts
 
