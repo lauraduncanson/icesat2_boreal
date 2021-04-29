@@ -69,7 +69,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: 
 
     return tile_parts
 
-def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, clip_geom=None, clip_crs=None, align=False):
+def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False):
     '''
     Write a cloud optimized geotiff with compression from a numpy stack of bands with labels
     Reproject if needed, Clip to bounding box if needed.
@@ -135,7 +135,7 @@ def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, cli
                 top = top,
                 width = src_profile["width"],
                 height = src_profile["height"],
-                resolution = (30, 30)
+                resolution = resolution
                 )
         if align is True:
             left, bottom, right, top = clip_geom.total_bounds
@@ -148,10 +148,11 @@ def write_cog(stack, out_fn, in_crs, src_transform, bandnames, out_crs=None, cli
                 top = top,
                 width = src_profile["width"],
                 height = src_profile["height"],
-                resolution = (30, 30)
+                resolution = resolution
                 )
             
     print('Orig stack shape: ',stack.shape)
+    print('Output resolution: ',resolution)
         
     # Get the rio-cogeo profile for deflate compression, modify some of the options
     dst_profile = cog_profiles.get("deflate")
