@@ -9,7 +9,7 @@ from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
 import geopandas
 
-def get_index_tile(vector_path: str, tile_id: int, buffer: float = None, layer: str = None):
+def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
     Given a vector tile index, select by id the polygon and return
     GPKG is the recommended vector format - single file, includes projection, can contain multiple variants and additional information.
