@@ -166,28 +166,31 @@ def get_pixel_coords(arr, transform):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--infile", type=str, help="The filename of the stack's set of vector tiles")
-    parser.add_argument("-n", "--tile_number", type=int, help="The id of a tile that will define the bounds of the raster stacking")
+    parser.add_argument("-i", "--in_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
+    parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
     parser.add_argument("-d", "--data_path", type=str, help="The path to the S3 bucket")
     parser.add_argument("-o", "--output_dir", type=str, help="The path for teh output composite")
     parser.add_argument("-b", "--tile_buffer_m", type=float, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
-    parser.add_argument("-l", "--infile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
+    parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     args = parser.parse_args()
     
-    if args.infile == None:
+    if args.in_tile_fn == None:
         print("Input a filename of the vector tiles that represents the arrangement by which the output stacks will be organized")
         os._exit(1)
-    elif args.tile_number == None:
+    elif args.in_tile_num == None:
         print("Input a specific tile id from the vector tiles the organize the stacks")
         os._exit(1)
 
-    geojson_path_albers = args.infile
+    geojson_path_albers = args.in_tile_fn
     print('geojson path = ', geojson_path_albers)
-    tile_n = args.tile_number
+    tile_n = args.in_tile_num
     print("tile number = ", tile_n)
     landsat_dir = args.data_path
     print("landsat directory = ", landsat_dir)
-
+    res = args.res
+    print("output resolution = ", res)
+    
     # Get tile by number form GPKG. Store box and out crs
     tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = "boreal_tiles_albers",)
     in_bbox = tile_id['bbox_4326']
@@ -285,7 +288,7 @@ def main():
     out_file = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
     
     # write COG to disk
-    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs)
+    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
     
 
 if __name__ == "__main__":

@@ -37,11 +37,44 @@ maap = MAAP()
 from CovariateUtils import write_cog, get_index_tile
 from CovariateUtils_topo import *
 
-def get_topo_stack(args):
+def main():
     
-    stack_tile_fn = args.stack_tile_fn
-    stack_tile_id = args.stack_tile_id
-    stack_tile_layer = args.stack_tile_layer
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for stack creation")
+    parser.add_argument("-n", "--in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for stack creation")
+    parser.add_argument("-b", "--tile_buffer_m", type=int, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
+    parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
+    parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
+    parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/maap-users/alexdevseed/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
+    parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped topo cog before topo calcs")
+    parser.add_argument("-tsrc", "--topo_src_name", type=str, default="Copernicus", help="Name to identify the general source of the topography")
+
+    args = parser.parse_args()
+    
+    if args.in_tile_fn == None:
+        print("Input a filename of the vector tiles that represents the arrangement by which the output stacks will be organized")
+        os._exit(1)
+    elif args.in_tile_num == None:
+        print("Input a specific tile id from the vector tiles the organize the stacks")
+        os._exit(1)
+    elif args.tile_buffer_m == None:
+        print("Input a tile buffer distance in meters")
+        os._exit(1)
+    elif args.in_tile_layer == None:
+        print("Input a layer name from the stack tile vector file")
+        os._exit(1)
+    
+    if args.output_dir == None:
+        print("Output dir set to {}".format(args.tmp_out_path))
+        output_dir = args.tmp_out_path
+    else:
+        output_dir = args.output_dir
+        
+
+    stack_tile_fn = args.in_tile_fn
+    stack_tile_id = args.in_tile_num
+    stack_tile_layer = args.in_tile_layer
     res = args.res
     tile_buffer_m = args.tile_buffer_m
     topo_tile_fn = args.topo_tile_fn
@@ -86,38 +119,12 @@ def get_topo_stack(args):
     
     #
     # Call function to make all the topo covars for the output stk and write topo covars COG
-    #
+    #     
     topo_stack_cog_fn = os.path.join(os.path.splitext(dem_cog_fn)[0] + '_topo_stack.tif')
+    if args.output_dir is not None:
+        topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(dem_cog_fn)[0])[1] + '_topo_stack.tif')
     topo_stack, topo_stack_names = make_topo_stack_cog(dem_cog_fn, topo_stack_cog_fn, tile_parts, res)
     print("Output topo covariate stack COG: ", topo_stack_cog_fn)
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-stk", "--stack_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
-    parser.add_argument("-stk_id", "--stack_tile_id", type=int, help="The specific id of a tile of the stack's tiles input that will define the bounds of the raster stacking")
-    parser.add_argument("-buf", "--tile_buffer_m", type=int, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
-    parser.add_argument("-lyr", "--stack_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
-    parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
-    parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/maap-users/alexdevseed/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
-    parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped topo cog before topo calcs")
-    parser.add_argument("-tsrc", "--topo_src_name", type=str, default="Copernicus", help="Name to identify the general source of the topography")
-
-    args = parser.parse_args()
-    
-    if args.stack_tile_fn == None:
-        print("Input a filename of the vector tiles that represents the arrangement by which the output stacks will be organized")
-        os._exit(1)
-    elif args.stack_tile_id == None:
-        print("Input a specific tile id from the vector tiles the organize the stacks")
-        os._exit(1)
-    elif args.tile_buffer_m == None:
-        print("Input a tile buffer distance in meters")
-        os._exit(1)
-    elif args.stack_tile_layer == None:
-        print("Input a layer name from the stack tile vector file")
-        os._exit(1)
-
-    get_topo_stack(args)
 
 
 if __name__ == "__main__":
