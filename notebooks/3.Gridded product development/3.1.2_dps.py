@@ -197,7 +197,7 @@ def main():
     print("out_crs = ", out_crs)
     
     # Get path of Landsat data and organize them into lists by band number
-    json_files = [file for file in os.listdir(args.data_path) if 'local' in file]
+    json_files = [file for file in os.listdir(args.data_path) if f'local-{tile_n}' in file]
     
     blue_bands = GetBandLists(json_files, landsat_dir, 2)
     green_bands = GetBandLists(json_files, landsat_dir, 3)
@@ -206,22 +206,7 @@ def main():
     swir_bands = GetBandLists(json_files, landsat_dir, 6)
     swir2_bands = GetBandLists(json_files, landsat_dir, 7)
     
-    print(len(blue_bands))
-    
-    
-    #### For Testing Only ####
-    # Filter the list to data we know matches the tile - TODO: fix the query in 3.1.1 to use the same tile
-    import re
-    filter_list = ['043025','044024','044025']
-    pattern = re.compile("|".join(filter_list))
-    blue_bands = [i for i in blue_bands if pattern.search(i)]
-    green_bands = [i for i in green_bands if pattern.search(i)]
-    red_bands = [i for i in red_bands if pattern.search(i)]
-    nir_bands = [i for i in nir_bands if pattern.search(i)]
-    swir_bands = [i for i in swir_bands if pattern.search(i)]
-    swir2_bands = [i for i in swir2_bands if pattern.search(i)]
-    
-    print(len(blue_bands))
+    print("Number of files per band =", len(blue_bands))
 
     ## create NDVI layers
     ## Loopsover lists of bands and calculates NDVI
@@ -231,21 +216,26 @@ def main():
     NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i],in_bbox) for i in range(len(red_bands))]
     print('finished creating NDVI stack')
     
-    # Create Bool mask where there is no value in any of teh NDVI layers
+    
+    # Create Bool mask where there is no value in any of the NDVI layers
+    print("Make NDVI valid mask")
     MaxNDVI = np.ma.max(np.ma.array(NDVIstack),axis=0)
     BoolMask = np.ma.getmask(MaxNDVI)
     del MaxNDVI
     
     ## Get the argmax index positions from the stack of NDVI images
+    print("Get stack nan mask")
     NDVIstack = np.ma.array(NDVIstack)
+    print("Calculate Stack max NDVI image")
     NDVImax = np.nanargmax(NDVIstack,axis=0)
     ## create a tmp array (binary mask) of the same input shape
     NDVItmp = np.ma.zeros(NDVIstack.shape, dtype=bool)
 
     ## for each dimension assign the index position (flattens the array to a LUT)
+    print("Create LUT of max NDVI positions")
     for i in range(np.shape(NDVIstack)[0]):
         NDVItmp[i,:,:]=NDVImax==i
-    print("LUT of max NDVI positions created")
+    
     
     
     # create band-by-band composites
