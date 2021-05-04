@@ -40,6 +40,7 @@ from fiona.crs import from_epsg
 
 from CovariateUtils import get_index_tile
 
+
 def query_satapi(query, api):
     headers = {
             "Content-Type": "application/json",
