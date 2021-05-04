@@ -1,5 +1,11 @@
 import argparse
 
+import requests
+import datetime
+import geopandas as gpd
+import folium
+import shapely as shp
+
 import json
 import os
 import rasterio as rio
@@ -31,6 +37,8 @@ from rasterio.vrt import WarpedVRT
 from rasterio.plot import show
 
 from CovariateUtils import write_cog, get_index_tile
+
+from fetch_from_api import get_data
 
 def GetBandLists(json_files, GeoJson_file, bandnum):
     BandList = []
@@ -168,26 +176,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
-    parser.add_argument("-d", "--data_path", type=str, help="The path to the S3 bucket")
     parser.add_argument("-o", "--output_dir", type=str, help="The path for teh output composite")
     parser.add_argument("-b", "--tile_buffer_m", type=float, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
     parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
-    args = parser.parse_args()
-    
-    if args.in_tile_fn == None:
-        print("Input a filename of the vector tiles that represents the arrangement by which the output stacks will be organized")
-        os._exit(1)
-    elif args.in_tile_num == None:
-        print("Input a specific tile id from the vector tiles the organize the stacks")
-        os._exit(1)
+    parser.add_argument("-a", "--sat_api", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-j", "--json_path", type=str, default=None, help="The path to the S3 bucket")
+    args = parser.parse_args()    
 
     geojson_path_albers = args.in_tile_fn
-    print('geojson path = ', geojson_path_albers)
+    print('geopkg path = ', geojson_path_albers)
     tile_n = args.in_tile_num
     print("tile number = ", tile_n)
-    landsat_dir = args.data_path
-    print("landsat directory = ", landsat_dir)
     res = args.res
     print("output resolution = ", res)
     
@@ -199,18 +199,28 @@ def main():
     print("in_bbox = ", in_bbox)
     print("out_crs = ", out_crs)
     
-    # Get path of Landsat data and organize them into lists by band number
-    json_files = [file for file in os.listdir(args.data_path) if f'local-{tile_n}' in file]
+    if args.json_path == None:
+        get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api)
+        geojson_dir = args.output_dir
+    else:
+        # Get path of Landsat data and organize them into lists by band number
+        geojson_dir = args.json_path
+        print("geojson directory = ", geojson_dir)
     
-    blue_bands = GetBandLists(json_files, landsat_dir, 2)
-    green_bands = GetBandLists(json_files, landsat_dir, 3)
-    red_bands = GetBandLists(json_files, landsat_dir, 4)
-    nir_bands = GetBandLists(json_files, landsat_dir, 5)
-    swir_bands = GetBandLists(json_files, landsat_dir, 6)
-    swir2_bands = GetBandLists(json_files, landsat_dir, 7)
+    #json_files = [file for file in os.listdir(args.output_dir) if f'local-{tile_n}' in file]
+    json_files = [file for file in os.listdir(args.output_dir) if file.endswith('.json')]
+    
+    print(json_files)
+    
+    blue_bands = GetBandLists(json_files, geojson_dir, 2)
+    green_bands = GetBandLists(json_files, geojson_dir, 3)
+    red_bands = GetBandLists(json_files, geojson_dir, 4)
+    nir_bands = GetBandLists(json_files, geojson_dir, 5)
+    swir_bands = GetBandLists(json_files, geojson_dir, 6)
+    swir2_bands = GetBandLists(json_files, geojson_dir, 7)
     
     print("Number of files per band =", len(blue_bands))
-
+    '''
     ## create NDVI layers
     ## Loopsover lists of bands and calculates NDVI
     ## creates a new list of NDVI images, one per input scene
@@ -238,7 +248,6 @@ def main():
     print("Create LUT of max NDVI positions")
     for i in range(np.shape(NDVIstack)[0]):
         NDVItmp[i,:,:]=NDVImax==i
-    
     
     
     # create band-by-band composites
@@ -289,7 +298,7 @@ def main():
     
     # write COG to disk
     write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
-    
+    '''
 
 if __name__ == "__main__":
     main()
