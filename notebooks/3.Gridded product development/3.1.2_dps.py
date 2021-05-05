@@ -208,10 +208,10 @@ def main():
         print("geojson directory = ", geojson_dir)
     
     #json_files = [file for file in os.listdir(args.output_dir) if f'local-{tile_n}' in file]
-    json_files = [file for file in os.listdir(args.output_dir) if file.endswith('.json')]
+    json_files = [file for file in os.listdir(args.output_dir) if f'local-s3-{tile_n}' in file]
     
     print(json_files)
-    
+    '''
     blue_bands = GetBandLists(json_files, geojson_dir, 2)
     green_bands = GetBandLists(json_files, geojson_dir, 3)
     red_bands = GetBandLists(json_files, geojson_dir, 4)
@@ -220,14 +220,18 @@ def main():
     swir2_bands = GetBandLists(json_files, geojson_dir, 7)
     
     print("Number of files per band =", len(blue_bands))
-    '''
+    
     ## create NDVI layers
     ## Loopsover lists of bands and calculates NDVI
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
-    in_crs, crs_transform = define_raster(red_bands[0], in_bbox, epsg="epsg:4326")
-    NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i],in_bbox) for i in range(len(red_bands))]
-    print('finished creating NDVI stack')
+    # insert AWS credentials here if needed
+    aws_session = AWSSession(boto3.Session())
+    with rio.Env(aws_session):
+        in_crs, crs_transform = define_raster(REDBands[0], in_bbox, epsg="epsg:4326")
+        print(in_crs)
+        NDVIstack = [CreateNDVIstack(REDBands[i],NIRBands[i],in_bbox) for i in range(len(REDBands))]
+        print('finished')
     
     
     # Create Bool mask where there is no value in any of the NDVI layers
@@ -251,20 +255,21 @@ def main():
     
     
     # create band-by-band composites
-    print('Creating Blue Composite')
-    BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating Green Composite')
-    GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating Red Composite')
-    RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating NIR Composite')
-    NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating SWIR Composite')
-    SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating SWIR2 Composite')
-    SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox)
-    print('Creating NDVI Composite')
-    NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
+    with rio.Env(aws_session):
+        print('Creating Blue Composite')
+        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating Green Composite')
+        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating Red Composite')
+        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating NIR Composite')
+        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating SWIR Composite')
+        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating SWIR2 Composite')
+        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox)
+        print('Creating NDVI Composite')
+        NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
     
     # calculate covars
     print("Generating covariates")
@@ -298,7 +303,7 @@ def main():
     
     # write COG to disk
     write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
-    '''
+'''    
 
 if __name__ == "__main__":
     main()
