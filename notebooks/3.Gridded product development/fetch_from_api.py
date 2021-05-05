@@ -40,6 +40,37 @@ from fiona.crs import from_epsg
 
 from CovariateUtils import get_index_tile
 
+def write_local_data_and_catalog_s3(catalog, bands, save_path):
+    '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
+    with open(catalog) as f:
+        asset_catalog = json.load(f)
+        for feature in asset_catalog['features']:
+            #new_dir = os.path.join(save_path, feature['id'])
+            #if (not os.path.isdir(new_dir)): os.mkdir(new_dir)
+            #download the assests
+            for band in bands:
+                try:
+                    key = feature['assets'][f'SR_{band}.TIF']['href'].replace(
+                        'https://landsatlook.usgs.gov/data/',
+                        '')
+                    output_file = os.path.join(
+                        f's3://maap-ops-dataset/alexdevseed/landsat8/sample2/{feature["id"]}/'
+                        , os.path.basename(key))
+                    #print(key)
+                    ## Uncomment next line to actually download the data as a local sample
+                    #s3.Bucket('usgs-landsat').download_file(key, output_file, ExtraArgs={'RequestPayer':'requester'})
+                    feature['assets'][f'SR_{band}.TIF']['href'] = output_file
+                except botocore.exceptions.ClientError as e:
+                    if e.response['Error']['Code'] == "404":
+                        print("The object does not exist.")
+                    else:
+                        raise
+        # save and updated catalog with local paths
+        local_catalog = catalog.replace('response', 'local-s3')
+        with open(local_catalog,'w') as jsonfile:
+            json.dump(asset_catalog, jsonfile)
+        
+        return local_catalog
 
 def query_satapi(query, api):
     headers = {
@@ -78,6 +109,8 @@ def query_year(year, bbox, min_cloud, max_cloud, api):
     
     return data
 
+
+
 def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
 
 
@@ -95,6 +128,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
     max_cloud = 20
     years = range(2015,2020 + 1)
     api = sat_api
+    
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
         response_by_year = [query_year(year, bbox, min_cloud, max_cloud, api) for year in years]
@@ -107,10 +141,14 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
     if (not os.path.isdir(save_path)): os.mkdir(save_path)
     catalogs = []
     for yr in range(0,len(years)):
-        catalog = os.path.join(save_path, f'response-{years[yr]}.json')
+        catalog = os.path.join(save_path, f'response-{tile_n}-{years[yr]}.json')
         with open(catalog, 'w') as jsonfile:
             json.dump(response_by_year[yr], jsonfile)
             catalogs.append(catalog)
+
+    # create local versions
+    bands = [''.join(["B",str(item)])for item in range(2,8,1)]     
+    local_catalogs = [write_local_data_and_catalog_s3(catalog, bands, save_path) for catalog in catalogs]
 
     yr = 5
     scenes_poly = gpd.GeoDataFrame.from_features(response_by_year[yr], crs='epsg:4326')
