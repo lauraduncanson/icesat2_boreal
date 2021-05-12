@@ -30,8 +30,8 @@ from rasterio.crs import CRS
 
 import argparse
 
-from maap.maap import MAAP
-maap = MAAP()
+#from maap.maap import MAAP
+#maap = MAAP()
 
 from CovariateUtils import write_cog, get_index_tile
 from CovariateUtils_topo import *
