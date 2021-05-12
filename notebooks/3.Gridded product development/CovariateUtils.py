@@ -199,3 +199,4 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     print('Image written to disk: ', out_fn)
     # TODO: return something useful
     return True
+
