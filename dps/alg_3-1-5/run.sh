@@ -32,4 +32,4 @@ OUTPUTDIR="${PWD}/output"
 # Cmd line call that worked
 #python 3.1.5_dps.py --in_tile_fn '/projects/maap-users/alexdevseed/boreal_tiles.gpkg' --in_tile_num 30550 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
 
-python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py --in_tile_fn ${INPUTFILE} --in_tile_num $2 --tile_buffer_m $3 --in_tile_layer $4 -o $OUTPUTDIR
+python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py --in_tile_fn ${INPUTFILE} --in_tile_num $1 --tile_buffer_m $2 --in_tile_layer $3 --output_dir $OUTPUTDIR
