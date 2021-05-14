@@ -14,6 +14,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order
+#python get_param.py in_tile_fn
 INPUT1="${PWD}/${FILENAMELIST[0]}"
 INPUT2="${PWD}/${FILENAMELIST[1]}"
 
@@ -37,6 +38,16 @@ OUTPUTDIR="${PWD}/output"
 
 # Cmd line call that worked
 #python 3.1.5_dps.py --in_tile_fn '/projects/maap-users/alexdevseed/boreal_tiles.gpkg' --in_tile_num 30550 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
+
+#Print to stdout for debugging
+echo python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py \
+--in_tile_fn ${INPUT1} \
+--in_tile_num $1 \
+--tile_buffer_m $2 \
+--in_tile_layer $3 \
+--output_dir $OUTPUTDIR \
+--tmp_out_path $OUTPUTDIR \
+--topo_tile_fn ${INPUT2}
 
 python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py \
 --in_tile_fn ${INPUT1} \
