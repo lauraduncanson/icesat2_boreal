@@ -8,13 +8,12 @@ pip install geopandas rio-cogeo rio-tiler importlib_resources
 
 mkdir output
 
-FILENAMELIST=$(ls -d input/*)
-
 basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order
 #python get_param.py in_tile_fn
+FILENAMELIST=($(ls -d input/*))
 INPUT1="${PWD}/${FILENAMELIST[0]}"
 INPUT2="${PWD}/${FILENAMELIST[1]}"
 
