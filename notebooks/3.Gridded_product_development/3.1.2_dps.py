@@ -184,6 +184,8 @@ def main():
     parser.add_argument("-j", "--json_path", type=str, default=None, help="The path to the S3 bucket")
     args = parser.parse_args()    
 
+    # EXAMPLE CALL
+    # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
     geojson_path_albers = args.in_tile_fn
     print('geopkg path = ', geojson_path_albers)
     tile_n = args.in_tile_num
