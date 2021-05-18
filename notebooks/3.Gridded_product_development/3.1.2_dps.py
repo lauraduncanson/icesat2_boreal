@@ -213,7 +213,7 @@ def main():
     json_files = [file for file in os.listdir(args.output_dir) if f'local-s3-{tile_n}' in file]
     
     print(json_files)
-    '''
+    
     blue_bands = GetBandLists(json_files, geojson_dir, 2)
     green_bands = GetBandLists(json_files, geojson_dir, 3)
     red_bands = GetBandLists(json_files, geojson_dir, 4)
@@ -304,8 +304,7 @@ def main():
     out_file = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
     
     # write COG to disk
-    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
-'''    
+    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))    
 
 if __name__ == "__main__":
     main()
