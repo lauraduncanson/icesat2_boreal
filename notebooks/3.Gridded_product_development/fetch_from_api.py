@@ -40,6 +40,8 @@ from fiona.crs import from_epsg
 
 from CovariateUtils import get_index_tile
 
+import itertools
+
 def write_local_data_and_catalog_s3(catalog, bands, save_path):
     '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
     with open(catalog) as f:
@@ -50,12 +52,9 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path):
             #download the assests
             for band in bands:
                 try:
-                    key = feature['assets'][f'SR_{band}.TIF']['href'].replace(
-                        'https://landsatlook.usgs.gov/data/',
-                        '')
-                    output_file = os.path.join(
-                        f's3://maap-ops-dataset/alexdevseed/landsat8/sample2/{feature["id"]}/'
-                        , os.path.basename(key))
+                    pass
+                    key = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/','')
+                    output_file = os.path.join(f's3://maap-ops-dataset/alexdevseed/landsat8/sample2/{feature["id"]}/', os.path.basename(key))
                     #print(key)
                     ## Uncomment next line to actually download the data as a local sample
                     #s3.Bucket('usgs-landsat').download_file(key, output_file, ExtraArgs={'RequestPayer':'requester'})
@@ -98,9 +97,9 @@ def query_year(year, bbox, min_cloud, max_cloud, api):
     "bbox":bbox,
     "query": {
         "collections": ["landsat-c2l2-sr"],
-        "eo:platform": {"eq": "LANDSAT_8"},
+        "platform": {"in": ["LANDSAT_8"]},
         "eo:cloud_cover": {"gte": min_cloud, "lt": max_cloud},
-        "landsat:collection_category":{"eq": "T1"}
+        "landsat:collection_category":{"in": ["T1"]}
         },
     "limit": 20 # We limit to 500 items per Page (requests) to make sure sat-api doesn't fail to return big features collection
     }
@@ -109,7 +108,10 @@ def query_year(year, bbox, min_cloud, max_cloud, api):
     
     return data
 
-
+def read_json(json_file):
+        with open(json_file) as f:
+            response = json.load(f)
+        return response
 
 def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
 
@@ -133,7 +135,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
         # Geojson of total scenes - Change to list of scenes
         response_by_year = [query_year(year, bbox, min_cloud, max_cloud, api) for year in years]
         scene_totals = [each['meta']['found'] for each in response_by_year]
-        print(scene_totals)
+        print('scene total: ', scene_totals)
     
     # Take the search over several years, write the geojson response for each
     ## TODO: need unique catalog names that indicate bbox tile, and time range used.
@@ -148,13 +150,28 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
 
     # create local versions
     bands = [''.join(["B",str(item)])for item in range(2,8,1)]     
-    local_catalogs = [write_local_data_and_catalog_s3(catalog, bands, save_path) for catalog in catalogs]
+    #local_catalogs = [write_local_data_and_catalog_s3(catalog, bands, save_path) for catalog in catalogs]
 
-    yr = 5
-    scenes_poly = gpd.GeoDataFrame.from_features(response_by_year[yr], crs='epsg:4326')
-    for col in scenes_poly.columns: print(col)
+    #yr = 5
+    #scenes_poly = gpd.GeoDataFrame.from_features(response_by_year[yr], crs='epsg:4326')
+    #for col in scenes_poly.columns: print(col)
+
+    json_files = [os.path.join(save_path, file) for file in os.listdir(save_path) if f'locals3-{tile_n}' in file]
     
-    return True
+    print(json_files)
+    master_catalogs = [read_json(jf) for jf in json_files]
+
+    merge_catalogs = {
+    "type": "FeatureCollection",
+    "features": list(itertools.chain.from_iterable([f["features"] for f in master_catalogs])),
+    }
+    
+    
+    master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}.json')
+    with open(master_json, 'w') as outfile:
+            json.dump(merge_catalogs, outfile)
+    
+    return master_json
         
 
         
