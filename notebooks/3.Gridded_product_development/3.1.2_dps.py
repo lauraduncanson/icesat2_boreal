@@ -1,57 +1,63 @@
 import argparse
-
-import requests
-import datetime
-import geopandas as gpd
-import folium
-import shapely as shp
-
+#import requests
+#import datetime
+#import sys
+#import tarfile
 import json
 import os
+
+import geopandas as gpd
+#import shapely as shp
+import boto3
 import rasterio as rio
 import geopandas as gpd
 from shapely.geometry import box
-from fiona.crs import from_epsg
+#from fiona.crs import from_epsg
 from rasterio.mask import mask
 from rasterio.warp import *
 from rasterio.merge import merge
 from rasterio.crs import CRS
-from rasterio import windows
+#from rasterio import windows
+#from rasterio.io import MemoryFile
+#from rasterio.transform import from_bounds
+#from rasterio.vrt import WarpedVRT
+#from rio_cogeo.cogeo import cog_translate
+#from rio_cogeo.profiles import cog_profiles
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-#import rioxarray as rxr
-
-import sys
-# COG
-import tarfile
-import rasterio
-
-from rasterio.io import MemoryFile
-from rasterio.transform import from_bounds
-
-from rio_cogeo.cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
-from rasterio.vrt import WarpedVRT
-
-from rasterio.plot import show
+#import matplotlib
+#import matplotlib.pyplot as plt
+#import rasterio
+#from rasterio.plot import show
 
 from CovariateUtils import write_cog, get_index_tile
-
 from fetch_from_api import get_data
 
-def GetBandLists(json_files, GeoJson_file, bandnum):
+def get_json(s3path, output):
+    '''
+    Download a json from S3 to the output directory
+    '''
+    aws_session = boto3.session.Session()
+    s3 = aws_session.resource('s3')
+    output_file = os.path.join(output_dir, os.path.basename(s3path))
+    #TODO split the bucket name from the s3 path
+    bucket_name = s3path.split("/")[2]
+    s3_key = "/".join(samples3.split("/")[3:])
+    s3.Bucket(bucket_name).download_file(s3_key, output_file)
+    
+    with open(output_file) as f:
+        catalog = json.load(f) 
+    return catalog
+
+def GetBandLists(inJSON, bandnum):
     BandList = []
-    for j in json_files:
-        inJSON = os.path.join(GeoJson_file,j)
-        with open(inJSON) as f:
-            response = json.load(f)
-        for i in range(len(response['features'])):
-            try:
-                getBand = response['features'][i]['assets']['SR_B' + str(bandnum) + '.TIF']['href']
-                BandList.append(getBand)
-            except exception as e:
-                print(e)
+    with open(inJSON) as f:
+        response = json.load(f)
+    for i in range(len(response['features'])):
+        try:
+            getBand = response['features'][i]['assets']['SR_B' + str(bandnum) + '.TIF']['href']
+            BandList.append(getBand)
+        except exception as e:
+            print(e)
                 
     BandList.sort()
     return BandList
@@ -176,12 +182,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
-    parser.add_argument("-o", "--output_dir", type=str, help="The path for teh output composite")
+    parser.add_argument("-o", "--output_dir", type=str, help="The path for the JSON files to be written")
     parser.add_argument("-b", "--tile_buffer_m", type=float, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
-    parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
-    parser.add_argument("-a", "--sat_api", type=str, default=None, help="The layer name of the stack tiles dataset")
-    parser.add_argument("-j", "--json_path", type=str, default=None, help="The path to the S3 bucket")
+    parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-a", "--sat_api", type=str, default="https://landsatlook.usgs.gov/sat-api", help="URL of USGS query endpoint")
+    parser.add_argument("-j", "--json_file", type=str, default=None, help="The S3 path to the query response json")
+    parser.add_argument("-l", "--local", type=bool, default=False, help="Dictate whether it is a run using local paths")
     args = parser.parse_args()    
 
     # EXAMPLE CALL
@@ -200,21 +207,29 @@ def main():
     
     print("in_bbox = ", in_bbox)
     print("out_crs = ", out_crs)
+
+    # specify either -j or -a. 
+    # -j is the path to the ready made json files with links to LS buckets (needs -o to placethe composite)
+    # -a is the link to the api to search for data (needs -o to fetch the json files from at_api)
     
-    if args.json_path == None:
-        get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api)
-        geojson_dir = args.output_dir
+    # TODO: Change this section to be able to read JSON files from S3
+    if args.json_file == None:
+        if args.output_dir == None:
+            print("MUST SPECIFY -o FOR JSON PATH")
+            os.exit(1)
+        else:
+            master_json = get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.local)
     else:
-        # Get path of Landsat data and organize them into lists by band number
-        geojson_dir = args.json_path
-        print("geojson directory = ", geojson_dir)
+        master_json = args.json_file
+        #Download the json from s3
+        #inJSON = get_json(master_json)
+
+    #print(master_json)
     
-    #json_files = [file for file in os.listdir(args.output_dir) if f'local-{tile_n}' in file]
-    json_files = [file for file in os.listdir(args.output_dir) if f'local-s3-{tile_n}' in file]
-    
-    print(json_files)
-    
-    blue_bands = GetBandLists(json_files, geojson_dir, 2)
+    blue_bands = GetBandLists(master_json, 2)
+    print("Number of files per band =", len(blue_bands))
+    print(blue_bands[0])
+    '''
     green_bands = GetBandLists(json_files, geojson_dir, 3)
     red_bands = GetBandLists(json_files, geojson_dir, 4)
     nir_bands = GetBandLists(json_files, geojson_dir, 5)
@@ -304,9 +319,13 @@ def main():
     out_file = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
     
     # write COG to disk
-    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))    
-
+    write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
+'''
 if __name__ == "__main__":
+    '''
+    Example call:
+    python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l True
+    '''
     main()
     
     

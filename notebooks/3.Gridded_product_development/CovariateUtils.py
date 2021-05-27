@@ -8,6 +8,7 @@ from rio_cogeo.profiles import cog_profiles
 from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
 import geopandas
+import os
 
 def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
@@ -52,7 +53,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
     tile_parts = {}
 
     if layer is None:
-        layer = os.path.splitext(os.path.basename(gpkg))[0]
+        layer = os.path.splitext(os.path.basename(vector_path))[0]
     tile_index = geopandas.read_file(vector_path, layer=layer)
     # In this case tile_id is the row, and since row numbering starts at 0 but tiles at 1, subtract 1
     # TODO: attribute match the value

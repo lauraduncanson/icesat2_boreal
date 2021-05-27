@@ -4,39 +4,38 @@
 import requests
 import datetime
 import geopandas as gpd
-import folium
-import shapely as shp
+#import folium
+#import shapely as shp
 
 import json
 import os
-import boto3
+#import boto3
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-import sys
-import tarfile
+#import matplotlib
+#import matplotlib.pyplot as plt
+#import sys
+#import tarfile
 
 
-from rasterio import enums
-from rasterio.warp import array_bounds, calculate_default_transform
-from rio_tiler.utils import create_cutline
-from rio_cogeo.cogeo import cog_translate
+#from rasterio import enums
+#from rasterio.warp import array_bounds, calculate_default_transform
+#from rio_tiler.utils import create_cutline
+#from rio_cogeo.cogeo import cog_translate
 
 import rasterio as rio
-from rasterio.mask import mask
+#from rasterio.mask import mask
 from rasterio.warp import *
-from rasterio.merge import merge
-from rasterio.crs import CRS
-from rasterio import windows
-from rasterio.session import AWSSession
-from rasterio.io import MemoryFile
-from rasterio.transform import from_bounds
-from rio_cogeo.cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
-from rasterio.vrt import WarpedVRT
-from rasterio.plot import show
-from shapely.geometry import box
-from fiona.crs import from_epsg
+#from rasterio.merge import merge
+#from rasterio.crs import CRS
+#from rasterio import windows
+#from rasterio.session import AWSSession
+#from rasterio.io import MemoryFile
+#from rasterio.transform import from_bounds
+#from rio_cogeo.profiles import cog_profiles
+#from rasterio.vrt import WarpedVRT
+#from rasterio.plot import show
+#from shapely.geometry import box
+#from fiona.crs import from_epsg
 
 from CovariateUtils import get_index_tile
 
