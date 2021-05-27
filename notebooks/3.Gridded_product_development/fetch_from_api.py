@@ -109,11 +109,11 @@ def query_year(year, bbox, min_cloud, max_cloud, api):
     return data
 
 def read_json(json_file):
-        with open(json_file) as f:
-            response = json.load(f)
-        return response
+    with open(json_file) as f:
+        response = json.load(f)
+    return response
 
-def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
+def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
 
 
     #geojson_path_albers = "/projects/maap-users/alexdevseed/boreal_tiles.gpkg"
@@ -141,35 +141,34 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api):
     ## TODO: need unique catalog names that indicate bbox tile, and time range used.
     save_path = out_dir
     if (not os.path.isdir(save_path)): os.mkdir(save_path)
-    catalogs = []
-    for yr in range(0,len(years)):
-        catalog = os.path.join(save_path, f'response-{tile_n}-{years[yr]}.json')
-        with open(catalog, 'w') as jsonfile:
-            json.dump(response_by_year[yr], jsonfile)
-            catalogs.append(catalog)
-
-    # create local versions
-    bands = [''.join(["B",str(item)])for item in range(2,8,1)]     
+    #catalogs = []
+    #for yr in range(0,len(years)):
+    #    catalog = os.path.join(save_path, f'response-{tile_n}-{years[yr]}.json')
+    #    with open(catalog, 'w') as jsonfile:
+    #        json.dump(response_by_year[yr], jsonfile)
+    #        catalogs.append(catalog)
+     
     #local_catalogs = [write_local_data_and_catalog_s3(catalog, bands, save_path) for catalog in catalogs]
 
-    #yr = 5
-    #scenes_poly = gpd.GeoDataFrame.from_features(response_by_year[yr], crs='epsg:4326')
-    #for col in scenes_poly.columns: print(col)
-
-    json_files = [os.path.join(save_path, file) for file in os.listdir(save_path) if f'locals3-{tile_n}' in file]
+    #json_files = [os.path.join(save_path, file) for file in os.listdir(save_path) if f'locals3-{tile_n}' in file]
     
-    print(json_files)
-    master_catalogs = [read_json(jf) for jf in json_files]
+    #print(json_files)
+    #master_catalogs = [read_json(jf) for jf in json_files]
 
     merge_catalogs = {
-    "type": "FeatureCollection",
-    "features": list(itertools.chain.from_iterable([f["features"] for f in master_catalogs])),
+        "type": "FeatureCollection",
+        "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
-    
-    
+        
     master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
+            
+    # If local True, rewrite the s3 paths to internal not public buckets
+    if local==True:
+        # create local versions, only for the bands we use currently
+        bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path)
     
     return master_json
         
