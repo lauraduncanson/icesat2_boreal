@@ -30,6 +30,8 @@ inputs:
     download: False
   - name: in_tile_layer
     download: False
+  - name: sat_api
+    download: False
   - name: json_path
     download: False
   - name: local
