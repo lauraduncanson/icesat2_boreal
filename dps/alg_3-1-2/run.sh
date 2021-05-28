@@ -45,6 +45,7 @@ python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.2_dps.py \
 --in_tile_num $1 \
 --tile_buffer_m $2 \
 --in_tile_layer $3 \
---json_path $4 \
---local $5 \
+--sat_api $4 \
+--json_path $5 \
+--local $6 \
 --output_dir ${OUTPUTDIR}
