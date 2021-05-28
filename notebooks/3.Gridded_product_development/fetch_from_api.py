@@ -53,7 +53,7 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path):
                 try:
                     pass
                     key = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/','')
-                    output_file = os.path.join(f's3://maap-ops-dataset/alexdevseed/landsat8/sample2/{feature["id"]}/', os.path.basename(key))
+                    output_file = os.path.join(f's3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/{feature["id"][:-3]}/', os.path.basename(key))
                     #print(key)
                     ## Uncomment next line to actually download the data as a local sample
                     #s3.Bucket('usgs-landsat').download_file(key, output_file, ExtraArgs={'RequestPayer':'requester'})

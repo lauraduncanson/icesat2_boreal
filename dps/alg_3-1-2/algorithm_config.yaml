@@ -32,5 +32,7 @@ inputs:
     download: False
   - name: json_path
     download: False
+  - name: local
+    download: False
   - name: output_dir
     download: True

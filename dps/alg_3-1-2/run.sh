@@ -46,4 +46,5 @@ python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.2_dps.py \
 --tile_buffer_m $2 \
 --in_tile_layer $3 \
 --json_path $4 \
+--local $5 \
 --output_dir ${OUTPUTDIR}

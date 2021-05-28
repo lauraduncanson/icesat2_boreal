@@ -28,6 +28,7 @@ import numpy as np
 #import matplotlib.pyplot as plt
 #import rasterio
 #from rasterio.plot import show
+from rasterio.session import AWSSession
 
 from CovariateUtils import write_cog, get_index_tile
 from fetch_from_api import get_data
@@ -227,16 +228,15 @@ def main():
     #print(master_json)
     
     blue_bands = GetBandLists(master_json, 2)
-    print("Number of files per band =", len(blue_bands))
-    print(blue_bands[0])
-    '''
-    green_bands = GetBandLists(json_files, geojson_dir, 3)
-    red_bands = GetBandLists(json_files, geojson_dir, 4)
-    nir_bands = GetBandLists(json_files, geojson_dir, 5)
-    swir_bands = GetBandLists(json_files, geojson_dir, 6)
-    swir2_bands = GetBandLists(json_files, geojson_dir, 7)
+    green_bands = GetBandLists(master_json, 3)
+    red_bands = GetBandLists(master_json, 4)
+    nir_bands = GetBandLists(master_json, 5)
+    swir_bands = GetBandLists(master_json, 6)
+    swir2_bands = GetBandLists(master_json, 7)
     
     print("Number of files per band =", len(blue_bands))
+    print(blue_bands[0])
+    
     
     ## create NDVI layers
     ## Loopsover lists of bands and calculates NDVI
@@ -245,9 +245,9 @@ def main():
     # insert AWS credentials here if needed
     aws_session = AWSSession(boto3.Session())
     with rio.Env(aws_session):
-        in_crs, crs_transform = define_raster(REDBands[0], in_bbox, epsg="epsg:4326")
+        in_crs, crs_transform = define_raster(red_bands[0], in_bbox, epsg="epsg:4326")
         print(in_crs)
-        NDVIstack = [CreateNDVIstack(REDBands[i],NIRBands[i],in_bbox) for i in range(len(REDBands))]
+        NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i],in_bbox) for i in range(len(red_bands))]
         print('finished')
     
     
@@ -320,7 +320,7 @@ def main():
     
     # write COG to disk
     write_cog(stack, out_file, in_crs, crs_transform, bandnames, out_crs=out_crs, resolution=(res, res))
-'''
+
 if __name__ == "__main__":
     '''
     Example call:
