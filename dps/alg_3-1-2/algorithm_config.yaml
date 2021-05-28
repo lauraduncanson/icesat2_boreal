@@ -26,15 +26,9 @@ inputs:
     download: True
   - name: in_tile_num
     download: False
-  - name: tile_buffer_m
-    download: False
   - name: in_tile_layer
     download: False
   - name: sat_api
     download: False
-  - name: json_path
-    download: False
   - name: local
     download: False
-  - name: output_dir
-    download: True

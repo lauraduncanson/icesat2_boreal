@@ -43,9 +43,7 @@ OUTPUTDIR="${PWD}/output"
 python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.2_dps.py \
 --in_tile_fn ${INPUT1} \
 --in_tile_num $1 \
---tile_buffer_m $2 \
---in_tile_layer $3 \
---sat_api $4 \
---json_path $5 \
---local $6 \
+--in_tile_layer $2 \
+--sat_api $3 \
+--local $4 \
 --output_dir ${OUTPUTDIR}

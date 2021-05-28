@@ -184,7 +184,7 @@ def main():
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
     parser.add_argument("-o", "--output_dir", type=str, help="The path for the JSON files to be written")
-    parser.add_argument("-b", "--tile_buffer_m", type=float, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
+    parser.add_argument("-b", "--tile_buffer_m", type=float, default=0, help="The buffer size (m) applied to the extent of the specified stack tile")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
     parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-a", "--sat_api", type=str, default="https://landsatlook.usgs.gov/sat-api", help="URL of USGS query endpoint")
