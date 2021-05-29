@@ -1,35 +1,16 @@
 import argparse
-#import requests
-#import datetime
-#import sys
-#import tarfile
-import json
 import os
-
 import geopandas as gpd
-#import shapely as shp
 import boto3
 import rasterio as rio
 import geopandas as gpd
 from shapely.geometry import box
-#from fiona.crs import from_epsg
 from rasterio.mask import mask
 from rasterio.warp import *
 from rasterio.merge import merge
 from rasterio.crs import CRS
-#from rasterio import windows
-#from rasterio.io import MemoryFile
-#from rasterio.transform import from_bounds
-#from rasterio.vrt import WarpedVRT
-#from rio_cogeo.cogeo import cog_translate
-#from rio_cogeo.profiles import cog_profiles
 import numpy as np
-#import matplotlib
-#import matplotlib.pyplot as plt
-#import rasterio
-#from rasterio.plot import show
 from rasterio.session import AWSSession
-
 from CovariateUtils import write_cog, get_index_tile
 from fetch_from_api import get_data
 
@@ -222,10 +203,7 @@ def main():
             master_json = get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.local)
     else:
         master_json = args.json_file
-        #Download the json from s3
-        #inJSON = get_json(master_json)
-
-    #print(master_json)
+    
     
     blue_bands = GetBandLists(master_json, 2)
     green_bands = GetBandLists(master_json, 3)

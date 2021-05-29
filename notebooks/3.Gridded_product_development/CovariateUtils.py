@@ -171,12 +171,6 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
             if clip_geom is not None:
                 # Do the clip to geometry (rasterio takes this; not in_bbox)
                 # # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
-                #mem, clipped_transform = rasterio.mask.mask(mem, clip_geom, crop=True)
-                #out_meta = mem.meta
-                #out_meta.update({"driver": "GTiff",
-                #                 "height": mem.shape[1],
-                #                 "width": mem.shape[2],
-                #                 "transform": clipped_transform})
                 clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
                 vrt_params["cutline"] = create_cutline(mem, clip_geom_json, geometry_crs = clip_crs)
             
