@@ -13,6 +13,7 @@ import numpy as np
 from rasterio.session import AWSSession
 from CovariateUtils import write_cog, get_index_tile
 from fetch_from_api import get_data
+import json
 
 def get_json(s3path, output):
     '''

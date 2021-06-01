@@ -12,6 +12,7 @@ from rasterio.warp import *
 from CovariateUtils import get_index_tile
 import itertools
 
+
 def write_local_data_and_catalog_s3(catalog, bands, save_path):
     '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
     with open(catalog) as f:
