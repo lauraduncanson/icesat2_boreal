@@ -10,8 +10,8 @@ import argparse
 from maap.maap import MAAP
 maap = MAAP()
 
-from CovariateUtils import get_index_tile #TODO: how to get this import right if its in a different dir
-from FilterUtils import above_filter_atl08
+import CovariateUtils  #TODO: how to get this import right if its in a different dir
+import FilterUtils
 
 def main():
     #
@@ -43,7 +43,8 @@ def main():
     elif args.in_tile_layer == None:
         print("Input a layer name from the tile vector file")
         os._exit(1)   
-        
+      
+    in_ept_fn = args.in_ept_fn
     in_tile_fn = args.in_tile_fn
     in_tile_num = args.in_tile_num
     in_tile_layer = args.in_tile_layer
@@ -54,40 +55,11 @@ def main():
     out_cols_list = args.out_cols_list
     output_dir = args.output_dir
     
-    # Return the 4326 representation of the input <tile_id> geometry 
-    tile_parts = get_index_tile(in_tile_fn, in_tile_num, buffer=0, layer = in_tile_layer)
-    geom_4326 = tile_parts["geom_4326"]
-        
-    xmin, xmax = geom_4326[0:2]
-    ymin, ymax = geom_4326[2:]
-    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    xmin, ymax = transformer.transform(xmin, ymax)
-    xmax, ymin = transformer.transform(xmax, ymin)
-    pdal_tile_bounds = f"([{xmin}, {xmax}], [{ymin}, {ymax}])"
-
-    # Spatial subset
-    pipeline_def = [
-        {
-            "type": "readers.ept",
-            "filename": in_ept_fn
-        },
-        {
-            "type":"filters.crop",
-            "bounds": pdal_tile_bounds
-        },
-        {
-            "type" : "writers.text",
-            "format": "geojson",
-            "write_header": True
-        }
-    ]
-    
-    # Output the spatial subset as a geojson
-    out_fn = os.path.join(output_dir, os.path.split(os.path.splitext(in_ept_fn)[0])[1] + "_" + in_tile_num + ".geojson")
-    run_pipeline(pipeline_def, out_fn)
+    # Filter EPT with a the bounds from an input tile
+    atl08_fn = FilterUtils.filter_atl08_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=False)
     
     # Filter based on a standard filter_atl08() function that we use across all notebooks, scripts, etc
-    atl08_pdf_filt = above_filter_atl08(input_geojson, out_cols_list)
+    atl08_pdf_filt = FilterUtils.filter_atl08(atl08_fn, out_cols_list)
 
     # CSV the file
     cur_time = time.strftime("%Y%m%d%H%M%S")
