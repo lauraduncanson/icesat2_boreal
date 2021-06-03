@@ -10,10 +10,17 @@ import argparse
 from maap.maap import MAAP
 maap = MAAP()
 
-import CovariateUtils  #TODO: how to get this import right if its in a different dir
+#TODO: how to get this import right if its in a different dir
+import CovariateUtils 
 import FilterUtils
 
+#TODO: do this right also
+import 3.1.5_dps
+import 3.1.2_dps
+
 def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True):
+    """Extract raster band values to the obs of a geodataframe
+    """
 
     print("Open the raster and store metadata...")
     r_src = rio.open(r_fn)
@@ -48,7 +55,7 @@ def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True):
 
 def main():
     #
-    # Access ATL08 obs in EPT, apply filter for quality, subset by bounds of a tile, subset by select cols, output as CSV
+    # Access ATL08 obs in EPT, apply filter for quality, subset by bounds of a tile, subset by select cols, extract values of covars, output as CSV
     #
     
     #TODO: how to specify (where will these data sit by default - in original dps_output dubdir, or pulled to the top level?):
@@ -59,8 +66,8 @@ def main():
     parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations")
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
-    parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
-    parser.add_argument("-dirc", "--dir_covar", type=str, default=None, help="The directory of the covariates")
+    parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-l", "--local", type=bool, default=False, help="Dictate whether landsat covars is a run using local paths")
     parser.add_argument("-t_h_can", "--thresh_h_can", type=int, default=100, help="The threshold height below which ATL08 obs will be returned")
     parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
@@ -104,18 +111,18 @@ def main():
     
     # Extract topo covar values to ATL08 obs (doing a reproject to tile crs)
     # TODO: consider just running 3.1.5_dpy.py here to produce this topo stack right before extracting its values
-    #
-    atl08_gdf_topo = extract_value_gdf(<<topo_covar_fn>>, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
+    topo_covar_fn = 3.1.5_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, tile_buffer_m=120, in_tile_layer=in_tile_layer, topo_tile_fn='https://maap-ops-dataset.s3.amazonaws.com/maap-users/alexdevseed/dem30m_tiles.geojson')
+    atl08_gdf_topo = extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
     
     # Extract landsat covar values to ATL08 obs
     # TODO: consider just running 3.1.2_dpy.py here
-    #
+    landsat_covar_fn = 3.1.2_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, in_tile_layer=in_tile_layer, sat_api='https://landsatlook.usgs.gov/sat-api', local=args.local)
     atl08_gdf_topo_landsat = extract_value_gdf(<<landsat_covar_fn>>, atl08_gdf_topo, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False):
 
     # CSV the file
     cur_time = time.strftime("%Y%m%d%H%M%S")
     out_csv_fn = os.path.join(output_dir, "atl08_filt_topo_landsat_"+cur_time+".csv")
-    atl08_gdf_topo_landsat.to_pickle(out_csv_fn,index=False, encoding="utf-8-sig")
+    atl08_gdf_topo_landsat.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
     
     print("Wrote output csv of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_csv_fn) )
 
