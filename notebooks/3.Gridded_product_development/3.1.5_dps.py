@@ -1,38 +1,15 @@
 #! /usr/bin/env python
 
-#import sys
-#import json
 import os
-#from pprint import pprint
-#from osgeo import gdal
 import boto3
-
-#import matplotlib.pyplot as plt
-#from matplotlib.pyplot import imshow
 import numpy as np
-#import numpy.ma as ma
-#from pyproj import Proj, Transformer
-
 import geopandas as gpd
-#import shapely as shp
-#from shapely.geometry import box
-#from fiona.crs import from_epsg
-
 import rasterio as rio
-#from rasterio.transform import Affine
 from rasterio.session import AWSSession 
-#from rasterio.plot import show
-#from rasterio.mask import mask
 from rasterio.warp import * #TODO: limit to specific needed modules
 from rasterio.merge import merge
-#from rasterio import windows
 from rasterio.crs import CRS
-
 import argparse
-
-#from maap.maap import MAAP
-#maap = MAAP()
-
 from CovariateUtils import write_cog, get_index_tile
 from CovariateUtils_topo import *
 

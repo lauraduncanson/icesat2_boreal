@@ -4,51 +4,20 @@
 import requests
 import datetime
 import geopandas as gpd
-#import folium
-#import shapely as shp
-
 import json
 import os
-#import boto3
 import numpy as np
-#import matplotlib
-#import matplotlib.pyplot as plt
-#import sys
-#import tarfile
-
-
-#from rasterio import enums
-#from rasterio.warp import array_bounds, calculate_default_transform
-#from rio_tiler.utils import create_cutline
-#from rio_cogeo.cogeo import cog_translate
-
 import rasterio as rio
-#from rasterio.mask import mask
 from rasterio.warp import *
-#from rasterio.merge import merge
-#from rasterio.crs import CRS
-#from rasterio import windows
-#from rasterio.session import AWSSession
-#from rasterio.io import MemoryFile
-#from rasterio.transform import from_bounds
-#from rio_cogeo.profiles import cog_profiles
-#from rasterio.vrt import WarpedVRT
-#from rasterio.plot import show
-#from shapely.geometry import box
-#from fiona.crs import from_epsg
-
 from CovariateUtils import get_index_tile
-
 import itertools
+
 
 def write_local_data_and_catalog_s3(catalog, bands, save_path):
     '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
     with open(catalog) as f:
         asset_catalog = json.load(f)
         for feature in asset_catalog['features']:
-            #new_dir = os.path.join(save_path, feature['id'])
-            #if (not os.path.isdir(new_dir)): os.mkdir(new_dir)
-            #download the assests
             for band in bands:
                 try:
                     pass
@@ -114,8 +83,6 @@ def read_json(json_file):
 
 def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
 
-
-    #geojson_path_albers = "/projects/maap-users/alexdevseed/boreal_tiles.gpkg"
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
     tile_n = int(in_tile_num)
@@ -140,19 +107,6 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     ## TODO: need unique catalog names that indicate bbox tile, and time range used.
     save_path = out_dir
     if (not os.path.isdir(save_path)): os.mkdir(save_path)
-    #catalogs = []
-    #for yr in range(0,len(years)):
-    #    catalog = os.path.join(save_path, f'response-{tile_n}-{years[yr]}.json')
-    #    with open(catalog, 'w') as jsonfile:
-    #        json.dump(response_by_year[yr], jsonfile)
-    #        catalogs.append(catalog)
-     
-    #local_catalogs = [write_local_data_and_catalog_s3(catalog, bands, save_path) for catalog in catalogs]
-
-    #json_files = [os.path.join(save_path, file) for file in os.listdir(save_path) if f'locals3-{tile_n}' in file]
-    
-    #print(json_files)
-    #master_catalogs = [read_json(jf) for jf in json_files]
 
     merge_catalogs = {
         "type": "FeatureCollection",
