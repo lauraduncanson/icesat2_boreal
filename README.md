@@ -10,13 +10,13 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 1) Reference product creation
 
-1.1 Reference biomass modeling (field:discrete return) - R - LD, JA, TF, PM, CS
+1.1 Reference biomass modeling (field:discrete return) - R - TF, LD, JA, TF, PM, CS
 
-1.2 Reference biomass modeling (field:LVIS) - R - (lead TBD) - LD, JA, TF, PM, CS
+1.2 Reference biomass modeling (field:LVIS) - R - (lead TBD) - TF, LD, JA, TF, PM, CS
   - Linking field to LVIS, model development
   - Model options: 1) Field -> aggregated shots over plot, 2) Field -> gridded LVIS
 
-1.3 Reference map production (LVIS) - R - PM, JA, LD, CS
+1.3 Reference map production (LVIS) - R - TF, PM, JA, LD, CS
   - LVIS gridding, model application
   
 1.4 Estimation and gridding LVIS canopy cover - python - JA, PM
