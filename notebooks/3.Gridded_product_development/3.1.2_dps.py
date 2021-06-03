@@ -295,11 +295,11 @@ def main():
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'
     outdir = args.output_dir
-    out_file = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
+    out_stack_fn = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
     
     # write COG to disk
     write_cog(stack, 
-              out_file, 
+              out_stack_fn, 
               in_crs, 
               crs_transform, 
               bandnames, 
@@ -308,6 +308,8 @@ def main():
               clip_geom = tile_id['geom_orig'],
               clip_crs = out_crs,
              )
+    
+    return(out_stack_fn)
 
 if __name__ == "__main__":
     '''

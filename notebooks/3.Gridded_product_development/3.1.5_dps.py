@@ -104,6 +104,7 @@ def main():
     topo_stack, topo_stack_names = make_topo_stack_cog(dem_cog_fn, topo_stack_cog_fn, tile_parts, res)
     print("Output topo covariate stack COG: ", topo_stack_cog_fn)
 
+    return(topo_stack_cog_fn)
 
 if __name__ == "__main__":
     main()
