@@ -61,6 +61,7 @@ def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs):
     REDarr = MaskArrays(REDfile, in_bbox, epsg, dst_crs)
     return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
 
+
 # insert the bands as arrays (made earlier)
 ## creates a single layer by using the binary mask
 ## and a sum function to collapse n-dims to 2-dims
