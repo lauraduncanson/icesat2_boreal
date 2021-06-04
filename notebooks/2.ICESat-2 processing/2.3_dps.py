@@ -10,19 +10,64 @@ import argparse
 from maap.maap import MAAP
 maap = MAAP()
 
-from CovariateUtils import get_index_tile #TODO: how to get this import right if its in a different dir
-from FilterUtils import above_filter_atl08
+#TODO: how to get this import right if its in a different dir
+import CovariateUtils 
+import FilterUtils
+
+#TODO: do this right also
+import 3.1.5_dps
+import 3.1.2_dps
+
+def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True):
+    """Extract raster band values to the obs of a geodataframe
+    """
+
+    print("Open the raster and store metadata...")
+    r_src = rio.open(r_fn)
+    
+    if reproject:
+        print("Re-project points to match raster...")
+        pt_gdf = pt_gdf.to_crs(r_src.crs)
+    
+    for i, bandname in bandnames:
+        print("Read as a numpy masked array...")
+        r = r_src.read(bandnum, masked=True)
+
+        pt_coord = [(pt.x, pt.y) for pt in pt_gdf.geometry]
+
+        # Use 'sample' from rasterio
+        print("Create a generator for sampling raster...")
+        pt_sample = r_src.sample(pt_coord)
+        print("Use generator to evaluate (sample)...")
+        pt_sample_eval = np.fromiter(pt_sample, dtype=r.dtype)
+
+        print("Deal with no data...")
+        pt_sample_eval_ma = np.ma.masked_equal(pt_sample_eval, r_src.nodata)
+        pt_gdf[bandname] = pd.Categorical(pt_sample_eval_ma.astype(int).filled(-1))
+        
+        print('\nDataframe has new raster value column: {}'.format(bandname))
+        r = None
+        
+    r_src.close()
+    
+    print('\nReturning re-projected points with {} new raster value column: {}'.format(len(bandnames), bandnames))
+    return(pt_gdf)
 
 def main():
     #
-    # Access ATL08 obs in EPT, apply filter for quality, subset by bounds of a tile, subset by select cols, output as CSV
+    # Access ATL08 obs in EPT, apply filter for quality, subset by bounds of a tile, subset by select cols, extract values of covars, output as CSV
     #
+    
+    #TODO: how to specify (where will these data sit by default - in original dps_output dubdir, or pulled to the top level?):
+    #     topo_covar_fn, landsat_covar_fn
+    # Solution: just call 3.1.5_dpy and 3.1.2_dps and return the stack_fn from each call?
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations")
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
-    parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-l", "--local", type=bool, default=False, help="Dictate whether landsat covars is a run using local paths")
     parser.add_argument("-t_h_can", "--thresh_h_can", type=int, default=100, help="The threshold height below which ATL08 obs will be returned")
     parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
@@ -43,7 +88,8 @@ def main():
     elif args.in_tile_layer == None:
         print("Input a layer name from the tile vector file")
         os._exit(1)   
-        
+      
+    in_ept_fn = args.in_ept_fn
     in_tile_fn = args.in_tile_fn
     in_tile_num = args.in_tile_num
     in_tile_layer = args.in_tile_layer
@@ -54,46 +100,31 @@ def main():
     out_cols_list = args.out_cols_list
     output_dir = args.output_dir
     
-    # Return the 4326 representation of the input <tile_id> geometry 
-    tile_parts = get_index_tile(in_tile_fn, in_tile_num, buffer=0, layer = in_tile_layer)
-    geom_4326 = tile_parts["geom_4326"]
-        
-    xmin, xmax = geom_4326[0:2]
-    ymin, ymax = geom_4326[2:]
-    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    xmin, ymax = transformer.transform(xmin, ymax)
-    xmax, ymin = transformer.transform(xmax, ymin)
-    pdal_tile_bounds = f"([{xmin}, {xmax}], [{ymin}, {ymax}])"
-
-    # Spatial subset
-    pipeline_def = [
-        {
-            "type": "readers.ept",
-            "filename": in_ept_fn
-        },
-        {
-            "type":"filters.crop",
-            "bounds": pdal_tile_bounds
-        },
-        {
-            "type" : "writers.text",
-            "format": "geojson",
-            "write_header": True
-        }
-    ]
-    
-    # Output the spatial subset as a geojson
-    out_fn = os.path.join(output_dir, os.path.split(os.path.splitext(in_ept_fn)[0])[1] + "_" + in_tile_num + ".geojson")
-    run_pipeline(pipeline_def, out_fn)
+    # Filter EPT with a the bounds from an input tile
+    atl08_fn = FilterUtils.filter_atl08_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=False)
     
     # Filter based on a standard filter_atl08() function that we use across all notebooks, scripts, etc
-    atl08_pdf_filt = above_filter_atl08(input_geojson, out_cols_list)
+    atl08_pdf_filt = FilterUtils.filter_atl08(atl08_fn, out_cols_list)
+    
+    # Convert to geopandas data frame in lat/lon
+    atl08_gdf = GeoDataFrame(atl08_pdf_filt, geometry=gpd.points_from_xy(atl08_pdf_filt.lon, atl08_pdf_filt.lat), crs='epsg:4326')
+    
+    # Extract topo covar values to ATL08 obs (doing a reproject to tile crs)
+    # TODO: consider just running 3.1.5_dpy.py here to produce this topo stack right before extracting its values
+    topo_covar_fn = 3.1.5_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, tile_buffer_m=120, in_tile_layer=in_tile_layer, topo_tile_fn='https://maap-ops-dataset.s3.amazonaws.com/maap-users/alexdevseed/dem30m_tiles.geojson')
+    atl08_gdf_topo = extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
+    
+    # Extract landsat covar values to ATL08 obs
+    # TODO: consider just running 3.1.2_dpy.py here
+    landsat_covar_fn = 3.1.2_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, in_tile_layer=in_tile_layer, sat_api='https://landsatlook.usgs.gov/sat-api', local=args.local)
+    atl08_gdf_topo_landsat = extract_value_gdf(<<landsat_covar_fn>>, atl08_gdf_topo, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False):
 
     # CSV the file
     cur_time = time.strftime("%Y%m%d%H%M%S")
-    out_csv_fn = os.path.join(output_dir, "atl08_filt_"+cur_time+".csv")
-    atl08_pdf_filt.to_pickle(out_csv_fn,index=False, encoding="utf-8-sig")
-    print("Wrote output csv: ", out_csv_fn)
+    out_csv_fn = os.path.join(output_dir, "atl08_filt_topo_landsat_"+cur_time+".csv")
+    atl08_gdf_topo_landsat.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
+    
+    print("Wrote output csv of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_csv_fn) )
 
 if __name__ == "__main__":
     main()
