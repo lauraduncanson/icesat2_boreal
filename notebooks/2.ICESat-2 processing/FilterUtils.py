@@ -50,7 +50,7 @@ def filter_atl08_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_d
         print(out_fn)
         return(out_fn)
 
-def filter_atl08(input_fn=None, out_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_can_max'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None):
+def filter_atl08(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_can_max'], filt_cols = ['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True):
     
     if not out_cols_list:
         print("filter_atl08: Must supply a list of strings matching ATL08 column names returned from the input EPT")
@@ -75,7 +75,13 @@ def filter_atl08(input_fn=None, out_cols_list=['rh25','rh50','rh60','rh70','rh75
         else:
             print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
             os._exit(1)
-                
+            
+    # Check that you have the cols that are required for the filter
+    filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df.columns] 
+    if len(filt_cols_not_in_df) > 0:
+        print("These filter columns not found in input df: {}".format(filt_cols_not_in_df))
+        os._exit(1)
+    
     # Filtering
     #
     # Filter list (keep):
@@ -100,10 +106,15 @@ def filter_atl08(input_fn=None, out_cols_list=['rh25','rh50','rh60','rh70','rh75
                                 (atl08_df.seg_snow == 'snow free land')
                     ]
     
-    out_cols_list = ['lon','lat', out_cols_list]
+    
     
     print(f"Before filtering: {atl08_df.shape[0]} observations in the input dataframe.")
     print(f"After filtering: {atl08_df_filt.shape[0]} observations in the output dataframe.")
-    print("Returning a pandas data frame of filtered observations for columns: {}".format(out_cols_list))
     
-    return(atl08_df_filt[out_cols_list])
+    if SUBSET_COLS:
+        subset_cols_list = ['lon','lat', subset_cols_list]
+        print("Returning a pandas data frame of filtered observations for columns: {}".format(subset_cols_list))
+        return(atl08_df_filt[subset_cols_list])
+    else:
+        print("Returning a pandas data frame of filtered observations for all columns")
+        return(atl08_df_filt)
