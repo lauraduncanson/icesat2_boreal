@@ -100,11 +100,11 @@ def main():
     out_cols_list = args.out_cols_list
     output_dir = args.output_dir
     
-    # Filter EPT with a the bounds from an input tile
-    atl08_fn = FilterUtils.filter_atl08_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=False)
+    # Filter by bounds: EPT with a the bounds from an input tile
+    atl08_fn = FilterUtils.filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=False)
     
-    # Filter based on a standard filter_atl08() function that we use across all notebooks, scripts, etc
-    atl08_pdf_filt = FilterUtils.filter_atl08(atl08_fn, out_cols_list)
+    # Filter by quality: based on a standard filter_atl08_qual() function that we use across all notebooks, scripts, etc
+    atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08_fn, out_cols_list)
     
     # Convert to geopandas data frame in lat/lon
     atl08_gdf = GeoDataFrame(atl08_pdf_filt, geometry=gpd.points_from_xy(atl08_pdf_filt.lon, atl08_pdf_filt.lat), crs='epsg:4326')

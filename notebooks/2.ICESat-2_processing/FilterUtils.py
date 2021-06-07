@@ -1,4 +1,4 @@
-import pdal
+#import pdal
 import json
 import os
 
@@ -7,52 +7,119 @@ import geopandas as gpd
 
 from pyproj import CRS, Transformer
 
-import CovariateUtils #< - DO THIS IMPORT CORRECTLY
+import sys
+sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+from CovariateUtils import *
 
-def filter_atl08_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=False):
+def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
     
-    # Return the 4326 representation of the input <tile_id> geometry 
-    tile_parts = CovariateUtils.get_index_tile(in_tile_fn, in_tile_num, buffer=0, layer = in_tile_layer)
-    geom_4326 = tile_parts["geom_4326"]
+    tile_parts = get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+    bounds_order = [0, 2, 1, 3]
+    out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
+    
+    return(out_4326_bounds)
+
+def get_granules_list(granules):
+    '''
+    Function to get list of granules returned from maap.searchGranule()
+    '''
+    url_list = []
+    output_list = []
+    for res in granules:
+        url_list.append(res.getDownloadUrl())
+
+    for url in url_list:
+        if url[0:5] == 's3://':
+            url = url[5:].split('/')
+            url[0] += '.s3.amazonaws.com'
+            url = 'https://' + '/'.join(url)
+        output_list.append(url)
+    return output_list
+
+def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir):
+        '''Get bounds from a tile_id and apply to an EPT database
+            Return a path to a GEOJSON that is a subset of the ATL08 db
+        '''
         
-    xmin, xmax = geom_4326[0:2]
-    ymin, ymax = geom_4326[2:]
-    transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    xmin, ymax = transformer.transform(xmin, ymax)
-    xmax, ymin = transformer.transform(xmax, ymin)
-    pdal_tile_bounds = f"([{xmin}, {xmax}], [{ymin}, {ymax}])"
+        # Return the 4326 representation of the input <tile_id> geometry 
+        tile_parts = CovariateUtils.get_index_tile(in_tile_fn, in_tile_num, buffer=0, layer = in_tile_layer)
+        geom_4326 = tile_parts["geom_4326"]
 
-    # Spatial subset
-    pipeline_def = [
-        {
-            "type": "readers.ept",
-            "filename": in_ept_fn
-        },
-        {
-            "type":"filters.crop",
-            "bounds": pdal_tile_bounds
-        },
-        {
-            "type" : "writers.text",
-            "format": "geojson",
-            "write_header": True
-        }
-    ]
+        xmin, xmax = geom_4326[0:2]
+        ymin, ymax = geom_4326[2:]
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        xmin, ymax = transformer.transform(xmin, ymax)
+        xmax, ymin = transformer.transform(xmax, ymin)
+        pdal_tile_bounds = f"([{xmin}, {xmax}], [{ymin}, {ymax}])"
+
+        # Spatial subset
+        pipeline_def = [
+            {
+                "type": "readers.ept",
+                "filename": in_ept_fn
+            },
+            {
+                "type":"filters.crop",
+                "bounds": pdal_tile_bounds
+            },
+            {
+                "type" : "writers.text",
+                "format": "geojson",
+                "write_header": True
+            }
+        ]
+
+        # Output the spatial subset as a geojson
+        out_fn = os.path.join(output_dir, os.path.split(os.path.splitext(in_ept_fn)[0])[1] + "_" + in_tile_num + ".geojson")
+        run_pipeline(pipeline_def, out_fn)
+        
+        return(out_fn)
+
+def filter_atl08_bounds(atl08_df=None, in_bounds=None, in_ept_fn=None, in_tile_fn=None, in_tile_num=None, in_tile_layer=None, output_dir=None, return_pdf=False):
+    '''
+    Filter an ATL08 database using bounds.
+    Bounds can come from an input vector tile or a list: [xmin,xmax,ymin,ymax]
+    '''
+    out_fn = None
     
-    # Output the spatial subset as a geojson
-    out_fn = os.path.join(output_dir, os.path.split(os.path.splitext(in_ept_fn)[0])[1] + "_" + in_tile_num + ".geojson")
-    run_pipeline(pipeline_def, out_fn)
+    if all(v is not None for v in [in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir]):
+        #
+        out_fn = filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir)
+    elif in_bounds is not None and atl08_df is not None:
+        
+        print("Filtering by bounds: {}".format(in_bounds) )
+        xmin,xmax,ymin,ymax = in_bounds
+        
+        print("Returning a data frame")
+        return_pdf = True
+        
+        if return_pdf :
+            atl08_df = atl08_df[(atl08_df.lat > ymin) &
+                                (atl08_df.lat < ymax) &
+                                (atl08_df.lon > xmin) &
+                                (atl08_df.lon < xmax)
+                               ]
+    else:
+        print("Missing input args; can't filter. Check call.")
+        os._exit(1)
     
-    if(return_pdf):
-        atl08_df = gpd.read(out_fn)
+    if return_pdf:
+        if out_fn is not None:
+            atl08_df = gpd.read(out_fn)
         return(atl08_df)
     else:
         print(out_fn)
         return(out_fn)
 
-def filter_atl08(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_can_max'], filt_cols = ['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True):
+def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_max_can'], filt_cols = ['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True):
+    '''
+    Quality filtering Function
+    Returns a data frame
+    Note: beams 1 & 5 strong (better radiometric perf, sensitive), then beam 3 [NOT IMPLEMENTED]
+    '''
+    # TODO: filt col names: make sure you have these in the EPT db
     
-    if not out_cols_list:
+    if not subset_cols_list:
         print("filter_atl08: Must supply a list of strings matching ATL08 column names returned from the input EPT")
         os._exit(1) 
     elif thresh_h_can is None:
@@ -66,15 +133,16 @@ def filter_atl08(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','r
         os._exit(1)  
         
     if input_fn is not None:
-        if input_fn.endswith('geojson'):
-            atl08_df = gpd.read(input_fn)
-        elif input_fn.endswith('csv'):
-            atl08_df = pd.read_csv(input_fn)
-        elif isinstance(input_fn, pd.DataFrame):
-            atl08_df = input_fn
+        if not isinstance(input_fn, pd.DataFrame):
+            if input_fn.endswith('geojson'):
+                atl08_df = gpd.read(input_fn)
+            elif input_fn.endswith('csv'):
+                atl08_df = pd.read_csv(input_fn)
+            else:
+                print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
+                os._exit(1)
         else:
-            print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
-            os._exit(1)
+            atl08_df = input_fn
             
     # Check that you have the cols that are required for the filter
     filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df.columns] 
@@ -84,9 +152,10 @@ def filter_atl08(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','r
     
     # Filtering
     #
+    
     # Filter list (keep):
-    #   h_ref_diff < THRESH_h_dif
-    #   h_can < THRESH_h_can
+    #   h_ref_diff < thresh_h_dif
+    #   h_can < thresh_h_can
     #   no LC forest masking: only forest LC classes no good b/c trees outside of forest aer of interest (woodlands, etc)
     #   msw = 0
     #   night better (but might exclude too much good summer data in the high northern lats)
@@ -96,24 +165,24 @@ def filter_atl08(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','r
         
     print("\nFiltering for quality:\n\tfor clear skies + strong beam + snow free land,\n\th_can < {},\n\televation diff from ref < {},\n\tmonths {}-{}".format(thresh_h_can, thresh_h_dif, month_min, month_max))
     atl08_df_filt =  atl08_df[
-                                (atl08_df.h_can < THRESH_h_can) &
-                                (atl08_df.h_dif_ref < THRESH_h_dif) &
-                                (atl08_df.m >= month_min ) & (atl08_pdf.m <= month_max) &
+                                (atl08_df.h_can < thresh_h_can) &
+                                (atl08_df.h_dif_ref < thresh_h_dif) &
+                                (atl08_df.m >= month_min ) & 
+                                (atl08_df.m <= month_max) &
                                 # Hard coded quality flags for ABoVE AGB
                                 (atl08_df.msw_flg == 0) &
                                 #(atl08_df.night_flg == 'night') & # might exclude too much good summer data in the high northern lats
                                 (atl08_df.beam_type == 'Strong') & 
                                 (atl08_df.seg_snow == 'snow free land')
                     ]
-    
-    
-    
-    print(f"Before filtering: {atl08_df.shape[0]} observations in the input dataframe.")
-    print(f"After filtering: {atl08_df_filt.shape[0]} observations in the output dataframe.")
+        
+    print(f"Before quaity filtering: {atl08_df.shape[0]} observations in the input dataframe.")
+    print(f"After quality filtering: {atl08_df_filt.shape[0]} observations in the output dataframe.")
     
     if SUBSET_COLS:
-        subset_cols_list = ['lon','lat', subset_cols_list]
+        subset_cols_list = ['lon','lat'] + subset_cols_list
         print("Returning a pandas data frame of filtered observations for columns: {}".format(subset_cols_list))
+        print(f"Shape: {atl08_df_filt[subset_cols_list].shape} ")
         return(atl08_df_filt[subset_cols_list])
     else:
         print("Returning a pandas data frame of filtered observations for all columns")
