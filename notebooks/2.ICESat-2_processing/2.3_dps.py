@@ -13,45 +13,12 @@ maap = MAAP()
 #TODO: how to get this import right if its in a different dir
 import CovariateUtils 
 import FilterUtils
+import ExtractUtils
 
 #TODO: do this right also
 import 3.1.5_dps
 import 3.1.2_dps
 
-def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True):
-    """Extract raster band values to the obs of a geodataframe
-    """
-
-    print("Open the raster and store metadata...")
-    r_src = rio.open(r_fn)
-    
-    if reproject:
-        print("Re-project points to match raster...")
-        pt_gdf = pt_gdf.to_crs(r_src.crs)
-    
-    for i, bandname in bandnames:
-        print("Read as a numpy masked array...")
-        r = r_src.read(bandnum, masked=True)
-
-        pt_coord = [(pt.x, pt.y) for pt in pt_gdf.geometry]
-
-        # Use 'sample' from rasterio
-        print("Create a generator for sampling raster...")
-        pt_sample = r_src.sample(pt_coord)
-        print("Use generator to evaluate (sample)...")
-        pt_sample_eval = np.fromiter(pt_sample, dtype=r.dtype)
-
-        print("Deal with no data...")
-        pt_sample_eval_ma = np.ma.masked_equal(pt_sample_eval, r_src.nodata)
-        pt_gdf[bandname] = pd.Categorical(pt_sample_eval_ma.astype(int).filled(-1))
-        
-        print('\nDataframe has new raster value column: {}'.format(bandname))
-        r = None
-        
-    r_src.close()
-    
-    print('\nReturning re-projected points with {} new raster value column: {}'.format(len(bandnames), bandnames))
-    return(pt_gdf)
 
 def main():
     #
@@ -112,12 +79,12 @@ def main():
     # Extract topo covar values to ATL08 obs (doing a reproject to tile crs)
     # TODO: consider just running 3.1.5_dpy.py here to produce this topo stack right before extracting its values
     topo_covar_fn = 3.1.5_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, tile_buffer_m=120, in_tile_layer=in_tile_layer, topo_tile_fn='https://maap-ops-dataset.s3.amazonaws.com/maap-users/alexdevseed/dem30m_tiles.geojson')
-    atl08_gdf_topo = extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
+    atl08_gdf_topo = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
     
     # Extract landsat covar values to ATL08 obs
     # TODO: consider just running 3.1.2_dpy.py here
     landsat_covar_fn = 3.1.2_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, in_tile_layer=in_tile_layer, sat_api='https://landsatlook.usgs.gov/sat-api', local=args.local)
-    atl08_gdf_topo_landsat = extract_value_gdf(<<landsat_covar_fn>>, atl08_gdf_topo, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False):
+    atl08_gdf_topo_landsat = ExtractUtils.extract_value_gdf(<<landsat_covar_fn>>, atl08_gdf_topo, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False):
 
     # CSV the file
     cur_time = time.strftime("%Y%m%d%H%M%S")

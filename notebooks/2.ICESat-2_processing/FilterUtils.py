@@ -36,6 +36,37 @@ def get_granules_list(granules):
         output_list.append(url)
     return output_list
 
+def prep_filter_atl08_qual(atl08):
+    '''
+    Run this data prep on a df built from all CSVs from a DPS of extract_atl08.py for v003 of ATL08
+    '''
+    
+    print("\nPre-filter data cleaning...")
+    print("\nGet beam type from orbit orientation and ground track...") 
+    atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Strong' 
+    atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Weak'
+    atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Weak'
+    atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Strong'
+    print(atl08.beam_type.unique())
+
+    cols_float = ['lat', 'lon', 'h_can', 'h_te_best', 'ter_slp'] 
+    print(f"Cast some columns to type float: {cols_float}")
+    atl08[cols_float] = atl08[cols_float].apply(pd.to_numeric, errors='coerce')
+
+    cols_int = ['n_ca_ph', 'n_seg_ph', 'n_toc_ph']
+    print(f"Cast some columns to type integer: {cols_int}")
+    atl08[cols_int] = atl08[cols_int].apply(pd.to_numeric, downcast='signed', errors='coerce')
+
+    #Get rid of b strings and convert to int, then datetime
+    atl08['yr'] = atl08['yr'].str.strip("b\'\"").astype(int)
+    atl08['m'] = atl08['m'].str.strip("b\'\"").astype(int)
+    atl08['d'] = atl08['d'].str.strip("b\'\"").astype(int)
+    atl08["date"] = pd.to_datetime(atl08["yr"]*1000 + atl08["d"], format = "%Y%j")
+    
+    #print(atl08.info())
+    
+    return(atl08)
+
 def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir):
         '''Get bounds from a tile_id and apply to an EPT database
             Return a path to a GEOJSON that is a subset of the ATL08 db
@@ -144,8 +175,12 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
         else:
             atl08_df = input_fn
             
+    # Run the prep to get fields needed (v003)
+    atl08_df_prepd = prep_filter_atl08_qual(atl08_df)
+    atl08_df = None
+    
     # Check that you have the cols that are required for the filter
-    filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df.columns] 
+    filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df_prepd.columns] 
     if len(filt_cols_not_in_df) > 0:
         print("These filter columns not found in input df: {}".format(filt_cols_not_in_df))
         os._exit(1)
@@ -164,20 +199,22 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
     #   seg_snow == 'snow free land'
         
     print("\nFiltering for quality:\n\tfor clear skies + strong beam + snow free land,\n\th_can < {},\n\televation diff from ref < {},\n\tmonths {}-{}".format(thresh_h_can, thresh_h_dif, month_min, month_max))
-    atl08_df_filt =  atl08_df[
-                                (atl08_df.h_can < thresh_h_can) &
-                                (atl08_df.h_dif_ref < thresh_h_dif) &
-                                (atl08_df.m >= month_min ) & 
-                                (atl08_df.m <= month_max) &
+    atl08_df_filt =  atl08_df_prepd[
+                                (atl08_df_prepd.h_can < thresh_h_can) &
+                                (atl08_df_prepd.h_dif_ref < thresh_h_dif) &
+                                (atl08_df_prepd.m >= month_min ) & 
+                                (atl08_df_prepd.m <= month_max) &
                                 # Hard coded quality flags for ABoVE AGB
-                                (atl08_df.msw_flg == 0) &
+                                (atl08_df_prepd.msw_flg == 0) &
                                 #(atl08_df.night_flg == 'night') & # might exclude too much good summer data in the high northern lats
-                                (atl08_df.beam_type == 'Strong') & 
-                                (atl08_df.seg_snow == 'snow free land')
+                                (atl08_df_prepd.beam_type == 'Strong') & 
+                                (atl08_df_prepd.seg_snow == 'snow free land')
                     ]
         
-    print(f"Before quaity filtering: {atl08_df.shape[0]} observations in the input dataframe.")
+    print(f"Before quaity filtering: {atl08_df_prepd.shape[0]} observations in the input dataframe.")
     print(f"After quality filtering: {atl08_df_filt.shape[0]} observations in the output dataframe.")
+    
+    atl08_df_prepd = None
     
     if SUBSET_COLS:
         subset_cols_list = ['lon','lat'] + subset_cols_list
