@@ -1,0 +1,110 @@
+{
+  "pipeline": [
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt1r/land_segments/longitude",
+            "Y" : "gt1r/land_segments/latitude",
+            "Z" : "gt1r/land_segments/dem_h",
+            "HeightAboveGround" : "gt1r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt1r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt1r/land_segments/delta_time",
+            "landcover": "gt1r/land_segments/segment_landcover"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt1l/land_segments/longitude",
+            "Y" : "gt1l/land_segments/latitude",
+            "Z" : "gt1l/land_segments/dem_h",
+            "HeightAboveGround" : "gt1l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt1l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt1l/land_segments/delta_time",
+            "landcover": "gt1l/land_segments/segment_landcover"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt2r/land_segments/longitude",
+            "Y" : "gt2r/land_segments/latitude",
+            "Z" : "gt2r/land_segments/dem_h",
+            "HeightAboveGround" : "gt2r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt2r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt2r/land_segments/delta_time",
+            "landcover": "gt2r/land_segments/segment_landcover"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt2l/land_segments/longitude",
+            "Y" : "gt2l/land_segments/latitude",
+            "Z" : "gt2l/land_segments/dem_h",
+            "HeightAboveGround" : "gt2l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt2l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt2l/land_segments/delta_time",
+            "landcover": "gt2l/land_segments/segment_landcover"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt3r/land_segments/longitude",
+            "Y" : "gt3r/land_segments/latitude",
+            "Z" : "gt3r/land_segments/dem_h",
+            "HeightAboveGround" : "gt3r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt3r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt3r/land_segments/delta_time",
+            "landcover": "gt3r/land_segments/segment_landcover"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt3l/land_segments/longitude",
+            "Y" : "gt3l/land_segments/latitude",
+            "Z" : "gt3l/land_segments/dem_h",
+            "HeightAboveGround" : "gt3l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt3l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt3l/land_segments/delta_time",
+            "landcover": "gt3l/land_segments/segment_landcover"
+        }
+    },
+    {
+      "type": "filters.merge"
+    },
+    {
+        "limits": "HeightAboveGround[:34028235000000000000000000000000000000]",
+        "type": "filters.range",
+        "tag": "nodata"
+    },
+    {
+        "type": "filters.ferry",
+        "dimensions": "=>GpsTime"
+    },
+    {
+        "type": "filters.assign",
+        "value": "GpsTime = OffsetTime + 1198800018"
+    },
+    {
+      "type":"filters.colorinterp",
+      "ramp":"pestel_shades",
+      "dimension":"Z"
+    },
+    {
+        "type" : "writers.las",
+        "extra_dims": "all",
+        "pdal_metadata": true,
+        "minor_version": "4",
+        "a_srs": "EPSG:4326"
+    }
+  ]
+}
