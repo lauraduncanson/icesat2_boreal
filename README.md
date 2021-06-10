@@ -56,7 +56,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 4) Validation
 
-4.1 Comparison of ATL08 heights to ALS heights - EG, AN
+4.1 Comparison of ATL08 heights to LVIS heights - VL, PM, DM, LD, EG, AN
 
 4.2 Comparison of ICESat-2 segment biomass estimates to ALS biomass estimates - TBD (NT?)
 

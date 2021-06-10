@@ -1,0 +1,151 @@
+{
+  "pipeline": [
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt1r/land_segments/longitude",
+            "Y" : "gt1r/land_segments/latitude",
+            "Z" : "gt1r/land_segments/dem_h",
+            "HeightAboveGround" : "gt1r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt1r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt1r/land_segments/delta_time"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt1l/land_segments/longitude",
+            "Y" : "gt1l/land_segments/latitude",
+            "Z" : "gt1l/land_segments/dem_h",
+            "HeightAboveGround" : "gt1l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt1l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt1l/land_segments/delta_time"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt2r/land_segments/longitude",
+            "Y" : "gt2r/land_segments/latitude",
+            "Z" : "gt2r/land_segments/dem_h",
+            "HeightAboveGround" : "gt2r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt2r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt2r/land_segments/delta_time"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt2l/land_segments/longitude",
+            "Y" : "gt2l/land_segments/latitude",
+            "Z" : "gt2l/land_segments/dem_h",
+            "HeightAboveGround" : "gt2l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt2l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt2l/land_segments/delta_time"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt3r/land_segments/longitude",
+            "Y" : "gt3r/land_segments/latitude",
+            "Z" : "gt3r/land_segments/dem_h",
+            "HeightAboveGround" : "gt3r/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt3r/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt3r/land_segments/delta_time"
+        }
+    },
+    {
+        "type": "readers.hdf",
+        "dimensions":
+        {
+            "X" : "gt3l/land_segments/longitude",
+            "Y" : "gt3l/land_segments/latitude",
+            "Z" : "gt3l/land_segments/dem_h",
+            "HeightAboveGround" : "gt3l/land_segments/canopy/h_canopy",
+            "ElevationLow" : "gt3l/land_segments/terrain/h_te_best_fit",
+            "OffsetTime": "gt3l/land_segments/delta_time"
+        }
+    },
+    {
+      "type": "filters.merge"
+    },
+    {
+        "limits": "HeightAboveGround[:34028235000000000000000000000000000000]",
+        "type": "filters.range",
+        "tag": "nodata"
+    },
+    {
+        "type": "filters.ferry",
+        "dimensions": "=>GpsTime"
+    },
+    {
+        "type": "filters.assign",
+        "value": "GpsTime = OffsetTime + 1198800018"
+    },
+    {
+      "type":"filters.colorinterp",
+      "ramp":"pestel_shades",
+      "dimension":"Z"
+    },
+    {
+        "type" : "writers.las",
+        "extra_dims": "all",
+        "pdal_metadata": true,
+        "minor_version": "4",
+        "a_srs": "EPSG:4326"
+    }
+  ]
+}
+
+            "can_h_met" = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,	50,	60,	70,	75,	80,	85,	90,	95
+    h_max_can = []
+    h_can = []      # 98% height of all the individual canopy relative heights for the segment above the estimated terrain surface. Relative canopy heights have been computed by differencing the canopy photon height from the estimated terrain surface.
+
+    n_ca_ph = []
+    n_toc_ph = []
+    can_open = []    # stdv of all photons classified as canopy within segment
+    tcc_flg = [] # Flag indicating that more than 50% of the Landsat Continuous Cover product have values > 100 for the L-Km segment.  Canopy is assumed present along the L-km segment if landsat_flag is 1.
+    tcc_prc = [] # Average percentage value of the valid (value <= 100) Landsat Tree Cover Continuous Fields product for each 100 m segment
+
+    # Uncertainty fields
+    n_seg_ph = []   # Number of photons within each land segment.
+    cloud_flg = []     # Valid range is 0 - 10. Cloud confidence flag from ATL09 that indicates the number of cloud or aerosol layers identified in each 25Hz atmospheric profile. If the flag is greater than 0, aerosols or clouds could be present.
+    msw_flg = []    # Multiple Scattering warning flag. The multiple scattering warning flag (ATL09 parameter msw_flag) has values from -1 to 5 where zero means no multiple scattering and 5 the greatest. If no layers were detected, then msw_flag = 0. If blowing snow is detected and its estimated optical depth is greater than or equal to 0.5, then msw_flag = 5. If the blowing snow optical depth is less than 0.5, then msw_flag = 4. If no blowing snow is detected but there are cloud or aerosol layers detected, the msw_flag assumes values of 1 to 3 based on the height of the bottom of the lowest layer: < 1 km, msw_flag = 3; 1-3 km, msw_flag = 2; > 3km, msw_flag = 1. A value of -1 indicates that the signal to noise of the data was too low to reliably ascertain the presence of cloud or blowing snow. We expect values of -1 to occur only during daylight.
+    night_flg = []
+
+    seg_snow = []  # 0=ice free water; 1=snow free land;  2=snow; 3=ice. Daily snow/ice cover from ATL09 at the 25 Hz rate(275m) indicating likely presence of snow and ice within each segment.
+    seg_water = []  # no_water=0, water=1. Water mask(i.e. flag) indicating inland water as referenced from the Global Raster Water Mask(ANC33) at 250 m spatial resolution.
+    sig_vert = []    # Total vertical geolocation error due to ranging and local surface slope.  The parameter is computed for ATL08 as described in equation 1.2.
+    sig_acr = []       # Total cross-track uncertainty due to PPD and POD knowledge.  Read from ATL03 product gtx/geolocation/sigma_across. Sigma_atlas_y is reported on ATL08 as the uncertainty of the center-most reference photon of the 100m ATL08 segment.
+    sig_along = []        # Total along-track uncertainty due to PPD and POD knowledge.  Read from ATL03 product gtx/geolocation/sigma_along. Sigma_atlas_x is reported on ATL08 as the uncertainty of the center-most reference photon of the 100m ATL08 segment.
+    sig_h = []            # Estimated uncertainty for the reference photon bounce point ellipsoid height: 1- sigma (m) provided at the geolocation segment rate on ATL03.  Sigma_h is reported on ATL08 as the uncertainty of the center-most reference photon of the 100m ATL08 segment.
+    sig_topo = []         # Total uncertainty that include sigma_h plus geolocation uncertainty due to local slope (equation 1.3).  The local slope is multiplied by the geolocation uncertainty factor. This will be used to determine the total vertical geolocation error due to ranging and local slope.
+
+    # Terrain fields
+    n_te_ph = []
+    h_te_best = []  # The best fit terrain elevation at the the mid-point location of each 100m segment. The mid-segment terrain elevation is determined by selecting the best of three fits- linear, 3rd order and 4th order polynomials - to the terrain photons and interpolating the elevation at the mid-point location of the 100 m segment. For the linear fit, a slope correction and weighting is applied to each ground photon based on the distance to the slope height at the center of the segment.
+    h_te_unc = []    # Uncertainty of the mean terrain height for the segment. This uncertainty incorporates all systematic uncertainties(e.g. timing orbits, geolocation,etc.) as well as uncertainty from errors of identified photons.  This parameter is described in section 1, equation 1.4
+    ter_slp = []        # The along-track slope of terrain, within each segment;computed by a linear fit of terrain classified photons. Slope is in units of delta height over delta along track distance.
+    snr = []        # The signal to noise ratio of geolocated photons as determined by the ratio of the superset of ATL03 signal and DRAGANN found signal photons used for processing the ATL08 segments to the background photons (i.e. noise) within the same ATL08 segments.
+    sol_az = []     # The direction, eastwards from north, of the sun vector as seen by an observer at the laser ground spot.
+    sol_el = []     # Solar Angle above or below the plane tangent to the ellipsoid surface at the laser spot. Positive values mean the sun is above the horizon, while  negative values mean it is below the horizon. The effect of atmospheric refraction is not included. This is a low precision value, with approximately TBD degree accuracy.
+
+    asr = []		# Apparent surface reflectance
+    h_dif_ref = []	# height difference from reference DEM
+    ter_flg = []
+    ph_rem_flg = []
+    dem_rem_flg = []
+    seg_wmask = []
+    lyr_flg = []
+
+    # NEED TO ADD THESE
+    h_canopy_uncertainty = []
+    h_canopy_quad = []
+
+}

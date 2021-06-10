@@ -4,11 +4,13 @@ from rasterio.io import MemoryFile
 from rasterio.crs import CRS
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import array_bounds, calculate_default_transform
-from rio_cogeo.profiles import cog_profiles
-from rio_tiler.utils import create_cutline
-from rio_cogeo.cogeo import cog_translate
+#from rio_cogeo.profiles import cog_profiles
+#from rio_tiler.utils import create_cutline
+#from rio_cogeo.cogeo import cog_translate
 import geopandas
 import os
+
+
 
 def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
@@ -67,7 +69,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
     tile_parts["bbox_4326"] = tile_parts["geom_4326"].bounds.iloc[0].to_list()
     tile_parts["geom_4326_buffered"] =  tile_parts["geom_orig_buffered"].to_crs(4326)
     tile_parts["bbox_4326_buffered"] = tile_parts["geom_4326_buffered"].bounds.iloc[0].to_list()
-
+    
     return tile_parts
 
 def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False):
