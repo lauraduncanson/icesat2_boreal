@@ -16,6 +16,14 @@ import argparse
 import datetime, time
 from datetime import datetime
 
+def rec_merge1(d1, d2):
+    '''return new merged dict of dicts'''
+    for k, v in d1.items(): # in Python 2, use .iteritems()!
+        if k in d2:
+            d2[k] = rec_merge1(v, d2[k])
+    d3 = d1.copy()
+    d3.update(d2)
+    return d3
 
 def ICESAT2GRD(args):
     
@@ -176,26 +184,20 @@ def ICESAT2GRD(args):
         
         # Canopy fields
         if do_30m:
-            can_h_met.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_0/'][...,] )
-            can_h_met.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_1/'][...,] )
-            if False:
-                can_h_met_0.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_0/'][...,].tolist() )
-                can_h_met_1.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_1/'][...,].tolist() )
-                can_h_met_2.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_2/'][...,].tolist() )
-                can_h_met_3.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_3/'][...,].tolist() )
-                can_h_met_4.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_4/'][...,].tolist() )
-                can_h_met_5.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_5/'][...,].tolist() )
-                can_h_met_6.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_6/'][...,].tolist() )
-                can_h_met_7.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_7/'][...,].tolist() )
-                can_h_met_8.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_8/'][...,].tolist() )
-            #print(can_h_met.shape)
-            # No idea if this is the right way to re-combine the indiv metrics lists to match that way we do it for the 100m segs (so the rest of the code below can remain the same)
-            #can_h_met = [can_h_met_0, can_h_met_1, can_h_met_2, can_h_met_3, can_h_met_4, can_h_met_5, can_h_met_6, can_h_met_7, can_h_met_8]
-            # No!
-            #can_h_met = can_h_met_0.append(can_h_met_1.append(can_h_met_2.append(can_h_met_3.append(can_h_met_4.append(can_h_met_5.append(can_h_met_6.append(can_h_met_7.append(can_h_met_8))))))))
+
+            can_h_met_0.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_25/'][...,].tolist() )
+            can_h_met_1.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_30/'][...,].tolist() )
+            can_h_met_2.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_40/'][...,].tolist() )
+            can_h_met_3.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_50/'][...,].tolist() )
+            can_h_met_4.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_60/'][...,].tolist() )
+            can_h_met_5.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_70/'][...,].tolist() )
+            can_h_met_6.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_75/'][...,].tolist() )
+            can_h_met_7.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_80/'][...,].tolist() )
+            can_h_met_8.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_90/'][...,].tolist() )
+            #print(len(can_h_met_0), len(can_h_met_1), len(can_h_met_2))
+            h_max_can.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_100/'][...,].tolist())
+            h_can.append(f['/' + line       + '/land_segments/30m_segment/atl03_rh_98/'][...,].tolist())
             
-            h_max_can.append(f['/' + line   + '/land_segments/30m_segment/h_max_canopy/'][...,].tolist())
-            h_can.append(f['/' + line       + '/land_segments/30m_segment/h_canopy/'][...,].tolist())
             n_ca_ph.append(f['/' + line     + '/land_segments/30m_segment/n_ca_photons/'][...,].tolist())
             n_toc_ph.append(f['/' + line    + '/land_segments/30m_segment/n_toc_photons/'][...,].tolist())
             can_open.append(f['/' + line    + '/land_segments/30m_segment/canopy_openness/'][...,].tolist())
@@ -203,14 +205,17 @@ def ICESAT2GRD(args):
             tcc_prc.append(f['/' + line     + '/land_segments/30m_segment/landsat_perc/'][...,].tolist())            
         else:
             can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
+            
             h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
             h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
+            
             n_ca_ph.append(f['/' + line     + '/land_segments/canopy/n_ca_photons/'][...,].tolist())
             n_toc_ph.append(f['/' + line    + '/land_segments/canopy/n_toc_photons/'][...,].tolist())
             can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
             tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
             tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
-
+      
+    
         # Uncertinaty fields
         cloud_flg.append(f['/' + line   + land_seg_path + 'cloud_flag_atm/'][...,].tolist())
         msw_flg.append(f['/' + line     + land_seg_path + 'msw_flag/'][...,].tolist())
@@ -248,8 +253,10 @@ def ICESAT2GRD(args):
         dem_rem_flg.append(f['/' + line + land_seg_path + 'dem_removal_flag/'][...,].tolist())
         seg_wmask.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
         lyr_flg.append(f['/' + line     + land_seg_path + 'layer_flag/'][...,].tolist())
+    
+    
 
-
+    
     # MW 3/31: Originally a length of 6 was hardcoded into the below calculations because the
     #          assumption was made that 6 lines/lasers worth of data was stored in the arrays. With
     #	       the above changes made to the beginning of the 'for line in lines' loop on 3/31, this
@@ -260,7 +267,7 @@ def ICESAT2GRD(args):
     if nLines == 0:
         return None # No usable points in h5 file, can't process
 
-    # Convert the list of lists into a single list
+    print("Convert the list of lists into a single list...")
     latitude    =np.array([latitude[l][k] for l in range(nLines) for k in range(len(latitude[l]))] )
     longitude   =np.array([longitude[l][k] for l in range(nLines) for k in range(len(longitude[l]))] )
 
@@ -269,12 +276,25 @@ def ICESAT2GRD(args):
     segid_beg   =np.array([segid_beg[l][k] for l in range(nLines) for k in range(len(segid_beg[l]))] )
     segid_end   =np.array([segid_end[l][k] for l in range(nLines) for k in range(len(segid_end[l]))] )
 
-    can_h_met   =np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))] )
-    print(can_h_met.flatten().shape)
+    #can_h_met   =np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))] )
+    #print("can_h_met.shape: ",can_h_met.shape)
     
     h_max_can   =np.array([h_max_can[l][k] for l in range(nLines) for k in range(len(h_max_can[l]))] )
     h_can       =np.array([h_can[l][k] for l in range(nLines) for k in range(len(h_can[l]))] )
-
+    
+    if do_30m:
+        can_h_met_0 = np.array([can_h_met_0[l][k] for l in range(nLines) for k in range(len(can_h_met_0[l]))])
+        can_h_met_1 = np.array([can_h_met_1[l][k] for l in range(nLines) for k in range(len(can_h_met_1[l]))])
+        can_h_met_2 = np.array([can_h_met_2[l][k] for l in range(nLines) for k in range(len(can_h_met_2[l]))])
+        can_h_met_3 = np.array([can_h_met_3[l][k] for l in range(nLines) for k in range(len(can_h_met_3[l]))])
+        can_h_met_4 = np.array([can_h_met_4[l][k] for l in range(nLines) for k in range(len(can_h_met_4[l]))])
+        can_h_met_5 = np.array([can_h_met_5[l][k] for l in range(nLines) for k in range(len(can_h_met_5[l]))])
+        can_h_met_6 = np.array([can_h_met_6[l][k] for l in range(nLines) for k in range(len(can_h_met_6[l]))])
+        can_h_met_7 = np.array([can_h_met_7[l][k] for l in range(nLines) for k in range(len(can_h_met_7[l]))])
+        can_h_met_8 = np.array([can_h_met_8[l][k] for l in range(nLines) for k in range(len(can_h_met_8[l]))])
+    else:
+        can_h_met = np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))])
+        
     n_ca_ph     =np.array([n_ca_ph[l][k] for l in range(nLines) for k in range(len(n_ca_ph[l]))] )
     n_toc_ph    =np.array([n_toc_ph[l][k] for l in range(nLines) for k in range(len(n_toc_ph[l]))] )
     can_open    =np.array([can_open[l][k] for l in range(nLines) for k in range(len(can_open[l]))] )
@@ -337,12 +357,11 @@ def ICESAT2GRD(args):
     # Create a handy ID label for each point
     fid = np.arange(1, len(h_max_can)+1, 1)
 
-    # Set up a dataframe
+    #print("Set up a dataframe...")
 
-    print(can_h_met.shape)
+    dict_pandas_df = {}
     
-    out=pd.DataFrame({
-
+    dict_orb_gt_seg = {
                     'fid'       :fid,
                     'lon'       :longitude,
                     'lat'       :latitude,
@@ -357,21 +376,39 @@ def ICESAT2GRD(args):
                     'gt'        :gt,
 
                     'segid_beg' :segid_beg,
-                    'segid_end' :segid_end,
+                    'segid_end' :segid_end
+    }
+    if do_30m:
+        dict_rh_metrics_30m = {
+                        'h_max_can' :h_max_can,
+                        'h_can'     :h_can,
 
-                    'h_max_can' :h_max_can,
-                    'h_can'     :h_can,
+                        'rh25'      :can_h_met_0,
+                        'rh30'      :can_h_met_1,
+                        'rh40'      :can_h_met_2,
+                        'rh50'      :can_h_met_3,
+                        'rh60'      :can_h_met_4,
+                        'rh70'      :can_h_met_5,
+                        'rh75'      :can_h_met_6,
+                        'rh80'      :can_h_met_7,
+                        'rh90'      :can_h_met_8     
+        }
+    else:
+        dict_rh_metrics_100m = {
+                        'h_max_can' :h_max_can,
+                        'h_can'     :h_can,
 
-                    'rh25'      :can_h_met[:,0],
-                    'rh50'      :can_h_met[:,1],
-                    'rh60'      :can_h_met[:,2],
-                    'rh70'      :can_h_met[:,3],
-                    'rh75'      :can_h_met[:,4],
-                    'rh80'      :can_h_met[:,5],
-                    'rh85'      :can_h_met[:,6],
-                    'rh90'      :can_h_met[:,7],
-                    'rh95'      :can_h_met[:,8],
-
+                        'rh25'      :can_h_met[:,0],
+                        'rh50'      :can_h_met[:,1],
+                        'rh60'      :can_h_met[:,2],
+                        'rh70'      :can_h_met[:,3],
+                        'rh75'      :can_h_met[:,4],
+                        'rh80'      :can_h_met[:,5],
+                        'rh85'      :can_h_met[:,6],
+                        'rh90'      :can_h_met[:,7],
+                        'rh95'      :can_h_met[:,8]
+        }
+    dict_other_fields = {
                     'n_ca_ph'   :n_ca_ph,
                     'n_toc_ph'  :n_toc_ph,
                     'can_open'  :can_open,
@@ -400,14 +437,21 @@ def ICESAT2GRD(args):
                     'sol_el'    :sol_el,
 
                     'asr'       :asr,
-    				'h_dif_ref'	:h_dif_ref,
-    				'ter_flg'	:ter_flg,
-    				'ph_rem_flg':ph_rem_flg,
-    				'dem_rem_flg':dem_rem_flg,
-    				'seg_wmask' :seg_wmask,
-    				'lyr_flg'	:lyr_flg
-
-                     })
+                    'h_dif_ref' :h_dif_ref,
+                    'ter_flg'   :ter_flg,
+                    'ph_rem_flg':ph_rem_flg,
+                    'dem_rem_flg':dem_rem_flg,
+                    'seg_wmask' :seg_wmask,
+                    'lyr_flg'   :lyr_flg
+    }
+    if do_30m:
+        print("Writing pDF with 30m segments...")
+        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_30m,dict_other_fields)) )
+        #out=pd.DataFrame(dict_pandas_df.update(dict_orb_gt_seg).update(dict_rh_metrics_30m).update(dict_other_fields))
+    else:
+        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_100m,dict_other_fields)) )
+        #out=pd.DataFrame(dict_pandas_df.update(dict_orb_gt_seg).update(dict_rh_metrics_100m).update(dict_other_fields))
+        
     if False:
         # Set flag names
         out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
