@@ -18,6 +18,9 @@ from datetime import datetime
 
 
 def ICESAT2GRD(args):
+    
+    do_30m = args.do_30m
+    
     # File path to ICESat-2h5 file
     H5 = args.input
     # Get the filepath where the H5 is stored and filename
@@ -43,17 +46,18 @@ def ICESAT2GRD(args):
             # Overwite is False (off) but file DOES NOT exist
             pass
 
-
+    land_seg_path = '/land_segments/'
+    if do_30m:
+        land_seg_path = land_seg_path+'30m_segment/'
+        
     # open file
     f = h5py.File(H5,'r')
 
     # Set up acq date
-    yr, m, d = ([] for i in range(3))
-
+    dt, yr, m, d = ([] for i in range(4))
 
     # Set up orbit info fields
     gt, orb_num, rgt, orb_orient = ([] for i in range(4))
-
 
     # Set the names of the 6 lasers
     lines = ['gt1r', 'gt1l', 'gt2r', 'gt2l', 'gt3r', 'gt3l']
@@ -62,7 +66,8 @@ def ICESAT2GRD(args):
     latitude, longitude, segid_beg, segid_end = ([] for i in range(4))
 
     # Canopy fields
-    can_h_met = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,	50,	60,	70,	75,	80,	85,	90,	95
+    can_h_met_0, can_h_met_1, can_h_met_2, can_h_met_3, can_h_met_4, can_h_met_5, can_h_met_6, can_h_met_7, can_h_met_8 = ([] for i in range(9))
+    can_h_met = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,50,	60,	70,	75,	80,	85,	90,	95
     h_max_can = []
     h_can = []      # 98% height of all the individual canopy relative heights for the segment above the estimated terrain surface. Relative canopy heights have been computed by differencing the canopy photon height from the estimated terrain surface.
 
@@ -108,33 +113,41 @@ def ICESAT2GRD(args):
     h_canopy_uncertainty = []
     h_canopy_quad = []
 
-    # Granule level info
-    granule_dt = datetime.strptime(Name.split('_')[1], '%Y%m%d%H%M%S')
-    YEAR = granule_dt.year
-    MONTH = granule_dt.month
-    DOY = granule_dt.timetuple().tm_yday
+    if False:
+        # Granule level info
+        granule_dt = datetime.strptime(Name.split('_')[1], '%Y%m%d%H%M%S')
 
-    Arrtemp = f['/orbit_info/orbit_number/'][...,]
+        YEAR = granule_dt.year
+        MONTH = granule_dt.month
+        DOY = granule_dt.timetuple().tm_yday
 
-    temp = np.empty_like(Arrtemp, dtype='a255')
-    temp[...] = YEAR
-    yr.append(temp)
+        Arrtemp = f['/orbit_info/orbit_number/'][...,]
 
-    temp = np.empty_like(Arrtemp, dtype='a255')
-    temp[...] = MONTH
-    m.append(temp)
+        temp = np.empty_like(Arrtemp, dtype='a255')
+        temp[...] = YEAR
+        yr.append(temp)
 
-    temp = np.empty_like(Arrtemp, dtype='a255')
-    temp[...] = DOY
-    d.append(temp)
+        temp = np.empty_like(Arrtemp, dtype='a255')
+        temp[...] = YEAR
+        yr.append(temp)
 
+        temp = np.empty_like(Arrtemp, dtype='a255')
+        temp[...] = MONTH
+        m.append(temp)
+
+        temp = np.empty_like(Arrtemp, dtype='a255')
+        temp[...] = DOY
+        d.append(temp)
+
+    dt.append(f['/ancillary_data/granule_end_utc/'][...,].tolist())
     orb_orient.append(f['/orbit_info/sc_orient/'][...,].tolist())
     orb_num.append(f['/orbit_info/orbit_number/'][...,].tolist())
     rgt.append(f['/orbit_info/rgt/'][...,].tolist())
 
-    yr          =np.array([yr[l][k] for l in range(1) for k in range(len(yr[l]))] )
-    m           =np.array([m[l][k] for l in range(1) for k in range(len(m[l]))] )
-    d           =np.array([d[l][k] for l in range(1) for k in range(len(d[l]))] )
+    #yr          =np.array([yr[l][k] for l in range(1) for k in range(len(yr[l]))] )
+    #m           =np.array([m[l][k] for l in range(1) for k in range(len(m[l]))] )
+    #d           =np.array([d[l][k] for l in range(1) for k in range(len(d[l]))] )
+    dt          =np.array([dt[l][k] for l in range(1) for k in range(len(dt[l]))] )    
     orb_orient  =np.array([orb_orient[l][k] for l in range(1) for k in range(len(orb_orient[l]))] )
     orb_num     =np.array([orb_num[l][k] for l in range(1) for k in range(len(orb_num[l]))] )
     rgt         =np.array([rgt[l][k] for l in range(1) for k in range(len(rgt[l]))] )
@@ -146,62 +159,95 @@ def ICESAT2GRD(args):
         # It might be the case that a specific line/laser has no members in the h5 file.
         # If so, catch the error and skip - MW 3/31
         try:
-            latitude.append(f['/' + line    + '/land_segments/latitude/'][...,].tolist())
+            latitude.append(f['/' + line    + land_seg_path + 'latitude/'][...,].tolist())
         except KeyError:
             continue # No info for laser/line, skip it and move on to next line
 
-        longitude.append(f['/' + line   + '/land_segments/longitude/'][...,].tolist())
+        longitude.append(f['/' + line   + land_seg_path + 'longitude/'][...,].tolist())
 
         # Get ground track
-        Arrtemp = f['/' + line  + '/land_segments/latitude/'][...,]
+        Arrtemp = f['/' + line  + land_seg_path + 'latitude/'][...,]
         temp = np.empty_like(Arrtemp, dtype='a255')
         temp[...] = line
         gt.append(temp)
 
-        segid_beg.append(f['/' + line   + '/land_segments/segment_id_beg/'][...,].tolist())
-        segid_end.append(f['/' + line   + '/land_segments/segment_id_end/'][...,].tolist())
-
+        segid_beg.append(f['/' + line   + land_seg_path + 'segment_id_beg/'][...,].tolist())
+        segid_end.append(f['/' + line   + land_seg_path + 'segment_id_end/'][...,].tolist())
+        
         # Canopy fields
-        can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
-        h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
-        h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
-
-        n_ca_ph.append(f['/' + line    	+ '/land_segments/canopy/n_ca_photons/'][...,].tolist())
-        n_toc_ph.append(f['/' + line   	+ '/land_segments/canopy/n_toc_photons/'][...,].tolist())
-        can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
-        tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
-        tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
+        if do_30m:
+            can_h_met.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_0/'][...,] )
+            can_h_met.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_1/'][...,] )
+            if False:
+                can_h_met_0.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_0/'][...,].tolist() )
+                can_h_met_1.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_1/'][...,].tolist() )
+                can_h_met_2.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_2/'][...,].tolist() )
+                can_h_met_3.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_3/'][...,].tolist() )
+                can_h_met_4.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_4/'][...,].tolist() )
+                can_h_met_5.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_5/'][...,].tolist() )
+                can_h_met_6.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_6/'][...,].tolist() )
+                can_h_met_7.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_7/'][...,].tolist() )
+                can_h_met_8.append(f['/' + line   + '/land_segments/30m_segment/canopy_h_metrics_8/'][...,].tolist() )
+            #print(can_h_met.shape)
+            # No idea if this is the right way to re-combine the indiv metrics lists to match that way we do it for the 100m segs (so the rest of the code below can remain the same)
+            #can_h_met = [can_h_met_0, can_h_met_1, can_h_met_2, can_h_met_3, can_h_met_4, can_h_met_5, can_h_met_6, can_h_met_7, can_h_met_8]
+            # No!
+            #can_h_met = can_h_met_0.append(can_h_met_1.append(can_h_met_2.append(can_h_met_3.append(can_h_met_4.append(can_h_met_5.append(can_h_met_6.append(can_h_met_7.append(can_h_met_8))))))))
+            
+            h_max_can.append(f['/' + line   + '/land_segments/30m_segment/h_max_canopy/'][...,].tolist())
+            h_can.append(f['/' + line       + '/land_segments/30m_segment/h_canopy/'][...,].tolist())
+            n_ca_ph.append(f['/' + line     + '/land_segments/30m_segment/n_ca_photons/'][...,].tolist())
+            n_toc_ph.append(f['/' + line    + '/land_segments/30m_segment/n_toc_photons/'][...,].tolist())
+            can_open.append(f['/' + line    + '/land_segments/30m_segment/canopy_openness/'][...,].tolist())
+            tcc_flg.append(f['/' + line     + '/land_segments/30m_segment/landsat_flag/'][...,].tolist())
+            tcc_prc.append(f['/' + line     + '/land_segments/30m_segment/landsat_perc/'][...,].tolist())            
+        else:
+            can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
+            h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
+            h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
+            n_ca_ph.append(f['/' + line     + '/land_segments/canopy/n_ca_photons/'][...,].tolist())
+            n_toc_ph.append(f['/' + line    + '/land_segments/canopy/n_toc_photons/'][...,].tolist())
+            can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
+            tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
+            tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
 
         # Uncertinaty fields
-        cloud_flg.append(f['/' + line   + '/land_segments/cloud_flag_atm/'][...,].tolist())
-        msw_flg.append(f['/' + line     + '/land_segments/msw_flag/'][...,].tolist())
-        n_seg_ph.append(f['/' + line    + '/land_segments/n_seg_ph/'][...,].tolist())
-        night_flg.append(f['/' + line   + '/land_segments/night_flag/'][...,].tolist())
-        seg_landcov.append(f['/' + line + '/land_segments/segment_landcover/'][...,].tolist())
-        seg_snow.append(f['/' + line    + '/land_segments/segment_snowcover/'][...,].tolist())
-        seg_water.append(f['/' + line   + '/land_segments/segment_watermask/'][...,].tolist())
-        sig_vert.append(f['/' + line    + '/land_segments/sigma_atlas_land/'][...,].tolist())
-        sig_acr.append(f['/' + line     + '/land_segments/sigma_across/'][...,].tolist())
-        sig_along.append(f['/' + line   + '/land_segments/sigma_along/'][...,].tolist())
-        sig_h.append(f['/' + line       + '/land_segments/sigma_h/'][...,].tolist())
-        sig_topo.append(f['/' + line    + '/land_segments/sigma_topo/'][...,].tolist())
+        cloud_flg.append(f['/' + line   + land_seg_path + 'cloud_flag_atm/'][...,].tolist())
+        msw_flg.append(f['/' + line     + land_seg_path + 'msw_flag/'][...,].tolist())
+        n_seg_ph.append(f['/' + line    + land_seg_path + 'n_seg_ph/'][...,].tolist())
+        night_flg.append(f['/' + line   + land_seg_path + 'night_flag/'][...,].tolist())
+        seg_landcov.append(f['/' + line + land_seg_path + 'segment_landcover/'][...,].tolist())
+        seg_snow.append(f['/' + line    + land_seg_path + 'segment_snowcover/'][...,].tolist())
+        seg_water.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
+        sig_vert.append(f['/' + line    + land_seg_path + 'sigma_atlas_land/'][...,].tolist())
+        sig_acr.append(f['/' + line     + land_seg_path + 'sigma_across/'][...,].tolist())
+        sig_along.append(f['/' + line   + land_seg_path + 'sigma_along/'][...,].tolist())
+        sig_h.append(f['/' + line       + land_seg_path + 'sigma_h/'][...,].tolist())
+        sig_topo.append(f['/' + line    + land_seg_path + 'sigma_topo/'][...,].tolist())
 
         # Terrain fields
-        n_te_ph.append(f['/' + line    	+ '/land_segments/terrain/n_te_photons/'][...,].tolist())
-        h_te_best.append(f['/' + line   + '/land_segments/terrain/h_te_best_fit/'][...,].tolist())
-        h_te_unc.append(f['/' + line    + '/land_segments/terrain/h_te_uncertainty/'][...,].tolist())
-        ter_slp.append(f['/' + line     + '/land_segments/terrain/terrain_slope/'][...,].tolist())
-        snr.append(f['/' + line         + '/land_segments/snr/'][...,].tolist())
-        sol_az.append(f['/' + line      + '/land_segments/solar_azimuth/'][...,].tolist())
-        sol_el.append(f['/' + line      + '/land_segments/solar_elevation/'][...,].tolist())
+        if do_30m:
+            n_te_ph.append(f['/' + line     + '/land_segments/30m_segment/n_te_photons/'][...,].tolist())
+            h_te_best.append(f['/' + line   + '/land_segments/30m_segment/h_te_best_fit/'][...,].tolist())
+            h_te_unc.append(f['/' + line    + '/land_segments/30m_segment/h_te_uncertainty/'][...,].tolist())
+            ter_slp.append(f['/' + line     + '/land_segments/30m_segment/terrain_slope/'][...,].tolist())
+        else:
+            n_te_ph.append(f['/' + line     + '/land_segments/terrain/n_te_photons/'][...,].tolist())
+            h_te_best.append(f['/' + line   + '/land_segments/terrain/h_te_best_fit/'][...,].tolist())
+            h_te_unc.append(f['/' + line    + '/land_segments/terrain/h_te_uncertainty/'][...,].tolist())
+            ter_slp.append(f['/' + line     + '/land_segments/terrain/terrain_slope/'][...,].tolist())
+            
+        snr.append(f['/' + line         + land_seg_path + 'snr/'][...,].tolist())
+        sol_az.append(f['/' + line      + land_seg_path + 'solar_azimuth/'][...,].tolist())
+        sol_el.append(f['/' + line      + land_seg_path + 'solar_elevation/'][...,].tolist())
 
-        asr.append(f['/' + line    		+ '/land_segments/asr/'][...,].tolist())
-        h_dif_ref.append(f['/' + line   + '/land_segments/h_dif_ref/'][...,].tolist())
-        ter_flg.append(f['/' + line    	+ '/land_segments/terrain_flg/'][...,].tolist())
-        ph_rem_flg.append(f['/' + line  + '/land_segments/ph_removal_flag/'][...,].tolist())
-        dem_rem_flg.append(f['/' + line + '/land_segments/dem_removal_flag/'][...,].tolist())
-        seg_wmask.append(f['/' + line   + '/land_segments/segment_watermask/'][...,].tolist())
-        lyr_flg.append(f['/' + line    	+ '/land_segments/layer_flag/'][...,].tolist())
+        asr.append(f['/' + line         + land_seg_path + 'asr/'][...,].tolist())
+        h_dif_ref.append(f['/' + line   + land_seg_path + 'h_dif_ref/'][...,].tolist())
+        ter_flg.append(f['/' + line     + land_seg_path + 'terrain_flg/'][...,].tolist())
+        ph_rem_flg.append(f['/' + line  + land_seg_path + 'ph_removal_flag/'][...,].tolist())
+        dem_rem_flg.append(f['/' + line + land_seg_path + 'dem_removal_flag/'][...,].tolist())
+        seg_wmask.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
+        lyr_flg.append(f['/' + line     + land_seg_path + 'layer_flag/'][...,].tolist())
 
 
     # MW 3/31: Originally a length of 6 was hardcoded into the below calculations because the
@@ -224,6 +270,8 @@ def ICESAT2GRD(args):
     segid_end   =np.array([segid_end[l][k] for l in range(nLines) for k in range(len(segid_end[l]))] )
 
     can_h_met   =np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))] )
+    print(can_h_met.flatten().shape)
+    
     h_max_can   =np.array([h_max_can[l][k] for l in range(nLines) for k in range(len(h_max_can[l]))] )
     h_can       =np.array([h_can[l][k] for l in range(nLines) for k in range(len(h_can[l]))] )
 
@@ -274,31 +322,35 @@ def ICESAT2GRD(args):
     #CenterLat = latitude[len(latitude)/2]
     CenterLat = latitude[int(len(latitude)/2)]
 
-    # Calc args.resolution in degrees
-    ellipse = [6378137.0, 6356752.314245]
-    radlat = np.deg2rad(CenterLat)
-    Rsq = (ellipse[0]*np.cos(radlat))**2+(ellipse[1]*np.sin(radlat))**2
-    Mlat = (ellipse[0]*ellipse[1])**2/(Rsq**1.5)
-    Nlon = ellipse[0]**2/np.sqrt(Rsq)
-    pixelSpacingInDegreeX = float(args.resolution) / (np.pi/180*np.cos(radlat)*Nlon)
-    pixelSpacingInDegreeY = float(args.resolution) / (np.pi/180*Mlat)
-    print('Raster X (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeX))
-    print('Raster Y (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeY))
+    if False:
+        # Calc args.resolution in degrees
+        ellipse = [6378137.0, 6356752.314245]
+        radlat = np.deg2rad(CenterLat)
+        Rsq = (ellipse[0]*np.cos(radlat))**2+(ellipse[1]*np.sin(radlat))**2
+        Mlat = (ellipse[0]*ellipse[1])**2/(Rsq**1.5)
+        Nlon = ellipse[0]**2/np.sqrt(Rsq)
+        pixelSpacingInDegreeX = float(args.resolution) / (np.pi/180*np.cos(radlat)*Nlon)
+        pixelSpacingInDegreeY = float(args.resolution) / (np.pi/180*Mlat)
+        print('Raster X (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeX))
+        print('Raster Y (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeY))
 
     # Create a handy ID label for each point
     fid = np.arange(1, len(h_max_can)+1, 1)
 
     # Set up a dataframe
+
+    print(can_h_met.shape)
+    
     out=pd.DataFrame({
 
                     'fid'       :fid,
                     'lon'       :longitude,
                     'lat'       :latitude,
 
-                    'yr'        :np.full(longitude.shape, yr[0]),
-                    'm'         :np.full(longitude.shape, m[0]),
-                    'd'         :np.full(longitude.shape, d[0]),
-
+                    #'yr'        :np.full(longitude.shape, yr[0]),
+                    #'m'         :np.full(longitude.shape, m[0]),
+                    #'d'         :np.full(longitude.shape, d[0]),
+                    'dt'        :np.full(longitude.shape, dt[0]),
                     'orb_orient':np.full(longitude.shape, orb_orient[0]),
                     'orb_num'   :np.full(longitude.shape, orb_num[0]),
                     'rgt'       :np.full(longitude.shape, rgt[0]),
@@ -309,6 +361,7 @@ def ICESAT2GRD(args):
 
                     'h_max_can' :h_max_can,
                     'h_can'     :h_can,
+
                     'rh25'      :can_h_met[:,0],
                     'rh50'      :can_h_met[:,1],
                     'rh60'      :can_h_met[:,2],
@@ -319,8 +372,8 @@ def ICESAT2GRD(args):
                     'rh90'      :can_h_met[:,7],
                     'rh95'      :can_h_met[:,8],
 
-                    'n_ca_ph'  :n_ca_ph,
-                    'n_toc_ph' :n_toc_ph,
+                    'n_ca_ph'   :n_ca_ph,
+                    'n_toc_ph'  :n_toc_ph,
                     'can_open'  :can_open,
                     'tcc_flg'   :tcc_flg,
                     'tcc_prc'   :tcc_prc,
@@ -346,7 +399,7 @@ def ICESAT2GRD(args):
                     'sol_az'    :sol_az,
                     'sol_el'    :sol_el,
 
-    				'asr'		:asr,
+                    'asr'       :asr,
     				'h_dif_ref'	:h_dif_ref,
     				'ter_flg'	:ter_flg,
     				'ph_rem_flg':ph_rem_flg,
@@ -355,20 +408,19 @@ def ICESAT2GRD(args):
     				'lyr_flg'	:lyr_flg
 
                      })
-    
-    # Maybe add filtering right here, instead of using 'filter_atl08.R' next?
-    # Set flag names
-    out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
-                                                 3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
-                                                 5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \
-                                                 8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \
-                                                 12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \
-                                                 15: "permanent snow-ice", 16: "barren"})
-    out['seg_snow'] = out['seg_snow'].map({0: "ice free water", 1: "snow free land", 2: "snow", 3: "ice"})
-    out['cloud_flg'] = out['cloud_flg'].map({0: "High conf. clear skies", 1: "Medium conf. clear skies", 2: "Low conf. clear skies", \
-                                             3: "Low conf. cloudy skies", 4: "Medium conf. cloudy skies", 5: "High conf. cloudy skies"})
-    out['night_flg'] = out['night_flg'].map({0: "day", 1: "night"})
-    #out['tcc_flg'] = out['tcc_flg'].map({0: "=<5%", 1: ">5%"})
+    if False:
+        # Set flag names
+        out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
+                                                     3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
+                                                     5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \
+                                                     8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \
+                                                     12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \
+                                                     15: "permanent snow-ice", 16: "barren"})
+        out['seg_snow'] = out['seg_snow'].map({0: "ice free water", 1: "snow free land", 2: "snow", 3: "ice"})
+        out['cloud_flg'] = out['cloud_flg'].map({0: "High conf. clear skies", 1: "Medium conf. clear skies", 2: "Low conf. clear skies", \
+                                                 3: "Low conf. cloudy skies", 4: "Medium conf. cloudy skies", 5: "High conf. cloudy skies"})
+        out['night_flg'] = out['night_flg'].map({0: "day", 1: "night"})
+        #out['tcc_flg'] = out['tcc_flg'].map({0: "=<5%", 1: ">5%"})
                                          
     # Bin tcc values                                     
     tcc_bins = [0,10,20,30,40,50,60,70,80,90,100]
@@ -445,6 +497,8 @@ def main():
     parser.set_defaults(filter_qual=True)
     parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn geographic filtering off (To control filtering downstream)')
     parser.set_defaults(filter_geo=True)
+    parser.add_argument('--enable-do_30m', dest='do_30m', action='store_true', help='Enable 30m ATL08 extraction')
+    parser.set_defaults(do_30m=False)
 
 
     args = parser.parse_args()
