@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import subprocess
 import os
+import math
+
 import argparse
 
 import datetime, time
@@ -25,12 +27,13 @@ def rec_merge1(d1, d2):
     d3.update(d2)
     return d3
 
-def ICESAT2GRD(args):
-    
+def extract_atl08(args):
+    TEST = args.TEST
     do_30m = args.do_30m
     
     # File path to ICESat-2h5 file
     H5 = args.input
+    
     # Get the filepath where the H5 is stored and filename
     inDir = '/'.join(H5.split('/')[:-1])
     Name = H5.split('/')[-1].split('.')[0]
@@ -39,8 +42,9 @@ def ICESAT2GRD(args):
         outbase = os.path.join(inDir, Name)
     else:
         outbase = os.path.join(args.output, Name)
-    print(Name)
-    print(inDir)
+        
+    print("\nATL08 granule name: \t{}".format(Name))
+    print("Input dir: \t\t{}".format(inDir))
 
     if args.overwrite:
         # Overwite is True (on)
@@ -56,8 +60,15 @@ def ICESAT2GRD(args):
 
     land_seg_path = '/land_segments/'
     if do_30m:
-        land_seg_path = land_seg_path+'30m_segment/'
+        segment_length = 30
+        land_seg_path = land_seg_path + str(segment_length) + 'm_segment/'
+    else:
+        segment_length = 100
         
+    fn_tail = '_' + str(segment_length) + 'm.csv'
+    
+    print("\nSegment length: {}m".format(segment_length)) 
+    
     # open file
     f = h5py.File(H5,'r')
 
@@ -194,7 +205,11 @@ def ICESAT2GRD(args):
             can_h_met_6.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_75/'][...,].tolist() )
             can_h_met_7.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_80/'][...,].tolist() )
             can_h_met_8.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_90/'][...,].tolist() )
-            #print(len(can_h_met_0), len(can_h_met_1), len(can_h_met_2))
+            
+            if TEST:
+                pass
+                #print(len(can_h_met_0), len(can_h_met_1), len(can_h_met_2))
+                
             h_max_can.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_100/'][...,].tolist())
             h_can.append(f['/' + line       + '/land_segments/30m_segment/atl03_rh_98/'][...,].tolist())
             
@@ -254,9 +269,6 @@ def ICESAT2GRD(args):
         seg_wmask.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
         lyr_flg.append(f['/' + line     + land_seg_path + 'layer_flag/'][...,].tolist())
     
-    
-
-    
     # MW 3/31: Originally a length of 6 was hardcoded into the below calculations because the
     #          assumption was made that 6 lines/lasers worth of data was stored in the arrays. With
     #	       the above changes made to the beginning of the 'for line in lines' loop on 3/31, this
@@ -266,8 +278,10 @@ def ICESAT2GRD(args):
     # Be sure at least one of the lasers/lines for the h5 file had data points - MW added block 3/31
     if nLines == 0:
         return None # No usable points in h5 file, can't process
-
-    print("Convert the list of lists into a single list...")
+    if TEST:
+        pass
+        #print("Convert the list of lists into a single list...")
+        
     latitude    =np.array([latitude[l][k] for l in range(nLines) for k in range(len(latitude[l]))] )
     longitude   =np.array([longitude[l][k] for l in range(nLines) for k in range(len(longitude[l]))] )
 
@@ -276,8 +290,6 @@ def ICESAT2GRD(args):
     segid_beg   =np.array([segid_beg[l][k] for l in range(nLines) for k in range(len(segid_beg[l]))] )
     segid_end   =np.array([segid_end[l][k] for l in range(nLines) for k in range(len(segid_end[l]))] )
 
-    #can_h_met   =np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))] )
-    #print("can_h_met.shape: ",can_h_met.shape)
     
     h_max_can   =np.array([h_max_can[l][k] for l in range(nLines) for k in range(len(h_max_can[l]))] )
     h_can       =np.array([h_can[l][k] for l in range(nLines) for k in range(len(h_can[l]))] )
@@ -330,13 +342,36 @@ def ICESAT2GRD(args):
     seg_wmask	=np.array([seg_wmask[l][k] for l in range(nLines) for k in range(len(seg_wmask[l]))] )
     lyr_flg		=np.array([lyr_flg[l][k] for l in range(nLines) for k in range(len(lyr_flg[l]))] )
 
-
-    print(len(latitude), len(sol_el))
+    # Handle nodata
+    val_invalid = np.finfo('float32').max
+    val_nan = np.nan
+    val_nodata_src = np.max(h_can)
+    print("Find src nodata value using max of h_can: \t{}".format(val_nodata_src))
     
-    #
-    # Default set to 100.0. Set to 0 all heights above threshold
-    #
-    h_max_can[h_max_can>args.thresh_ht_max_can] = 0
+    if TEST:
+        
+        # Testing with 'h_can'
+        
+        print("\n\tNan used for 30m version, not for 100m version.")
+        print("\t\tCheck max of h_can...")
+        print("\t\tnp.nanmax: \t{}".format(np.nanmax(h_can)) )
+        print("\t\tnp.max: \t{}".format(np.max(h_can)) )
+        
+           
+        
+        print('[BEFORE] # of nan ATL08 obs of h_can: \t{}'.format(len( h_can[np.isnan(h_can) ] )))
+        h_can = np.array([val_invalid if math.isnan(x) else x for x in h_can])
+        print("Set h_can max to float32 max; np.max: \t {}".format(np.max(h_can)))
+        print('[AFTER] # of nan ATL08 obs of h_can: \t{}'.format(len( h_can[np.isnan(h_can) ] )))
+        
+        print("\nData type: \t{}".format(h_can.dtype))
+        print("# of nan ATL08 obs of  h_can: \t{}".format( np.count_nonzero(np.isnan(h_can)) ))
+        print('# of invalid ATL08 obs of h_can: \t{}'.format(len( h_can[h_can == val_invalid ] )))
+        
+        print('# of ATL08 obs: \t\t{}'.format(len(latitude)))
+        print('# of ATL08 obs (can pho.>0): \t{}'.format(len(n_ca_ph[n_ca_ph>0])))
+        print('# of ATL08 obs (toc pho.>0): \t{}'.format(len(n_toc_ph[n_toc_ph>0])))
+        print('# of ATL08 obs (h_can>0): \t{}'.format(len(h_can[h_can>0])))
 
     # Get approx path center Lat
     #CenterLat = latitude[len(latitude)/2]
@@ -357,7 +392,8 @@ def ICESAT2GRD(args):
     # Create a handy ID label for each point
     fid = np.arange(1, len(h_max_can)+1, 1)
 
-    #print("Set up a dataframe...")
+    if TEST:
+        print("\nSet up a dataframe dictionary...")
 
     dict_pandas_df = {}
     
@@ -444,15 +480,40 @@ def ICESAT2GRD(args):
                     'seg_wmask' :seg_wmask,
                     'lyr_flg'   :lyr_flg
     }
+    print("\nBuilding pandas dataframe...")
     if do_30m:
-        print("Writing pDF with 30m segments...")
         out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_30m,dict_other_fields)) )
-        #out=pd.DataFrame(dict_pandas_df.update(dict_orb_gt_seg).update(dict_rh_metrics_30m).update(dict_other_fields))
     else:
         out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_100m,dict_other_fields)) )
-        #out=pd.DataFrame(dict_pandas_df.update(dict_orb_gt_seg).update(dict_rh_metrics_100m).update(dict_other_fields))
-        
-    if False:
+    
+    print("Setting pandas df nodata values to np.nan for some basic eval.")
+    out = out.replace(val_nodata_src, np.nan)
+   
+    print('# of ATL08 obs: \t\t{}'.format(len(out.lat[out.lat.notnull()])))
+    print('# of ATL08 obs (can pho.>=0): \t{}'.format(len(out.n_ca_ph[
+                                                                    (out.h_can.notnull() ) & 
+                                                                    (out.n_ca_ph >= 0) 
+                                                                ])))
+    print('# of ATL08 obs (toc pho.>=0): \t{}'.format(len(out.n_toc_ph[
+                                                                    (out.h_can.notnull() ) & 
+                                                                    (out.n_toc_ph >= 0) 
+                                                                ])))
+    print('# of ATL08 obs (h_can>=0): \t{}'.format(len(out.h_can[
+                                                                (out.h_can.notnull() ) & 
+                                                                (out.h_can >= 0) 
+                                                               ])))
+    print('# of ATL08 obs (h_can<0): \t{}'.format(len(out.h_can[
+                                                                (out.h_can.notnull() ) & 
+                                                                (out.h_can < 0) 
+                                                               ])))
+    if args.set_nodata_nan:
+        val_nodata_out = val_nan
+    else:
+        val_nodata_out = val_invalid
+    print("Setting out pandas df nodata values: \t{}".format(val_nodata_out))
+    out = out.replace(np.nan, val_nodata_out)
+    
+    if args.set_flag_names:
         # Set flag names
         out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
                                                      3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
@@ -471,7 +532,7 @@ def ICESAT2GRD(args):
     out['tcc_bin'] = pd.cut(out['tcc_prc'], bins=tcc_bins, labels=tcc_bins[1:])
     
     if args.filter_qual:
-        print('Quality Filtering...')
+        print('Quality Filtering: \t\t[ON]')
 
         # These filters are customized for boreal 
         out = out[ (out['h_can']    <= args.max_h_can) & 
@@ -481,10 +542,10 @@ def ICESAT2GRD(args):
                    (out['msw_flg']  == 0)
                   ]
     else:
-        print('Turned off quality filtering; do downstream.')
+        print('Quality Filtering: \t[OFF] (do downstream)')
 
     if args.filter_geo:
-        print('Geographic Filtering...')        
+        print('Geographic Filtering: \t[ON] xmin = {}, xmax = {}, ymin = {}, ymax = {}'.format(args.minlon, args.maxlon, args.minlat, args.maxlat))        
         # These filters are customized for boreal 
         out = out[ (out['lon']     >= args.minlon) & 
                    (out['lon']     <= args.maxlon) & 
@@ -492,18 +553,19 @@ def ICESAT2GRD(args):
                    (out['lat']     <= args.maxlat)
                  ]
     else:
-        print('Turned off geographic filtering; do downstream.')
+        print('Geographic Filtering: \t[OFF] (do downstream)')
 
     if out.empty:
         print('File is empty.')
     else:
         # Write out to a csv
-        print('Creating CSV...')
-        out.to_csv(os.path.join(outbase + '.csv'),index=False, encoding="utf-8-sig")
+        out_csv_fn = os.path.join(outbase + fn_tail)
+        print('Creating CSV: \t\t{}'.format(out_csv_fn))
+        out.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
 
 
 def main():
-    print("\nICESat2GRD is written by Nathan Thomas (@Nmt28).\nModified by Paul Montesano | paul.m.montesano@nasa.gov\nUse '-h' for help and required input parameters\n")
+    print("\nWritten by:\n\tNathan Thomas\t| @Nmt28\n\tPaul Montesano\t| paul.m.montesano@nasa.gov\n")
                                          
     class Range(object):
         def __init__(self, start, end):
@@ -526,24 +588,29 @@ def main():
     parser.add_argument("-i", "--input", type=str, help="Specify the input ICESAT H5 file")
     parser.add_argument("-r", "--resolution", type=str, default='100', help="Specify the output raster resolution (m)")
     parser.add_argument("-o", "--output", type=str, help="Specify the output directory (optional)")
-    parser.add_argument("-t", "--thresh_ht_max_can", type=float, choices=[Range(0.0, 100.0)], default=100.0, help="The maximum height of valid canopy estimates" )
     parser.add_argument("-v", "--out_var", type=str, default='h_max_can', help="A selected variable to rasterize")
     parser.add_argument("-prj", "--out_epsg", type=str, default='102001', help="Out raster prj (default: Canada Albers Equal Area)")
     parser.add_argument("--max_h_can" , type=float, choices=[Range(0.0, 100.0)], default=30.0, help="Max value of h_can to include")
     parser.add_argument("--min_n_toc_ph" , type=int, default=1, help="Min number of top of canopy classified photons required for shot to be output")
-    parser.add_argument("--minlon" , type=float, choices=[Range(-180.0, 180.0)], default=-160.0, help="Min longitude of ATL08 shots for output to include") 
-    parser.add_argument("--maxlon" , type=float, choices=[Range(-180.0, 180.0)], default=-50.0, help="Max longitude of ATL08 shots for output to include")
+    parser.add_argument("--minlon" , type=float, choices=[Range(-180.0, 180.0)], default=-180.0, help="Min longitude of ATL08 shots for output to include") 
+    parser.add_argument("--maxlon" , type=float, choices=[Range(-180.0, 180.0)], default=180.0, help="Max longitude of ATL08 shots for output to include")
     parser.add_argument("--minlat" , type=float, choices=[Range(-90.0, 90.0)], default=45.0, help="Min latitude of ATL08 shots for output to include") 
     parser.add_argument("--maxlat" , type=float, choices=[Range(-90.0, 90.0)], default=75.0, help="Max latitude of ATL08 shots for output to include")
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false', help='Turn overwrite off (To help complete big runs that were interrupted)')
     parser.set_defaults(overwrite=True)
-    parser.add_argument('--no-filter-qual', dest='filter_qual', action='store_false', help='Turn quality filtering off (To control filtering downstream)')
+    parser.add_argument('--no-filter-qual', dest='filter_qual', action='store_false', help='Turn off quality filtering (To control filtering downstream)')
     parser.set_defaults(filter_qual=True)
-    parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn geographic filtering off (To control filtering downstream)')
+    parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn off geographic filtering (To control filtering downstream)')
     parser.set_defaults(filter_geo=True)
-    parser.add_argument('--enable-do_30m', dest='do_30m', action='store_true', help='Enable 30m ATL08 extraction')
+    parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
-
+    parser.add_argument('--set_flag_names', dest='set_flag_names', action='store_true', help='Set the flag values to meaningful flag names')
+    parser.set_defaults(set_flag_names=False)
+    parser.add_argument('--set_nodata_nan', dest='set_nodata_nan', action='store_true', help='Set output nodata to nan')
+    parser.set_defaults(set_nodata_nan=False)
+    parser.add_argument('--TEST', dest='TEST', action='store_true', help='Turn on testing')
+    parser.set_defaults(TEST=False)
+    
 
     args = parser.parse_args()
 
@@ -569,7 +636,7 @@ def main():
         print("Min lon: {}".format(args.minlon))
         print("Max lon: {}".format(args.maxlon))
 
-    ICESAT2GRD(args)
+    extract_atl08(args)
 
 
 if __name__ == "__main__":
