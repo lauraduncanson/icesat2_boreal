@@ -1,4 +1,4 @@
-import pdal
+#import pdal
 import json
 import os
 import glob
@@ -57,8 +57,8 @@ def main():
     parser.add_argument("-dps_dir", "--dps_output_dir", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
-    parser.add_argument('--maap-query', dest='maap-query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
-    parser.set_defaults(maap-query=False)
+    parser.add_argument('--maap_query', dest='maap-query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
+    parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
 
