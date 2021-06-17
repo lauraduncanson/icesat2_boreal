@@ -56,9 +56,9 @@ def get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles
     granules = [item.getDownloadUrl() for item in result_chain]
     
     # Convert to just the h5 basenames (removing the s3 url)
-    out_file_list = [os.path.basename(x) for x in granules]
+    out_h5_list = [os.path.basename(x) for x in granules]
     
-    print("\t\t# ATL08 for tile {}: {}".format(tile_num, len(out_file_list)) )
+    print("\t\t# ATL08 for tile {}: {}".format(tile_num, len(out_h5_list)) )
     
     return(out_h5_list)
 

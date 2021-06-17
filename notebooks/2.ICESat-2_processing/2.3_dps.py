@@ -129,23 +129,31 @@ def main():
         all_atl08_csvs_for_tile_BASENAME = [os.path.basename(f).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
         
         # Get a list of all ATL08 CSV files from (from extract_atl08) (this will be a large boreal list)
-        print("DPS dir to find ATL08 CSVs: {}".format(dps_dir))
+        print("\tDPS dir to find ATL08 CSVs: {}".format(dps_dir))
         all_atl08_csvs = glob.glob(dps_dir + "/**/ATL08*" + seg_str + ".csv", recursive=True)
         all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
         
         # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
-        idx = [i for i, e in enumerate(all_atl08_csvs_for_tile_BASENAME) if e in set(all_atl08_csvs_BASENAME)]
+        idx = [i for i, name in enumerate(all_atl08_csvs_for_tile_BASENAME) if name in set(all_atl08_csvs_BASENAME)]
         # Get the subset of all ATL08 CSVs that just correspond to the ATL08 H5 intersecting the current tile
-        all_atl08_csvs_for_tile = [all_atl08_for_tile[x] for x in idx]       
+        all_atl08_h5_with_csvs_for_tile = [all_atl08_for_tile[x] for x in idx]       
         
         # Check to make sure these are in fact files (necessary?)
         all_atl08_csvs_NOT_FOUND = []
-        for file in all_atl08_csvs_for_tile: 
+        all_atl08_csvs_FOUND = []
+        for file in all_atl08_h5_with_csvs_for_tile:
+            file = os.path.join(dps_dir, os.path.basename(file).replace('.h5',seg_str+'.csv'))       
             if not os.path.isfile(file):
                 all_atl08_csvs_NOT_FOUND.append(file)
+            else:
+                all_atl08_csvs_FOUND.append(file)
 
-        all_atl08_csvs_FOUND = [x for x in all_atl08_csvs_for_tile if x not in all_atl08_csvs_NOT_FOUND]
-        
+        #all_atl08_csvs_FOUND = [x for x in all_atl08_h5_with_csvs_for_tile if x not in all_atl08_csvs_NOT_FOUND]
+        print("\t# of ATL08 CSV found for tile {}: {}".format(in_tile_num, len(all_atl08_csvs_FOUND)))
+        if len(all_atl08_csvs_FOUND) == 0:
+            print('\tNo ATL08 extracted for this tile.')
+            os._exit(1)
+            
         # Merge all ATL08 CSV files for the current tile into a pandas df
         print("Creating pandas data frame...")
         atl08 = pd.concat([pd.read_csv(f) for f in all_atl08_csvs_FOUND ], sort=False)
