@@ -56,12 +56,15 @@ def prep_filter_atl08_qual(atl08):
     cols_int = ['n_ca_ph', 'n_seg_ph', 'n_toc_ph']
     print(f"Cast some columns to type integer: {cols_int}")
     atl08[cols_int] = atl08[cols_int].apply(pd.to_numeric, downcast='signed', errors='coerce')
-
-    #Get rid of b strings and convert to int, then datetime
-    atl08['yr'] = atl08['yr'].str.strip("b\'\"").astype(int)
-    atl08['m'] = atl08['m'].str.strip("b\'\"").astype(int)
-    atl08['d'] = atl08['d'].str.strip("b\'\"").astype(int)
-    atl08["date"] = pd.to_datetime(atl08["yr"]*1000 + atl08["d"], format = "%Y%j")
+    
+    cols_date = ['yr', 'm', 'd']
+    
+    for c in [c for c in atl08.columns[atl08.dtypes == object] if c in cols_date ]:
+        #Get rid of b strings and convert to int, then datetime
+        atl08[c] = atl08[c].str.strip("b\'\"").astype(int)
+        
+    if set(cols_date).issubset(atl08.columns):
+        atl08["date"] = pd.to_datetime(atl08["yr"]*1000 + atl08["d"], format = "%Y%j")
     
     #print(atl08.info())
     

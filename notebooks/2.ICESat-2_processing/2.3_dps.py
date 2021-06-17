@@ -16,21 +16,19 @@ sys.path.append("/projects/icesat2_boreal/notebooks/3.Gridded_product_developmen
 sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 
 #TODO: how to get this import right if its in a different dir
-import CovariateUtils 
-import FilterUtils
-import ExtractUtils
+from CovariateUtils import *
+from FilterUtils import *
+from ExtractUtils import *
 
 #TODO: do this right also
 #import 3.1.5_dps
 #import 3.1.2_dps
 # https://stackoverflow.com/questions/1828127/how-to-reference-python-package-when-filename-contains-a-period
 import imp
-with open('3.1.5_dps.py', 'rb') as script:
-    models_admin = imp.load_module('do_3_1_5_dp', script, '3.1.5_dps.py',('.py', 'rb', imp.PY_SOURCE))
-with open('3.1.2_dps.py', 'rb') as script:
-    models_admin = imp.load_module('do_3_1_2_dp', script, '3.1.2_dps.py',('.py', 'rb', imp.PY_SOURCE))
-
-
+with open('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development/3.1.5_dps.py', 'rb') as script:
+    models_admin = imp.load_module('do_3_1_5_dp', script, '3.1.5_dps.py', ('.py', 'rb', imp.PY_SOURCE))
+with open('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development/3.1.2_dps.py', 'rb') as script:
+    models_admin = imp.load_module('do_3_1_2_dp', script, '3.1.2_dps.py', ('.py', 'rb', imp.PY_SOURCE))
 
 def main():
     #
@@ -57,14 +55,14 @@ def main():
     parser.add_argument("-dps_dir", "--dps_output_dir", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
-    parser.add_argument('--maap_query', dest='maap-query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
+    parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
     parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
 
     args = parser.parse_args()
-    if args.in_ept_fn == None and not args.maap-query:
-        print("The flag 'maap-query' is false so you need an input filename of the EPT database of ATL08 obs tiles that will be quality-filtered and subset by tile")
+    if args.in_ept_fn == None and not args.maap_query:
+        print("The flag 'maap_query' is false so you need an input filename of the EPT database of ATL08 obs tiles that will be quality-filtered and subset by tile")
         os._exit(1)
     if args.in_tile_fn == None:
         print("Input a filename of the vector tiles that represents the arrangement by which the ATL08 obs will be organized")
@@ -87,7 +85,7 @@ def main():
     out_cols_list = args.out_cols_list
     output_dir = args.output_dir
     do_30m = args.do_30m
-    dps_dir = args.dps_dir
+    dps_dir = args.dps_output_dir
     
     # TODO: make this an arg
     years_list = [2019, 2020, 2021]
@@ -106,6 +104,7 @@ def main():
         all_atl08_csvs_for_tile_BASENAME = [os.path.basename(f).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
         
         # Get a list of all ATL08 CSV files from (from extract_atl08) (this will be a large boreal list)
+        print("DPS dir to find ATL08 CSVs: {}".format(dps_dir))
         all_atl08_csvs = glob.glob(dps_dir + "/**/ATL08*" + seg_str + ".csv", recursive=True)
         all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
         
