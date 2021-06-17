@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 #import pdal
 import json
 import os
@@ -11,11 +13,14 @@ import argparse
 from maap.maap import MAAP
 maap = MAAP()
 
-import sys
-sys.path.append("/projects/icesat2_boreal/notebooks/3.Gridded_product_development/")
-sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+if False:
+    import sys
+    sys.path.append("/projects/icesat2_boreal/notebooks/3.Gridded_product_development")
+    sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+    sys.path.append("/projects/icesat2_boreal/notebooks/2.ICESat-2_processing")
+    sys.path.append('/projects/code/icesat2_boreal/notebooks/2.ICESat-2_processing')
 
-#TODO: how to get this import right if its in a different dir
+#TODO: how to get this import right if its in a different dir.. sys.path.append not seeming to work above
 from CovariateUtils import *
 from FilterUtils import *
 from ExtractUtils import *
@@ -29,15 +34,28 @@ with open('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development
     models_admin = imp.load_module('do_3_1_5_dp', script, '3.1.5_dps.py', ('.py', 'rb', imp.PY_SOURCE))
 with open('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development/3.1.2_dps.py', 'rb') as script:
     models_admin = imp.load_module('do_3_1_2_dp', script, '3.1.2_dps.py', ('.py', 'rb', imp.PY_SOURCE))
+if False:
+    with open('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development/CovariateUtils.py', 'rb') as script:
+        models_admin = imp.load_module('CovariateUtils', script, 'CovariateUtils.py', ('.py', 'rb', imp.PY_SOURCE))
+    with open('/projects/code/icesat2_boreal/notebooks/2.ICESat-2_processing/FilterUtils.py', 'rb') as script:
+        models_admin = imp.load_module('FilterUtils', script, 'FilterUtils.py', ('.py', 'rb', imp.PY_SOURCE))
+    with open('/projects/code/icesat2_boreal/notebooks/2.ICESat-2_processing/ExtractUtils.py', 'rb') as script:
+        models_admin = imp.load_module('ExtractUtils', script, 'ExtractUtils.py', ('.py', 'rb', imp.PY_SOURCE))
+
 
 def main():
-    #
-    # Access ATL08 obs in EPT, apply filter for quality, subset by bounds of a tile, subset by select cols, extract values of covars, output as CSV
-    #
-    
-    #TODO: how to specify (where will these data sit by default - in original dps_output dubdir, or pulled to the top level?):
-    #     topo_covar_fn, landsat_covar_fn
-    # Solution: just call 3.1.5_dpy and 3.1.2_dps and return the stack_fn from each call?
+    '''
+    Filter ATL08 and Extract Covariates
+        a. By tile, access ATL08 obs stored in some database, either:
+            1. CMR: using a MAAP query, or 
+            2. EPT: specifying an EPT filename
+        b. Apply filter for (1) quality and (2) bounds of a tile,
+        c. Subset by selected cols, 
+        d. If flag set, extract values of covars, 
+        e. Output as CSV (TODO: option for geojson)
+    '''
+
+    #TODO: debug extraction
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations") 
@@ -59,7 +77,11 @@ def main():
     parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
-
+    parser.add_argument('--extract_covars', dest='extract_covars', action='store_true', help='Do extraction of covars for each ATL08 obs')
+    parser.set_defaults(extract_covars=False)
+    parser.add_argument('--TEST', dest='TEST', action='store_true', help='Do testing')
+    parser.set_defaults(TEST=False)
+    
     args = parser.parse_args()
     if args.in_ept_fn == None and not args.maap_query:
         print("The flag 'maap_query' is false so you need an input filename of the EPT database of ATL08 obs tiles that will be quality-filtered and subset by tile")
@@ -93,11 +115,14 @@ def main():
     seg_str = '_100m'
     if do_30m:
         seg_str = '_30m'
+    if args.TEST:
+        seg_str = ''
     
     if args.maap_query and dps_dir is not None:
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
+        # all_atl08_for_tile = ExtractUtils.get_h5_list() #<- when you get import to work, change back to this
         all_atl08_for_tile = ExtractUtils.get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=args.date_start, DATE_END=args.date_end, YEARS=years_list)
         
         # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
@@ -154,16 +179,16 @@ def main():
     out_name_stem = "atl08_filt"
     atl08_pdf_filt=None
     
-    ### Below here should be re-worked to follow final chunk of nb 2.3 (6/15/2021)
-    #
-    if False:
+    if extract_covars:
+        ### Below here should be re-worked to follow final chunk of nb 2.3 (6/15/2021)
+        #
+        
         # Extract topo covar values to ATL08 obs (doing a reproject to tile crs)
         # TODO: consider just running 3.1.5_dpy.py here to produce this topo stack right before extracting its values
         topo_covar_fn = do_3_1_5_dp.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, tile_buffer_m=120, in_tile_layer=in_tile_layer, topo_tile_fn='https://maap-ops-dataset.s3.amazonaws.com/maap-users/alexdevseed/dem30m_tiles.geojson')
         atl08_gdf_out = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
         out_name_stem = out_name_stem + "_topo"
-    
-    if False:
+
         # Extract landsat covar values to ATL08 obs
         # TODO: consider just running 3.1.2_dpy.py here
         landsat_covar_fn = do_3_1_2_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, in_tile_layer=in_tile_layer, sat_api='https://landsatlook.usgs.gov/sat-api', local=args.local)
