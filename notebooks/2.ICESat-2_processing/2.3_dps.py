@@ -24,6 +24,7 @@ if False:
 from CovariateUtils import *
 from FilterUtils import *
 from ExtractUtils import *
+import csv
 
 #TODO: do this right also
 #import 3.1.5_dps
@@ -62,6 +63,7 @@ def main():
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
     parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-c", "--csv_list_fn", type=str, default="/projects/jabba/data/extract_atl08_csv_list.csv", help="The file of all CSVs paths")
     parser.add_argument("--local", dest='local', action='store_true', help="Dictate whether landsat covars is a run using local paths")
     parser.set_defaults(local=False)
     parser.add_argument("-t_h_can", "--thresh_h_can", type=int, default=100, help="The threshold height below which ATL08 obs will be returned")
@@ -100,6 +102,7 @@ def main():
     in_tile_fn = args.in_tile_fn
     in_tile_num = args.in_tile_num
     in_tile_layer = args.in_tile_layer
+    csv_list_fn = args.csv_list_fn
     thresh_h_can = args.thresh_h_can
     thresh_h_dif = args.thresh_h_dif
     month_min = args.month_min
@@ -128,9 +131,19 @@ def main():
         # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
         all_atl08_csvs_for_tile_BASENAME = [os.path.basename(f).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
         
-        # Get a list of all ATL08 CSV files from (from extract_atl08) (this will be a large boreal list)
-        print("\tDPS dir to find ATL08 CSVs: {}".format(dps_dir))
-        all_atl08_csvs = glob.glob(dps_dir + "/**/ATL08*" + seg_str + ".csv", recursive=True)
+        if not os.path.isfile(csv_list_fn):
+            # Get a list of all ATL08 CSV files from (from extract_atl08) (this will be a large boreal list)
+            print("\tDPS dir to find ATL08 CSVs: {}".format(dps_dir))
+            all_atl08_csvs = glob.glob(dps_dir + "/**/ATL08*" + seg_str + ".csv", recursive=True)
+            with open(csv_list_fn, 'wb') as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerow(all_atl08_csvs)
+        else:
+            print("\Reading existing list og ATL08 CSVs: {}".format(csv_list_fn))
+            with open(csv_list_fn, newline='') as f:
+                reader = csv.reader(f)
+                all_atl08_csvs = list(reader)
+                
         all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
         
         # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
