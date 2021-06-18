@@ -4,7 +4,7 @@
 # This installs the python libs needed to run the script at the bottom
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
-pip install geopandas rio-cogeo rio-tiler importlib_resources
+pip install geopandas rio-cogeo rio-tiler==2.0.8 importlib_resources
 
 mkdir output
 
