@@ -4,9 +4,9 @@ from rasterio.io import MemoryFile
 from rasterio.crs import CRS
 from rasterio.vrt import WarpedVRT
 from rasterio.warp import array_bounds, calculate_default_transform
-#from rio_cogeo.profiles import cog_profiles
-#from rio_tiler.utils import create_cutline
-#from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
+from rio_tiler.utils import create_cutline
+from rio_cogeo.cogeo import cog_translate
 import geopandas
 import os
 
