@@ -1,0 +1,24 @@
+name: base
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - conda=4.7.12
+  - python=3.7
+  - gdal
+  - cython
+  - h5py
+  - numba
+  - pygeos
+  - pyproj
+  - rasterio
+  - scipy
+  - nodejs=10.13.0
+  - jupyterlab=2.1.4
+  - gitpython=3.1.3
+  - nteract-scrapbook
+  - papermill
+  - nb_conda_kernels
+  - entwine
+  - pdal
+prefix: /opt/conda

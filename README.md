@@ -1,4 +1,7 @@
 # icesat2_boreal
+
+Project organization charts and good practice guide: https://docs.google.com/presentation/d/19-fQ2NvjPQj8cdOClXpKfIoX3El_TO8-Tsz2CjtkVoY/edit?usp=sharing
+
 Biomass modeling and mapping in the boreal using NASA's ICESat-2
 
 This repo is developed for a NASA Arctic Boreal Vulnerability Experiment (ABoVE) (PI Laura Duncanson) and ICESat-2 Science Team project (PI Amy Neuenschwander), in collaboration with Paul Montesano, Nathan Thomas, Carlos Silva, Steve Hancock, Joanne White, Mike Wulder, Eric Guenther, etc.
@@ -7,13 +10,13 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 1) Reference product creation
 
-1.1 Reference biomass modeling (field:discrete return) - R - LD, JA, TF, PM, CS
+1.1 Reference biomass modeling (field:discrete return) - R - TF, LD, JA, TF, PM, CS
 
-1.2 Reference biomass modeling (field:LVIS) - R - (lead TBD) - LD, JA, TF, PM, CS
+1.2 Reference biomass modeling (field:LVIS) - R - (lead TBD) - TF, LD, JA, TF, PM, CS
   - Linking field to LVIS, model development
   - Model options: 1) Field -> aggregated shots over plot, 2) Field -> gridded LVIS
 
-1.3 Reference map production (LVIS) - R - PM, JA, LD, CS
+1.3 Reference map production (LVIS) - R - TF, PM, JA, LD, CS
   - LVIS gridding, model application
   
 1.4 Estimation and gridding LVIS canopy cover - python - JA, PM
@@ -53,7 +56,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 4) Validation
 
-4.1 Comparison of ATL08 heights to ALS heights - EG, AN
+4.1 Comparison of ATL08 heights to LVIS heights - VL, PM, DM, LD, EG, AN
 
 4.2 Comparison of ICESat-2 segment biomass estimates to ALS biomass estimates - TBD (NT?)
 
