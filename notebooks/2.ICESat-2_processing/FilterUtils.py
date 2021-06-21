@@ -8,7 +8,7 @@ import geopandas as gpd
 from pyproj import CRS, Transformer
 
 import sys
-sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+#sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
 import ExtractUtils
 
@@ -194,7 +194,7 @@ def filter_atl08_bounds(atl08_df=None, in_bounds=None, in_ept_fn=None, in_tile_f
         print(out_fn)
         return(out_fn)
 
-def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_max_can'], filt_cols = ['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True):
+def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_max_can'], filt_cols = ['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True, DO_PREP=True):
     '''
     Quality filtering Function
     Returns a data frame
@@ -227,8 +227,11 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
         else:
             atl08_df = input_fn
             
-    # Run the prep to get fields needed (v003)
-    atl08_df_prepd = prep_filter_atl08_qual(atl08_df)
+    if DO_PREP:
+        # Run the prep to get fields needed (v003)
+        atl08_df_prepd = prep_filter_atl08_qual(atl08_df)
+    else:
+        atl08_df_prepd = atl08_df
     atl08_df = None
     
     # Check that you have the cols that are required for the filter
