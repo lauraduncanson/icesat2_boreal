@@ -1,13 +1,14 @@
 import pandas as pd
-import geopandas as gpd
+import geopandas
 import rasterio as rio
+from rasterio.crs import CRS
 import os
 import numpy as np
 
 import sys
 sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
-import CovariateUtils
+#import CovariateUtils
 
 import itertools
 import copy
@@ -22,11 +23,71 @@ from maap.maap import MAAP
 # create MAAP class
 maap = MAAP()
 
+def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
+    '''
+    Given a vector tile index, select by id the polygon and return
+    GPKG is the recommended vector format - single file, includes projection, can contain multiple variants and additional information.
+    TODO: should it be a class or dict
+    
+    
+    vector_path: str
+        Path to GPKG file
+    buffer: float
+        Distance to buffer geometry in units of layer
+    tile_id: int
+        Tile ID to extract/build info for
+        
+    returns:
+        geopandas.geodataframe.GeoDataFrame,
+            Polygon in original crs
+        geopandas.geoseries.GeoSeries,
+            Polygon of Buffered in original crs
+        list,
+            Bounds of original polygon
+        rasterio.crs.CRS,
+            Coordinate Reference System of original tile
+        geopandas.geodataframe.GeoDataFrame,
+            4326 Polygon
+        list,
+            Bounds in 4326
+        geopandas.geoseries.GeoSeries,
+            Polygon of Buffered in 4326
+        list
+            Buffered Bounds in 4326
+    Usage:
+    get_index_tile(
+        vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
+        tile_id = 30542,
+        buffer = 120
+        )
+    
+    '''
+    
+    tile_parts = {}
+
+    if layer is None:
+        layer = os.path.splitext(os.path.basename(vector_path))[0]
+    tile_index = geopandas.read_file(vector_path, layer=layer)
+    # In this case tile_id is the row, and since row numbering starts at 0 but tiles at 1, subtract 1
+    # TODO: attribute match the value
+    tile_parts["geom_orig"] = tile_index.iloc[(tile_id-1):tile_id]
+    tile_parts["geom_orig_buffered"] = tile_parts["geom_orig"]["geometry"].buffer(buffer)
+    tile_parts["bbox_orig"] = tile_parts["geom_orig"].bounds.iloc[0].to_list()
+    tile_parts["tile_crs"] = CRS.from_wkt(tile_index.crs.to_wkt()) #A rasterio CRS object
+
+    # Properties of 4326 version of tile
+    tile_parts["geom_4326"] = tile_parts["geom_orig"].to_crs(4326)
+    tile_parts["bbox_4326"] = tile_parts["geom_4326"].bounds.iloc[0].to_list()
+    tile_parts["geom_4326_buffered"] =  tile_parts["geom_orig_buffered"].to_crs(4326)
+    tile_parts["bbox_4326_buffered"] = tile_parts["geom_4326_buffered"].bounds.iloc[0].to_list()
+    
+    return tile_parts
+
 def get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles.gpkg", layer="boreal_tiles_albers",DATE_START='06-01', DATE_END='09-30', YEARS=[2019, 2020, 2021]):
     '''
     Return a list of ATL08 h5 names that intersect a tile for a give date range across a set of years
     '''
-    tile_id = CovariateUtils.get_index_tile(tile_fn, tile_num, buffer=0, layer = layer)
+    tile_id = get_index_tile(tile_fn, tile_num, buffer=0, layer = layer)
 
     in_bbox = ",".join(str(coord) for coord in tile_id['bbox_4326'])
     

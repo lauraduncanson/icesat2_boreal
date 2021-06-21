@@ -10,11 +10,11 @@ from pyproj import CRS, Transformer
 import sys
 sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
-import CovariateUtils
+import ExtractUtils
 
 def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
     
-    tile_parts = CovariateUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+    tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
     bounds_order = [0, 2, 1, 3]
     out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
     
@@ -70,6 +70,54 @@ def prep_filter_atl08_qual(atl08):
     #print(atl08.info())
     
     return(atl08)
+
+def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str):
+    
+    print("seg_str: ", seg_str)
+    print("\tFind ATL08 CSVs for tile...")
+    # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
+    all_atl08_for_tile_CSVname = [os.path.basename(f).replace("ATL08", "ATL08"+seg_str).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
+
+    print('\t\tLength of all ATL08 for tile: {}'.format(len(all_atl08_for_tile)))
+    all_atl08_csvs = all_atl08_csvs_df['path'].to_list()
+    print('\t\tLength of all_atl08_csvs: {}'.format(len(all_atl08_csvs)))
+    
+    # Get basenames of CSVs
+    all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
+    
+    #print(all_atl08_for_tile_CSVname)
+    # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
+    names = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name in set(all_atl08_csvs_BASENAME)]
+    print(names)
+    idx = [all_atl08_csvs_BASENAME.index(name) for name in names]
+    print(idx)
+    print('\t\tLength of idx with matches between ATL08 CSVs and ATL08 granules for tile: {}'.format(len(idx)))
+    all_atl08_csvs_FOUND  = [all_atl08_csvs[i] for i in idx]
+    print(all_atl08_csvs_FOUND)
+    ## Get the subset of all ATL08 CSVs that just correspond to the ATL08 H5 intersecting the current tile
+    #all_atl08_h5_with_csvs_for_tile = [all_atl08_for_tile[x] for x in idx]       
+    #print(all_atl08_h5_with_csvs_for_tile)
+
+    if False:
+        # Check to make sure these are in fact files (necessary?)
+        all_atl08_csvs_NOT_FOUND = []
+        all_atl08_csvs_FOUND = []
+        for file in all_atl08_h5_with_csvs_for_tile:
+            print("seg_str: ", seg_str)
+            # Convert the h5 file string back to the actual string of the CSV file
+            csv_fn = os.path.basename(file).replace('.h5',seg_str+'.csv').replace("ATL08_","ATL08"+seg_str+"_")
+            print("\t\tcsv_fn: ", csv_fn)
+            # Find this CSV path from large list
+            name = [name for i, name in enumerate(all_atl08_csvs) if name in csv_fn]
+            print("\t\tname: ",name)
+            file = os.path.join(dps_dir, csv_fn)    
+            print(file)
+            if not os.path.isfile(file):
+                all_atl08_csvs_NOT_FOUND.append(file)
+            else:
+                all_atl08_csvs_FOUND.append(file)
+            
+    return(all_atl08_csvs_FOUND)
 
 def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir):
         '''Get bounds from a tile_id and apply to an EPT database
