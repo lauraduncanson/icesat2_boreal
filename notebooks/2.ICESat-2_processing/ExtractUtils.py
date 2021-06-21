@@ -6,7 +6,8 @@ import numpy as np
 
 import sys
 sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
-from CovariateUtils import *
+#from CovariateUtils import *
+import CovariateUtils
 
 import itertools
 import copy

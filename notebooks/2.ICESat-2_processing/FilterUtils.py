@@ -9,11 +9,12 @@ from pyproj import CRS, Transformer
 
 import sys
 sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
-from CovariateUtils import *
+#from CovariateUtils import *
+import CovariateUtils
 
 def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
     
-    tile_parts = get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+    tile_parts = CovariateUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
     bounds_order = [0, 2, 1, 3]
     out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
     
