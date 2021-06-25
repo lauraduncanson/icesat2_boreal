@@ -4,7 +4,7 @@
 import json
 import os
 import glob
-
+import time
 import geopandas as gpd
 from pyproj import CRS, Transformer
 
@@ -126,7 +126,7 @@ def main():
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
         # all_atl08_for_tile = ExtractUtils.get_h5_list() #<- when you get import to work, change back to this
-        all_atl08_for_tile = ExtractUtils.get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=args.date_start, DATE_END=args.date_end, YEARS=years_list)
+        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=args.date_start, DATE_END=args.date_end, YEARS=years_list)
         
         # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
         all_atl08_csvs_for_tile_BASENAME = [os.path.basename(f).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
@@ -207,19 +207,19 @@ def main():
         # Extract topo covar values to ATL08 obs (doing a reproject to tile crs)
         # TODO: consider just running 3.1.5_dpy.py here to produce this topo stack right before extracting its values
         topo_covar_fn = do_3_1_5_dp.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, tile_buffer_m=120, in_tile_layer=in_tile_layer, topo_tile_fn='https://maap-ops-dataset.s3.amazonaws.com/maap-users/alexdevseed/dem30m_tiles.geojson')
-        atl08_gdf_out = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
+        atl08_gdf = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
         out_name_stem = out_name_stem + "_topo"
 
         # Extract landsat covar values to ATL08 obs
         # TODO: consider just running 3.1.2_dpy.py here
         landsat_covar_fn = do_3_1_2_dps.main(in_tile_fn=in_tile_fn, in_tile_num=in_tile_num, in_tile_layer=in_tile_layer, sat_api='https://landsatlook.usgs.gov/sat-api', local=args.local)
-        atl08_gdf_out = ExtractUtils.extract_value_gdf(landsat_covar_fn, atl08_gdf_out, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False)
+        atl08_gdf = ExtractUtils.extract_value_gdf(landsat_covar_fn, atl08_gdf, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False)
         out_name_stem = out_name_stem + "_landsat"
         
     # CSV the file
-    cur_time = time.strftime("%Y%m%d%H%M%S")
-    out_csv_fn = os.path.join(output_dir, out_name_stem + "_" + cur_time + ".csv")
-    atl08_gdf_out.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
+    cur_time = time.strftime("%Y%m%d%H") #"%Y%m%d%H%M%S"
+    out_csv_fn = os.path.join(output_dir, out_name_stem + "_" + cur_time + "_" + str(in_tile_num) + ".csv")
+    atl08_gdf.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
     
     print("Wrote output csv of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_csv_fn) )
 
