@@ -12,9 +12,9 @@ import sys
 #from CovariateUtils import *
 import ExtractUtils
 
-def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
-    
-    tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+#def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
+def reorder_4326_bounds(tile_parts):    
+    #tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
     bounds_order = [0, 2, 1, 3]
     out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
     
@@ -138,6 +138,13 @@ def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_lay
     run_pipeline(pipeline_def, out_fn)
 
     return(out_fn)
+
+def filter_atl08_bounds_clip(atl08_df, in_tile_geom_4326):
+    
+    atl08_gdf = gpd.GeoDataFrame(atl08_df, geometry=gpd.points_from_xy(atl08_df.lon, atl08_df.lat), crs='epsg:4326')
+    atl08_gdf = gpd.clip(atl08_gdf, in_tile_geom_4326)
+    
+    return(atl08_gdf)
 
 def filter_atl08_bounds(atl08_df=None, in_bounds=None, in_ept_fn=None, in_tile_fn=None, in_tile_num=None, in_tile_layer=None, output_dir=None, return_pdf=False):
     '''
