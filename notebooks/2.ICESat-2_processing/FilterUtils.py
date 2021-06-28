@@ -71,34 +71,42 @@ def get_topo_stack_fn(topo_stack_list_fn, in_tile_num):
     all_topo_stacks_df = pd.read_csv(topo_stack_list_fn)
     stack_for_tile = all_topo_stacks_df[all_topo_stacks_df['path'].str.contains("Copernicus_"+str(in_tile_num))]
     #[print(i) for i in stack_for_tile.path.to_list()]
-    topo_stack_fn = stack_for_tile.path.to_list()[0]
     
+    if len(stack_for_tile) > 0:
+        topo_stack_fn = stack_for_tile.path.to_list()[0]
+    else:
+        topo_stack_fn = None
+        
     return(topo_stack_fn)
 
 def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str):
     
-    print("\tFind ATL08 CSVs for tile...")
+    print("\tFind ATL08 CSVs you expect for a tile based on the h5 granule search...")
     # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
     all_atl08_for_tile_CSVname = [os.path.basename(f).replace("ATL08", "ATL08"+seg_str).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
 
-    print('\t\tLength of all ATL08 for tile: {}'.format(len(all_atl08_for_tile)))
+    print('\t\t# of all ATL08 granules for tile: {}'.format(len(all_atl08_for_tile)))
     all_atl08_csvs = all_atl08_csvs_df['path'].to_list()
-    print('\t\tLength of all_atl08_csvs: {}'.format(len(all_atl08_csvs)))
+    print('\t\t# of all_atl08_csvs: {}'.format(len(all_atl08_csvs)))
     
     # Get basenames of CSVs
     all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
     
     #print(all_atl08_for_tile_CSVname)
     # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
-    names = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name in set(all_atl08_csvs_BASENAME)]
-    #print(names)
-    idx = [all_atl08_csvs_BASENAME.index(name) for name in names]
-    #print(idx)
+    names_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name in set(all_atl08_csvs_BASENAME)]
+    names_NOT_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name not in set(all_atl08_csvs_BASENAME)]
+    print("\t\tATL08 CSVs expected, but NOT FOUND: ",names_NOT_FOUND)
+    idx_FOUND = [all_atl08_csvs_BASENAME.index(name) for name in names_FOUND]
     
-    print('\t\tLength of idx with matches between ATL08 CSVs and ATL08 granules for tile: {}'.format(len(idx)))
-    all_atl08_csvs_FOUND  = [all_atl08_csvs[i] for i in idx]
-            
-    return(all_atl08_csvs_FOUND)
+    # DERP - cant get index of stuff that isnt there...
+    ##idx_NOT_FOUND = [all_atl08_csvs_BASENAME.index(name) for name in names_NOT_FOUND]
+
+    #print('\t\t# of matches between ATL08 CSVs and ATL08 granules for tile: {}'.format(len(idx_FOUND)))
+    all_atl08_csvs_FOUND  = [all_atl08_csvs[i] for i in idx_FOUND]
+    all_atl08_csvs_NOT_FOUND  = names_NOT_FOUND ##[all_atl08_csvs[i] for i in idx_NOT_FOUND]
+    
+    return(all_atl08_csvs_FOUND, all_atl08_csvs_NOT_FOUND)
 
 def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir):
     '''Get bounds from a tile_id and apply to an EPT database
