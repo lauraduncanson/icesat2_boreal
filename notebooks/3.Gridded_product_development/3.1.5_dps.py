@@ -70,6 +70,7 @@ def main():
     dem_tiles_selection = dem_tiles.loc[dem_tiles.intersects(geom_4326_buffered.iloc[0])]
 
     # Set up and aws session
+    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
     aws_session = AWSSession(boto3.Session())
     
     # Get the s3 urls to the granules
