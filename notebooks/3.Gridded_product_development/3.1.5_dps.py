@@ -2,6 +2,9 @@
 
 import os
 import boto3
+from typing import List
+import argparse
+
 import numpy as np
 import geopandas as gpd
 import rasterio as rio
@@ -9,13 +12,26 @@ from rasterio.session import AWSSession
 from rasterio.warp import * #TODO: limit to specific needed modules
 from rasterio.merge import merge
 from rasterio.crs import CRS
-import argparse
+from rio_tiler.models import ImageData
+from rio_tiler.mosaic import mosaic_reader
+
 from CovariateUtils import write_cog, get_index_tile
 from CovariateUtils_topo import *
 
+
+def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+    with COGReader(src_path) as cog:
+        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+
+def get_shape(bbox, res=30):
+    left, bottom, right, top = bbox
+    width = int((right-left)/res)
+    height = int((top-bottom)/res)
+    return height,width
+
 def main():
     '''Command line script to create topo stacks by vector tile id.
-    example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/maap-users/alexdevseed/boreal_tiles.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
+    example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for stack creation")
@@ -24,7 +40,7 @@ def main():
     parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
-    parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/maap-users/alexdevseed/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
+    parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
     parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped topo cog before topo calcs")
     parser.add_argument("-tsrc", "--topo_src_name", type=str, default="Copernicus", help="Name to identify the general source of the topography")
 
@@ -70,8 +86,8 @@ def main():
     dem_tiles_selection = dem_tiles.loc[dem_tiles.intersects(geom_4326_buffered.iloc[0])]
 
     # Set up and aws session
-    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
-    aws_session = AWSSession(boto3.Session())
+    #os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+    #aws_session = AWSSession(boto3.Session())
     
     # Get the s3 urls to the granules
     file_s3 = dem_tiles_selection["s3"].to_list()
@@ -79,12 +95,12 @@ def main():
     print("The DEM filename(s) intersecting the {} m bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
     
     # Create a mosaic from all the images
-    with rio.Env(aws_session):
-        sources = [rio.open(raster, 'r') for raster in file_s3]    
+    bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+    height, width = get_shape(bbox, res)
 
-    # Merge the source files
-    print("Bounds:\n", *tile_parts['bbox_4326_buffered'])
-    mosaic, out_trans = merge(sources, bounds = tile_parts['bbox_4326_buffered'])
+    img = mosaic_reader(file_s3, reader, bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+    mosaic = (img[0].as_masked())
+    out_trans =  rasterio.transform.from_bounds(*bbox, width, height)
     
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
@@ -93,7 +109,7 @@ def main():
     tileid = '_'.join([topo_src_name, str(stack_tile_id)])
     ext = "covars_cog.tif" 
     dem_cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
-    write_cog(mosaic, dem_cog_fn, sources[0].crs, out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
+    write_cog(mosaic, dem_cog_fn, tile_parts['tile_crs'], out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
     mosaic=None
     
     #
