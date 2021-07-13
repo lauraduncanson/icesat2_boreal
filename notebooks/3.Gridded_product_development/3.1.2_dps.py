@@ -220,7 +220,7 @@ def main():
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
     # insert AWS credentials here if needed
-    aws_session = AWSSession(boto3.Session())
+    aws_session = AWSSession(boto3.Session(AWS_REQUEST_PAYER="requester"))
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, out_crs, out_crs, incl_trans=True)
         print(in_crs)
@@ -310,7 +310,7 @@ def main():
 if __name__ == "__main__":
     '''
     Example call:
-    python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l True --tile_buffer_m 30
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 30
     '''
     main()
     
