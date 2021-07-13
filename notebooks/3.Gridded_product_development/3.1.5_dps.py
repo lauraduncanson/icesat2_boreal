@@ -14,6 +14,7 @@ from rasterio.merge import merge
 from rasterio.crs import CRS
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
+from rio_tiler.io import COGReader
 
 from CovariateUtils import write_cog, get_index_tile
 from CovariateUtils_topo import *
@@ -85,9 +86,8 @@ def main():
     # intersect with the bbox tile
     dem_tiles_selection = dem_tiles.loc[dem_tiles.intersects(geom_4326_buffered.iloc[0])]
 
-    # Set up and aws session
-    #os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
-    #aws_session = AWSSession(boto3.Session())
+    # Set up and aws permissions to public bucket
+    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
     
     # Get the s3 urls to the granules
     file_s3 = dem_tiles_selection["s3"].to_list()
