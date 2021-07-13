@@ -220,8 +220,7 @@ def main():
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
     # insert AWS credentials here if needed
-    aws_session = AWSSession(boto3.Session(AWS_REQUEST_PAYER="requester"))
-    with rio.Env(aws_session):
+    with rio.Env(AWS_REQUEST_PAYER="requester"):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, out_crs, out_crs, incl_trans=True)
         print(in_crs)
         NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs) for i in range(len(red_bands))]
@@ -249,7 +248,7 @@ def main():
     
     
     # create band-by-band composites
-    with rio.Env(aws_session):
+    with rio.Env(AWS_REQUEST_PAYER="requester"):
         print('Creating Blue Composite')
         BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
         print('Creating Green Composite')
