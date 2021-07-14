@@ -30,9 +30,9 @@ from rasterio.warp import * #TODO: limit to specific needed modules
 #from rasterio.io import MemoryFile
 from rasterio.crs import CRS
 #from rasterio.vrt import WarpedVRT
-#from rio_cogeo.profiles import cog_profiles
-#from rio_tiler.utils import create_cutline
-#from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
+from rio_tiler.utils import create_cutline
+from rio_cogeo.cogeo import cog_translate
 
 from CovariateUtils import write_cog, get_index_tile
 
@@ -140,7 +140,7 @@ def water_slope_mask(slope_ma):
     print("Slope mask created to indicate water where slope = 0")
     return m
 
-def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
+def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, tform):
     '''Calcs the topo covars, returns them as masked arrays, masks all where slope=0, stacks, clips, writes
     '''
     print("Opening DEM...")
@@ -195,7 +195,7 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
     write_cog(topo_stack, 
               topo_stack_cog_fn, 
               tile_parts['tile_crs'], 
-              src_transform, 
+              src_transform,
               topo_stack_names, 
               clip_geom = tile_parts['geom_orig'],
               clip_crs = tile_parts['tile_crs'],
