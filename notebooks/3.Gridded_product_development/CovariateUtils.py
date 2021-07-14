@@ -45,7 +45,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
             Buffered Bounds in 4326
     Usage:
     get_index_tile(
-        vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
+        vector_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg',
         tile_id = 30542,
         buffer = 120
         )

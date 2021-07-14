@@ -140,7 +140,7 @@ def water_slope_mask(slope_ma):
     print("Slope mask created to indicate water where slope = 0")
     return m
 
-def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, tform):
+def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
     '''Calcs the topo covars, returns them as masked arrays, masks all where slope=0, stacks, clips, writes
     '''
     print("Opening DEM...")
