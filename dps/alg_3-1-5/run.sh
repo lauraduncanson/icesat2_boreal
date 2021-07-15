@@ -45,7 +45,6 @@ echo python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.p
 --in_tile_fn ${INPUT1} \
 --in_tile_num $1 \
 --tile_buffer_m $2 \
-#--in_tile_layer $3 \
 --output_dir $OUTPUTDIR \
 --tmp_out_path $OUTPUTDIR \
 --topo_tile_fn ${INPUT2}
@@ -54,7 +53,6 @@ python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py \
 --in_tile_fn ${INPUT1} \
 --in_tile_num $1 \
 --tile_buffer_m $2 \
-#--in_tile_layer $3 \
 --output_dir $OUTPUTDIR \
 --tmp_out_path $OUTPUTDIR \
 --topo_tile_fn ${INPUT2}
