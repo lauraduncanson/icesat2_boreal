@@ -80,8 +80,8 @@ def main():
     topo_src_name = args.topo_src_name
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
-    #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m, layer = stack_tile_layer)
-    tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
+    tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m, layer = stack_tile_layer)
+    #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
     geom_4326_buffered = tile_parts["geom_4326_buffered"]
     
     # Read the topography index file
