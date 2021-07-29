@@ -12,7 +12,7 @@ memory: maap-dps-worker-16gb
 # explain what this algorithm does
 description: 
 # path to the wrapper script for running the algorithm
-run_command: /projects/Developer/icesat2_boreal/dps/alg_3-1-2/run.sh
+run_command: icesat2_boreal/dps/alg_3-1-2/run.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
 disk_space: 16GB
 
