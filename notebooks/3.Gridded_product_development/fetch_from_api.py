@@ -13,7 +13,7 @@ from CovariateUtils import get_index_tile
 import itertools
 
 
-def write_local_data_and_catalog_s3(catalog, bands, save_path):
+def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/"):
     '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
     with open(catalog) as f:
         asset_catalog = json.load(f)
@@ -21,11 +21,11 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path):
             for band in bands:
                 try:
                     pass
-                    key = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/','')
-                    output_file = os.path.join(f's3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/{feature["id"][:-3]}/', os.path.basename(key))
-                    #print(key)
-                    ## Uncomment next line to actually download the data as a local sample
-                    #s3.Bucket('usgs-landsat').download_file(key, output_file, ExtraArgs={'RequestPayer':'requester'})
+                    if local:
+                        key = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/','')
+                        output_file = os.path.join(f'{s3_path}{feature["id"][:-3]}/', os.path.basename(key))
+                    else:
+                        output_file = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/', s3_path)
                     feature['assets'][f'SR_{band}.TIF']['href'] = output_file
                 except botocore.exceptions.ClientError as e:
                     if e.response['Error']['Code'] == "404":
@@ -118,11 +118,13 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
             json.dump(merge_catalogs, outfile)
             
     # If local True, rewrite the s3 paths to internal not public buckets
-    if local==True:
+    if (local):
         # create local versions, only for the bands we use currently
         bands = [''.join(["B",str(item)])for item in range(2,8,1)]
-        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path)
-    
+        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/")
+    else:
+        bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://usgs-landsat/")
     return master_json
         
 

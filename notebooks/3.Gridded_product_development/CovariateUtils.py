@@ -3,12 +3,14 @@ from rasterio import enums
 from rasterio.io import MemoryFile
 from rasterio.crs import CRS
 from rasterio.vrt import WarpedVRT
+from rasterio.session import AWSSession
 from rasterio.warp import array_bounds, calculate_default_transform
 from rio_cogeo.profiles import cog_profiles
 from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
 import geopandas
 import os
+import boto3
 
 
 
@@ -197,3 +199,22 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     # TODO: return something useful
     return True
 
+
+def get_creds():
+    """Get temporary credentials by assuming role"""
+    sts_client = boto3.client('sts')
+    assumed_role_object=sts_client.assume_role(
+        RoleArn="arn:aws:iam::884094767067:role/maap-bucket-access-role", 
+        RoleSessionName="AssumeRoleSession1"
+    )
+    return assumed_role_object['Credentials']
+    
+def get_aws_session():
+    """Create a Rasterio AWS Session with Credentials"""
+    credentials = get_creds()
+    boto3_session = boto3.Session(
+        aws_access_key_id=credentials['AccessKeyId'],
+        aws_secret_access_key=credentials['SecretAccessKey'],
+        aws_session_token=credentials['SessionToken']
+    )
+    return AWSSession(boto3_session, requester_pays=True)

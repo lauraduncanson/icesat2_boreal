@@ -12,9 +12,16 @@ from rasterio.crs import CRS
 from rio_tiler.io import COGReader
 import numpy as np
 from rasterio.session import AWSSession
-from CovariateUtils import write_cog, get_index_tile
+from CovariateUtils import write_cog, get_index_tile, get_aws_session
 from fetch_from_api import get_data
 import json
+
+
+def get_shape(bbox, res=30):
+    left, bottom, right, top = bbox
+    width = int((right-left)/res)
+    height = int((top-bottom)/res)
+    return height,width
 
 def get_json(s3path, output):
     '''
@@ -46,19 +53,21 @@ def GetBandLists(inJSON, bandnum):
     BandList.sort()
     return BandList
 
-def MaskArrays(file, in_bbox, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
+def MaskArrays(file, in_bbox, height, width, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
     '''Read a window of data from the raster matching the tile bbox'''
     #print(file)
     with COGReader(file) as cog:
-        img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs)
+        img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
     if incl_trans:
         return img.crs, img.transform
     return np.squeeze(img.as_masked().astype(np.float32))
 
-def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs):
+def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width):
     '''Calculate NDVI for each source scene'''
-    NIRarr = MaskArrays(NIRfile, in_bbox, epsg, dst_crs)
-    REDarr = MaskArrays(REDfile, in_bbox, epsg, dst_crs)
+    NIRarr = MaskArrays(NIRfile, in_bbox, height, width, epsg, dst_crs)
+    REDarr = MaskArrays(REDfile, in_bbox, height, width, epsg, dst_crs)
+    #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+    #print(ndvi.shape)
     return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
 
 
@@ -71,8 +80,8 @@ def CollapseBands(inArr, NDVItmp, BoolMask):
     compImg = np.ma.masked_array(inArr.sum(0), BoolMask)
     return compImg
 
-def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, epsg, dst_crs):
-    MaskedFile = [MaskArrays(file_list[i], in_bbox, epsg, dst_crs) for i in range(len(file_list))]
+def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, dst_crs):
+    MaskedFile = [MaskArrays(file_list[i], in_bbox, height, width, epsg, dst_crs) for i in range(len(file_list))]
     Composite=CollapseBands(MaskedFile, NDVItmp, BoolMask)
 
     return Composite
@@ -181,7 +190,7 @@ def main():
     print("output resolution = ", res)
     
     # Get tile by number form GPKG. Store box and out crs
-    tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = "boreal_tiles_albers",)
+    tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = "grid_boreal_albers90k_gpkg")#layer = "boreal_tiles_albers"
     #in_bbox = tile_id['bbox_4326']
     in_bbox = tile_id['geom_orig_buffered'].bounds.iloc[0].to_list()
     out_crs = tile_id['tile_crs']
@@ -189,6 +198,10 @@ def main():
     print("in_bbox = ", in_bbox)
     print("out_crs = ", out_crs)
 
+    
+    height, width = get_shape(in_bbox, res)
+    
+    
     # specify either -j or -a. 
     # -j is the path to the ready made json files with links to LS buckets (needs -o to placethe composite)
     # -a is the link to the api to search for data (needs -o to fetch the json files from at_api)
@@ -203,6 +216,7 @@ def main():
     else:
         master_json = args.json_file
     
+    print(master_json)
     
     blue_bands = GetBandLists(master_json, 2)
     green_bands = GetBandLists(master_json, 3)
@@ -219,16 +233,20 @@ def main():
     ## Loopsover lists of bands and calculates NDVI
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
+    
     # insert AWS credentials here if needed
-    with rio.Env(AWS_REQUEST_PAYER="requester"):
-        in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, out_crs, out_crs, incl_trans=True)
+    aws_session = get_aws_session()
+    # Start reading data
+    with rio.Env(aws_session):
+        in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, out_crs, out_crs, incl_trans=True)
         print(in_crs)
-        NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs) for i in range(len(red_bands))]
+        NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs, height, width) for i in range(len(red_bands))]
         print('finished')
     
     
     # Create Bool mask where there is no value in any of the NDVI layers
     print("Make NDVI valid mask")
+    print("shape = ", np.ma.array(NDVIstack).shape)
     MaxNDVI = np.ma.max(np.ma.array(NDVIstack),axis=0)
     BoolMask = np.ma.getmask(MaxNDVI)
     del MaxNDVI
@@ -248,19 +266,19 @@ def main():
     
     
     # create band-by-band composites
-    with rio.Env(AWS_REQUEST_PAYER="requester"):
+    with rio.Env(aws_session):
         print('Creating Blue Composite')
-        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating Green Composite')
-        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating Red Composite')
-        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating NIR Composite')
-        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating SWIR Composite')
-        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating SWIR2 Composite')
-        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, out_crs, out_crs)
+        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating NDVI Composite')
         NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
     
@@ -309,7 +327,9 @@ def main():
 if __name__ == "__main__":
     '''
     Example call:
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 30
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 0
+    
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/ -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0
     '''
     main()
     
