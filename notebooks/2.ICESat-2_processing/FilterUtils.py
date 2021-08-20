@@ -79,7 +79,7 @@ def get_topo_stack_fn(topo_stack_list_fn, in_tile_num):
         
     return(topo_stack_fn)
 
-def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str):
+def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, DEBUG=False):
     
     print("\tFind ATL08 CSVs you expect for a tile based on the h5 granule search...")
     # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
@@ -96,7 +96,8 @@ def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str):
     # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
     names_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name in set(all_atl08_csvs_BASENAME)]
     names_NOT_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name not in set(all_atl08_csvs_BASENAME)]
-    print("\t\tATL08 CSVs expected, but NOT FOUND: \n",names_NOT_FOUND)
+    if DEBUG:
+        print("\t\tATL08 CSVs expected, but NOT FOUND: \n",names_NOT_FOUND)
     idx_FOUND = [all_atl08_csvs_BASENAME.index(name) for name in names_FOUND]
     
     # DERP - cant get index of stuff that isnt there...

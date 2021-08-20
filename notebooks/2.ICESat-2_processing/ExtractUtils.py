@@ -160,7 +160,7 @@ def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True, TEST=False)
         #pt_gdf[bandname] = pd.Categorical(pt_sample_eval_ma.astype(int).filled(-1))
         pt_gdf[bandname] = pt_sample_eval_ma.astype(float).filled(np.nan)
         
-        print('\tDataframe has new raster value column: {}'.format(bandname))
+        #print('\tDataframe has new raster value column: {}'.format(bandname))
         r = None
         
     r_src.close()
