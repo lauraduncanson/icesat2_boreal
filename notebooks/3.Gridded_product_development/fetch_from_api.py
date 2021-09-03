@@ -9,27 +9,44 @@ import os
 import numpy as np
 import rasterio as rio
 from rasterio.warp import *
-from CovariateUtils import get_index_tile
+from CovariateUtils import get_index_tile, get_creds
 import itertools
+import botocore
+import boto3
 
 
 def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/"):
     '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
+    creds = get_creds()
+    aws_session = boto3.session.Session(
+        aws_access_key_id=creds['AccessKeyId'],
+        aws_secret_access_key=creds['SecretAccessKey'],
+        aws_session_token=creds['SessionToken'])
+    s3 = aws_session.client('s3')
+    
     with open(catalog) as f:
         asset_catalog = json.load(f)
         for feature in asset_catalog['features']:
+            #print(feature)
             for band in bands:
                 try:
                     pass
                     if local:
-                        key = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/','')
+                        key = feature['assets'][band]['href'].replace('https://landsatlook.usgs.gov/data/','')
                         output_file = os.path.join(f'{s3_path}{feature["id"][:-3]}/', os.path.basename(key))
                     else:
-                        output_file = feature['assets'][f'SR_{band}.TIF']['href'].replace('https://landsatlook.usgs.gov/data/', s3_path)
-                    feature['assets'][f'SR_{band}.TIF']['href'] = output_file
+                        output_file = feature['assets'][band]['href'].replace('https://landsatlook.usgs.gov/data/', s3_path)
+                    # Only update the url to s3 if the s3 file exists
+                    #print(output_file)
+                    bucket_name = output_file.split("/")[2]
+                    s3_key = "/".join(output_file.split("/")[3:])
+                    head = s3.head_object(Bucket = bucket_name, Key = s3_key, RequestPayer='requester')
+                    if head['ResponseMetadata']['HTTPStatusCode'] == 200:
+                        feature['assets'][band]['href'] = output_file
+                        
                 except botocore.exceptions.ClientError as e:
                     if e.response['Error']['Code'] == "404":
-                        print("The object does not exist.")
+                        print(f"The object does not exist. {output_file}")
                     else:
                         raise
         # save and updated catalog with local paths
@@ -116,14 +133,15 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
-            
+    
+    bands = ['blue', 'green', 'red', 'nir08', 'swir16', 'swir22']
     # If local True, rewrite the s3 paths to internal not public buckets
     if (local):
         # create local versions, only for the bands we use currently
-        bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+        #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
         master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/")
     else:
-        bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+        #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
         master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://usgs-landsat/")
     return master_json
         
