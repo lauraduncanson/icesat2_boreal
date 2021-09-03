@@ -56,11 +56,14 @@ def GetBandLists(inJSON, bandnum):
 def MaskArrays(file, in_bbox, height, width, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
     '''Read a window of data from the raster matching the tile bbox'''
     #print(file)
-    with COGReader(file) as cog:
-        img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
-    if incl_trans:
-        return img.crs, img.transform
-    return np.squeeze(img.as_masked().astype(np.float32))
+    try:
+        with COGReader(file) as cog:
+            img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+        if incl_trans:
+            return img.crs, img.transform
+        return np.squeeze(img.as_masked().astype(np.float32))
+    except Exception as e:
+        print(e)
 
 def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width):
     '''Calculate NDVI for each source scene'''
