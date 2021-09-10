@@ -40,14 +40,17 @@ def get_json(s3path, output):
     return catalog
 
 def GetBandLists(inJSON, bandnum):
+    bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
     BandList = []
     with open(inJSON) as f:
         response = json.load(f)
     for i in range(len(response['features'])):
         try:
-            getBand = response['features'][i]['assets']['SR_B' + str(bandnum) + '.TIF']['href']
-            BandList.append(getBand)
-        except exception as e:
+            getBand = response['features'][i]['assets'][bands[bandnum]]['href']
+            # check 's3' is at position [:2]
+            if getBand.startswith('s3', 0, 2):
+                BandList.append(getBand)
+        except Exception as e:
             print(e)
                 
     BandList.sort()
@@ -56,14 +59,12 @@ def GetBandLists(inJSON, bandnum):
 def MaskArrays(file, in_bbox, height, width, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
     '''Read a window of data from the raster matching the tile bbox'''
     #print(file)
-    try:
-        with COGReader(file) as cog:
-            img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
-        if incl_trans:
-            return img.crs, img.transform
-        return np.squeeze(img.as_masked().astype(np.float32))
-    except Exception as e:
-        print(e)
+    
+    with COGReader(file) as cog:
+        img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+    if incl_trans:
+        return img.crs, img.transform
+    return np.squeeze(img.as_masked().astype(np.float32))
 
 def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width):
     '''Calculate NDVI for each source scene'''
