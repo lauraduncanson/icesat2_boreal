@@ -25,15 +25,16 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
     s3 = aws_session.client('s3')
     
     with open(catalog) as f:
+        clean_features = []
         asset_catalog = json.load(f)
         for feature in asset_catalog['features']:
             #print(feature)
-            for band in bands:
-                try:
-                    pass
+            try:
+                for band in bands:
                     if local:
                         key = feature['assets'][band]['href'].replace('https://landsatlook.usgs.gov/data/','')
                         output_file = os.path.join(f'{s3_path}{feature["id"][:-3]}/', os.path.basename(key))
+                        
                     else:
                         output_file = feature['assets'][band]['href'].replace('https://landsatlook.usgs.gov/data/', s3_path)
                     # Only update the url to s3 if the s3 file exists
@@ -43,13 +44,14 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
                     head = s3.head_object(Bucket = bucket_name, Key = s3_key, RequestPayer='requester')
                     if head['ResponseMetadata']['HTTPStatusCode'] == 200:
                         feature['assets'][band]['href'] = output_file
-                        
-                except botocore.exceptions.ClientError as e:
-                    if e.response['Error']['Code'] == "404":
-                        print(f"The object does not exist. {output_file}")
-                    else:
-                        raise
+                clean_features.append(feature)
+            except botocore.exceptions.ClientError as e:
+                if e.response['Error']['Code'] == "404":
+                    print(f"The object does not exist. {output_file}")
+                else:
+                    raise
         # save and updated catalog with local paths
+        asset_catalog['features'] = clean_features
         local_catalog = catalog.replace('response', 'local-s3')
         with open(local_catalog,'w') as jsonfile:
             json.dump(asset_catalog, jsonfile)
