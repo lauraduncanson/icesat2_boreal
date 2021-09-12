@@ -27,7 +27,13 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
     with open(catalog) as f:
         clean_features = []
         asset_catalog = json.load(f)
-        for feature in asset_catalog['features']:
+        
+        # Remove duplicate scenes, keeping newest
+        features = asset_catalog['features']
+        sorted_features = sorted(features, key=lambda f: (f["properties"]["landsat:scene_id"], f["id"]))
+        most_recent_features = list({ f["properties"]["landsat:scene_id"]: f for f in sorted_features }.values())
+        
+        for feature in most_recent_features:
             #print(feature)
             try:
                 for band in bands:
