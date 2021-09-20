@@ -81,8 +81,8 @@ def main():
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
-    parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
-    parser.set_defaults(maap_query=False)
+    #parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
+    #parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
     parser.add_argument('--extract_covars', dest='extract_covars', action='store_true', help='Do extraction of covars for each ATL08 obs')
@@ -142,7 +142,8 @@ def main():
     if args.TEST:
         seg_str = '' 
     
-    if args.maap_query and csv_list_fn is not None:
+    #if args.maap_query and csv_list_fn is not None:
+    if csv_list_fn is not None:
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
@@ -151,15 +152,18 @@ def main():
         # Print ATL08 h5 granules for tile
         #print([os.path.basename(f) for f in all_atl08_for_tile])      
         
-        #if not os.path.isfile(csv_list_fn):
-        #    if dps_dir_csv is None:
-        #        print('Need to input a top-level DPS output dir where the extracted ATL08 csvs can be found.')
-        #        os._exit(1)
-        #    all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
-        #else:
-        print(f"\nReading existing list of ATL08 CSVs: {csv_list_fn}")
-        print("\tDoing 30m ATL08 data? ", do_30m)
-        all_atl08_csvs_df = pd.read_csv(csv_list_fn)
+        if not os.path.isfile(csv_list_fn):
+            print("\nNo CSV list of extracted ATL08 csvs exist.")
+            print("Build one now. This takes a long time.")
+            if dps_dir_csv is None:
+                print("To build one, you need to specify a top-level DPS output dir under which the extracted ATL08 csvs can be found.")
+                print("Go find this dir, and specify it as the arg to -dps_dir_csv")
+                os._exit(1)
+            all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
+        else:
+            print(f"\nReading existing list of ATL08 CSVs: {csv_list_fn}")
+            print("\tDoing 30m ATL08 data? ", do_30m)
+            all_atl08_csvs_df = pd.read_csv(csv_list_fn)
             
         # Find the ATL08 CSVs from extract that are associated with the ATL08 granules that intersect this tile
         # These CSvs are nested deep after DPS runs
@@ -187,15 +191,17 @@ def main():
         atl08 = FilterUtils.filter_atl08_bounds_clip(atl08, tile['geom_4326'])
 
     else:
-        print("\nNo CSV fn of paths to all extracted ATL08 csvs dir specified: Need to get ATL08 CSV list to match with tile bound results from MAAP query.\n")
-        if not os.path.isfile(csv_list_fn):
-            if dps_dir_csv is None:
-                print('Need to input a top-level DPS output dir where the extracted ATL08 csvs can be found.')
-                os._exit(1)
-            print("Getting an ATL08 list of CSVs from the extract_atl08 runs. This is a glob.glob that takes a while.")
-            print("\nWill print an output CSV name of the paths. Use this path an input for -csv_list_fn to the next tile_atl08.py run")    
-            all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
-            print(csv_list_fn)
+        print("\nNo CSV fn of paths to all extracted ATL08 csvs dir specified.")
+        print("Need to get ATL08 CSV list to match with tile bound results from MAAP query.")
+        print("Exiting...\n")
+        #if not os.path.isfile(csv_list_fn):
+        #    if dps_dir_csv is None:
+        #        print('Need to input a top-level DPS output dir where the extracted ATL08 csvs can be found.')
+        #        os._exit(1)
+        #    print("Getting an ATL08 list of CSVs from the extract_atl08 runs. This is a glob.glob that takes a while.")
+        #    print("\nWill print an output CSV name of the paths. Use this path an input for -csv_list_fn to the next tile_atl08.py run")    
+        #    all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
+        #    print(csv_list_fn)
         os._exit(1)
     #elif args.maap_query and dps_dir_csv is None:
         #print("\nNo DPS dir specified: cant get ATL08 CSV list to match with tile bound results from MAAP query.\n")
@@ -204,7 +210,7 @@ def main():
     #else:
         # Filter by bounds: EPT with a the bounds from an input tile
         #atl08 = FilterUtils.filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=True)
-        print('Filter by bounds with EPT is a TODO')
+        #print('Filter by bounds with EPT is a TODO')
     
     # Filter by quality
     atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
