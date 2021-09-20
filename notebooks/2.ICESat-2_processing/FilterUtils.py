@@ -85,21 +85,27 @@ def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, DEBUG=Fa
     # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
     all_atl08_for_tile_CSVname = [os.path.basename(f).replace("ATL08", "ATL08"+seg_str).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
 
+    #print(all_atl08_for_tile_CSVname)
+    
     print('\t\t# of all ATL08 granules for tile: {}'.format(len(all_atl08_for_tile)))
     all_atl08_csvs = all_atl08_csvs_df['path'].to_list()
     print('\t\t# of all_atl08_csvs: {}'.format(len(all_atl08_csvs)))
     
     # Get basenames of CSVs
     all_atl08_csvs_BASENAME = [os.path.basename(f) for f in all_atl08_csvs]
-    
-    #print(all_atl08_for_tile_CSVname)
+       
     # Get index of ATL08 in tile bounds from the large list of all ATL08 CSVs
     names_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name in set(all_atl08_csvs_BASENAME)]
     names_NOT_FOUND = [name for i, name in enumerate(all_atl08_for_tile_CSVname) if name not in set(all_atl08_csvs_BASENAME)]
+    
     if DEBUG:
         print("\t\tATL08 CSVs expected, but NOT FOUND: \n",names_NOT_FOUND)
+        
     idx_FOUND = [all_atl08_csvs_BASENAME.index(name) for name in names_FOUND]
     
+    if DEBUG:
+        print("\t\tIndex of found: ", idx_FOUND)
+        
     # DERP - cant get index of stuff that isnt there...
     ##idx_NOT_FOUND = [all_atl08_csvs_BASENAME.index(name) for name in names_NOT_FOUND]
 
