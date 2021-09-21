@@ -18,11 +18,10 @@ import argparse
 
 from maap.maap import MAAP
 maap = MAAP()
-#sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+
 import FilterUtils
 import ExtractUtils
-#from FilterUtils import *
-#from ExtractUtils import *
+
 import csv
 
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn):
@@ -60,6 +59,9 @@ def main():
     8. Extract Topo vars to ATL08
     9. Extract Landsat vars tp ATL08
     10. Write ATL08 filtered df with extracted covars to CSV and GeoJSON
+    
+    Example call:
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/my-public-bucket/DPS_tile_lists/TEST_BUILD_extract_atl08_csv_list.csv --do_30m -in_tile_num 3000 --extract_covars
     '''
     
     parser = argparse.ArgumentParser()
@@ -142,7 +144,6 @@ def main():
     if args.TEST:
         seg_str = '' 
     
-    #if args.maap_query and csv_list_fn is not None:
     if csv_list_fn is not None:
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
@@ -194,23 +195,7 @@ def main():
         print("\nNo CSV fn of paths to all extracted ATL08 csvs dir specified.")
         print("Need to get ATL08 CSV list to match with tile bound results from MAAP query.")
         print("Exiting...\n")
-        #if not os.path.isfile(csv_list_fn):
-        #    if dps_dir_csv is None:
-        #        print('Need to input a top-level DPS output dir where the extracted ATL08 csvs can be found.')
-        #        os._exit(1)
-        #    print("Getting an ATL08 list of CSVs from the extract_atl08 runs. This is a glob.glob that takes a while.")
-        #    print("\nWill print an output CSV name of the paths. Use this path an input for -csv_list_fn to the next tile_atl08.py run")    
-        #    all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
-        #    print(csv_list_fn)
-        os._exit(1)
-    #elif args.maap_query and dps_dir_csv is None:
-        #print("\nNo DPS dir specified: cant get ATL08 CSV list to match with tile bound results from MAAP query.\n")
-        #os._exit(1)
-        
-    #else:
-        # Filter by bounds: EPT with a the bounds from an input tile
-        #atl08 = FilterUtils.filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_layer, output_dir, return_pdf=True)
-        #print('Filter by bounds with EPT is a TODO')
+
     
     # Filter by quality
     atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
