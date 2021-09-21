@@ -9,7 +9,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 unset PROJ_LIB
 
 #install requirements packages
-conda activate RSGISLib
+
 pip install --user -r ${basedir}/requirements.txt
 
 mkdir output
