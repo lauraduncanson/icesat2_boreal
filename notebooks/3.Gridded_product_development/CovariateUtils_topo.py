@@ -30,9 +30,9 @@ from rasterio.warp import * #TODO: limit to specific needed modules
 #from rasterio.io import MemoryFile
 from rasterio.crs import CRS
 #from rasterio.vrt import WarpedVRT
-#from rio_cogeo.profiles import cog_profiles
-#from rio_tiler.utils import create_cutline
-#from rio_cogeo.cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
+from rio_tiler.utils import create_cutline
+from rio_cogeo.cogeo import cog_translate
 
 from CovariateUtils import write_cog, get_index_tile
 
@@ -195,7 +195,7 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
     write_cog(topo_stack, 
               topo_stack_cog_fn, 
               tile_parts['tile_crs'], 
-              src_transform, 
+              src_transform,
               topo_stack_names, 
               clip_geom = tile_parts['geom_orig'],
               clip_crs = tile_parts['tile_crs'],
@@ -203,3 +203,17 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
               align = True)
     
     return(topo_stack, topo_stack_names)
+
+def hillshade(array,azimuth,angle_altitude):
+    #https://github.com/rveciana/introduccion-python-geoespacial/blob/master/hillshade.py
+    azimuth = 360.0 - azimuth 
+
+    x, y = np.gradient(array)
+    slope = np.pi/2. - np.arctan(np.sqrt(x*x + y*y))
+    aspect = np.arctan2(-x, y)
+    azimuthrad = azimuth*np.pi/180.
+    altituderad = angle_altitude*np.pi/180.
+
+    shaded = np.sin(altituderad)*np.sin(slope) + np.cos(altituderad)*np.cos(slope)*np.cos((azimuthrad - np.pi/2.) - aspect)
+
+    return 255*(shaded + 1)/2

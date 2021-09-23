@@ -5,7 +5,7 @@
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
 unset PROJ_LIB
-pip install -U geopandas rasterio rio-cogeo rio-tiler
+pip install --user -U numpy==1.20.3 geopandas rio-cogeo rio-tiler==2.0.8 rasterio==1.2.6 importlib_resources
 
 mkdir output
 
@@ -16,6 +16,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order
 #python get_param.py in_tile_fn
+FILENAMELIST=($(ls -d input/*))
 INPUT1="${PWD}/${FILENAMELIST[0]}"
 INPUT2="${PWD}/${FILENAMELIST[1]}"
 
@@ -39,12 +40,18 @@ OUTPUTDIR="${PWD}/output"
 
 # Cmd line call that worked
 #python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 --json_path /projects/maap-users/alexdevseed/landsat8/sample2/
+echo python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.2_dps.py \
+--in_tile_fn ${INPUT1} \
+--in_tile_num $1 \
+--in_tile_layer $2 \
+--sat_api $3 \
+--tile_buffer_m $4 \
+--output_dir ${OUTPUTDIR}
 
 python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.2_dps.py \
 --in_tile_fn ${INPUT1} \
 --in_tile_num $1 \
 --in_tile_layer $2 \
 --sat_api $3 \
---local $4 \
---tile_buffer_m $5 \
+--tile_buffer_m $4 \
 --output_dir ${OUTPUTDIR}

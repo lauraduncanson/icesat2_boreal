@@ -128,7 +128,7 @@ def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True, TEST=False)
     """Extract raster band values to the obs of a geodataframe
     """
 
-    print("\tOpen the raster and store metadata...")
+    print("\tExtracting raster values from: ", r_fn)
     r_src = rio.open(r_fn)
     
     if reproject:
@@ -160,12 +160,12 @@ def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True, TEST=False)
         #pt_gdf[bandname] = pd.Categorical(pt_sample_eval_ma.astype(int).filled(-1))
         pt_gdf[bandname] = pt_sample_eval_ma.astype(float).filled(np.nan)
         
-        print('\tDataframe has new raster value column: {}'.format(bandname))
+        #print('\tDataframe has new raster value column: {}'.format(bandname))
         r = None
         
     r_src.close()
     
-    print('Returning re-projected points with {} new raster value column: {}'.format(len(bandnames), bandnames))
+    print('\tReturning {} points with {} new raster value columns: {}'.format(len(pt_gdf), len(bandnames), bandnames))
     return(pt_gdf)
 
 def get_covar_fn_list(rootDir, tile_num):

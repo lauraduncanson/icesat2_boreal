@@ -1,6 +1,6 @@
 #! /usr/bin/env python
-
 import os
+os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
 import boto3
 from typing import List
 import argparse
@@ -32,7 +32,10 @@ def get_shape(bbox, res=30):
 
 def main():
     '''Command line script to create topo stacks by vector tile id.
+    python 3.1.5_dps.py --in_tile_fn /projects/shared-buckets/nathanmthomas/grid_boreal_albers100k_gpkg.gpkg --in_tile_num 1793 --tile_buffer_m 150 --in_tile_layer "grid_boreal_albers100k_gpkg" -o /projects/my-private-bucket/3.1.5_test/ --topo_tile_fn /projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson
+
     example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
+
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for stack creation")
@@ -78,6 +81,7 @@ def main():
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m, layer = stack_tile_layer)
+    #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
     geom_4326_buffered = tile_parts["geom_4326_buffered"]
     
     # Read the topography index file
@@ -86,8 +90,10 @@ def main():
     # intersect with the bbox tile
     dem_tiles_selection = dem_tiles.loc[dem_tiles.intersects(geom_4326_buffered.iloc[0])]
 
+
     # Set up and aws permissions to public bucket
     os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+
     
     # Get the s3 urls to the granules
     file_s3 = dem_tiles_selection["s3"].to_list()
@@ -108,8 +114,10 @@ def main():
     if (not os.path.isdir(tmp_out_path)): os.mkdir(tmp_out_path)
     tileid = '_'.join([topo_src_name, str(stack_tile_id)])
     ext = "covars_cog.tif" 
+
     dem_cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
     write_cog(mosaic, dem_cog_fn, tile_parts['tile_crs'], out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
+
     mosaic=None
     
     #

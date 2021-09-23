@@ -3,10 +3,10 @@
 algo_name: do_landsat_stack_3-1-2
 version: master
 environment: ubuntu
-repository_url: https://mas.maap-project.org/icesat2_boreal/icesat2_boreal.git
+repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
 docker_url: mas.maap-project.org:5000/root/ade_base_images/vanilla:latest
 # queue chosen when registering
-memory: 4GB
+queue: maap-dps-worker-16gb
 
 # fill out these fields
 # explain what this algorithm does
@@ -14,7 +14,7 @@ description:
 # path to the wrapper script for running the algorithm
 run_command: icesat2_boreal/dps/alg_3-1-2/run.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
-disk_space: 10GB
+disk_space: 16GB
 
 ## Include all dynamic inputs that are not hard coded in run.sh
 # Every param that is a 'download: False' will be a positional arg in run.sh for the python script
@@ -29,8 +29,6 @@ inputs:
   - name: in_tile_layer
     download: False
   - name: sat_api
-    download: False
-  - name: local
     download: False
   - name: tile_buffer_m
     download: False

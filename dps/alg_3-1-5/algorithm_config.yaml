@@ -3,22 +3,18 @@
 algo_name: do_topo_stack_3-1-5
 version: master
 environment: ubuntu
-repository_url: https://mas.maap-project.org/icesat2_boreal/icesat2_boreal.git
+repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
 docker_url: mas.maap-project.org:5000/root/ade_base_images/vanilla:latest
 # queue chosen when registering
-memory: 2GB
+queue: maap-dps-worker-8gb
 
 # fill out these fields
 # explain what this algorithm does
 description: 
-# path to the wrapper script for running the algorithm (from top-level of gitlab repo)
+# path to the wrapper script for running the algorithm
 run_command: icesat2_boreal/dps/alg_3-1-5/run.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
 disk_space: 10GB
-
-## Include all dynamic inputs that are not hard coded in run.sh
-# Every param that is a 'download: False' will be a positional arg in run.sh for the python script
-# If 'download: True' then it isnt a positional arg
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
@@ -32,4 +28,3 @@ inputs:
     download: False
   - name: topo_tile_fn
     download: True
-
