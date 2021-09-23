@@ -36,7 +36,7 @@ def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path')
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
-def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path'):
+def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path', return_s3=True):
     # Find most recent topo/Landsat stack path for tile in list of stack paths from *tindex_master.csv
     # *tindex_master.csv made with CountOutput.py
     all_stacks_df = pd.read_csv(stack_list_fn)
@@ -44,10 +44,15 @@ def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path'):
     # Get the s3 location from the location (local_path) indicated in the tindex master csv
     all_stacks_df['s3'] = [local_to_s3(local_path, user) for local_path in all_stacks_df[col_name]]
     
+    if return_s3:
+        col_name = 's3'
+    
     stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
+    
     print("\nGetting stack fn from: ", stack_list_fn)
     [print("\t",i) for i in stack_for_tile[col_name].to_list()]
     stack_for_tile_fn = stack_for_tile[col_name].to_list()[0]
+    
     if len(stack_for_tile)==0:
         stack_for_tile_fn = None
     return(stack_for_tile_fn)
@@ -97,7 +102,7 @@ def main():
     #parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
     #parser.add_argument("-m_max", "--month_max", type=int, default=9, help="The max month of each year for which ATL08 obs will be used")
     #parser.add_argument('-ocl', '--out_cols_list', nargs='+', default=[], help="A select list of strings matching ATL08 col names from the input EPT that will be returned in a pandas df after filtering and subsetting")
-    parser.add_argument("-o", "--output_dir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
+    parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
@@ -144,7 +149,7 @@ def main():
     #month_min = args.month_min
     #month_max = args.month_max
     #out_cols_list = args.out_cols_list
-    output_dir = args.output_dir
+    outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
 
@@ -156,6 +161,9 @@ def main():
     if args.TEST:
         seg_str = '' 
     
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    
     in_tile_num = int(in_tile_num)
     print("\nWorking on tile:\t", in_tile_num)
     print("From layer:\t\t", in_tile_layer)
@@ -166,7 +174,7 @@ def main():
     print("Years:\t\t\t", years_list)
     print("ATL08 bin length:\t",seg_str.replace("_",''))
     
-    out_name_stem = "atl08_filt"
+    out_name_stem = "atl08_"+v_ATL08+"_filt"
     cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"  
     
     if csv_list_fn is not None:
@@ -260,10 +268,10 @@ def main():
         print(f"No ATL08 obs. for tile {in_tile_num}")
     else:
         # CSV/geojson the file
-        out_fn = os.path.join(output_dir, out_name_stem + "_" + str(cur_date) + "_" + str(in_tile_num))
+        out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(in_tile_num))
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
-        atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
+        #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
         print("Wrote output csv/geojson of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_fn) )
 

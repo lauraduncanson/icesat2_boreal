@@ -294,11 +294,12 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
     
     atl08_df_prepd = None
     
+    print("\tReturning a pandas data frame.")
     if SUBSET_COLS:
         subset_cols_list = ['lon','lat'] + subset_cols_list
-        print("\tReturning a pandas data frame of filtered observations for columns: {}".format(subset_cols_list))
+        print("\tFiltered obs. for columns: {}".format(subset_cols_list))
         print(f"\tData frame shape: {atl08_df_filt[subset_cols_list].shape} ")
         return(atl08_df_filt[subset_cols_list])
     else:
-        print("\tReturning a pandas data frame of filtered observations for all columns")
+        print("\tFiltered obs. for all columns")
         return(atl08_df_filt)

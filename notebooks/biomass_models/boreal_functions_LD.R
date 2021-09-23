@@ -10,13 +10,13 @@
 # 2.6 ICESat-2 biomass 30m ATL08
 
 #### i) Description
-#### This notebook use GEDI-derived AGB models for estimating sparse ICESat-2 AGB using 30 m ATL08 product.
+#### This notebook use AGB models for estimating sparse ICESat-2 AGB using 30 m ATL08 product.
 
 #### ii) How the algorithm works?
-#### GEDI-derived AGB models are loaded in R and applied over the ICESat-2 30m ATL08 data. 
+#### AGB models are loaded in R and applied over the ICESat-2 30m ATL08 data. 
 
 #### iii) Inputs
-####  - rds_models: list of GEDI-derived AGB model paths
+####  - rds_models: list of ICESat-2 simulation-derived AGB model paths
 ####  - models_id: models id
 ####  - ice2_30_atl08: list containing the path to the ATL08 files
 ####  - offset: offset applied in the model
@@ -351,16 +351,31 @@ mapBoreal<-function(rds_models,
                                rep=rep,
                                stack=stack,
                                strat_random=strat_random)
+    print(length(models))
+    print(models[[1]])
     
+    #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=10,save=TRUE)
     
-    maps<-agbMapping(x=xtable[pred_vars],
-                               y=xtable$AGB,
-                               se=xtable$SE,
-                               s_train=s_train,
-                               rep=rep,
-                               stack=tile_list)
+    #run mapping over each tile in a loop
+    out_maps <- list()
+    for (tile in tile_list){
+        tile_stack <- tile
+        
+        maps<-agbMapping(x=xtable[pred_vars],
+                     y=xtable$AGB,
+                     se=xtable$SE,
+                     s_train=s_train,
+                     rep=rep,
+                     model_list=models,
+                     stack=tile_list)
+        append.list(out_maps, maps)
+    }
+    
 
+    #recombine tiles
+    
+    
     writeRaster(maps,output,overwrite=T)
       
     # LD's original return : a list of 2 things (both rasters)
