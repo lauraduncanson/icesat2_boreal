@@ -70,16 +70,18 @@ def main():
     
     Example call:
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/my-public-bucket/DPS_tile_lists/TEST_BUILD_extract_atl08_csv_list.csv --do_30m -in_tile_num 3000 --extract_covars
+    
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars
     '''
     
     parser = argparse.ArgumentParser()
     #parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations") 
     parser.add_argument("-in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
-    parser.add_argument("-in_tile_fn", type=str, default="/projects/my-public-bucket/boreal_grid_albers90k_gpkg.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
+    parser.add_argument("-in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
     parser.add_argument("-in_tile_layer", type=str, default="grid_boreal_albers90k_gpkg", help="The layer name of the stack tiles dataset")
     parser.add_argument("-csv_list_fn", type=str, default=None, help="The file of all CSVs paths")
-    parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/my-public-bucket/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
-    parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/my-public-bucket/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
+    parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
+    parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
     parser.add_argument("-user", type=str, default="nathanmthomas", help="MAAP username for completing the s3 path to tindex master csvs")
     #parser.add_argument("--local", dest='local', action='store_true', help="Dictate whether landsat covars is a run using local paths")
     #parser.set_defaults(local=False)

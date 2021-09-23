@@ -33,8 +33,10 @@ def main():
     parser.add_argument("-y", "--dps_year", type=str, default=2021, help="Specify the year of the DPS output")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
-    
+    parser.add_argument("--col_name", type=str, default="local_path", help="Column name for the local path of the found files")
     args = parser.parse_args()
+    
+    col_name = args.col_name
     
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
@@ -59,7 +61,8 @@ def main():
             ends_with_str = "_stack.tif"
         if "ATL08" in TYPE:
             #root = f"/projects/my-private-bucket/dps_output/run_extract_ubuntu/ops/{args.dps_year}/"
-            root = f"/projects/shared-buckets/montesano/run_extract_atl08_orig_ubuntu/master/{args.dps_year}/07/14"
+            #root = f"/projects/shared-buckets/montesano/run_extract_atl08_orig_ubuntu/master/{args.dps_year}/07/14"
+            root = f"/projects/my-private-bucket/dps_output/run_extract_atl08_ubuntu/master/{args.dps_year}/09"
             ends_with_str = args.seg_str_atl08+".csv"
             
         df = pd.DataFrame(columns=[col_name, 'tile_num'])
@@ -75,7 +78,7 @@ def main():
                     else:
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
 
-        print(len(df.location.values))
+        print(len(df[col_name].values))
 
         df.to_csv(os.path.join(args.outdir, out_name))
 
