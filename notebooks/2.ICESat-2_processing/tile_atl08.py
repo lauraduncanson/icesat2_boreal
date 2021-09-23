@@ -77,7 +77,7 @@ def main():
     Example call:
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/my-public-bucket/DPS_tile_lists/TEST_BUILD_extract_atl08_csv_list.csv --do_30m -in_tile_num 3000 --extract_covars
     
-    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars -years_list 2020
     '''
     
     parser = argparse.ArgumentParser()
@@ -150,33 +150,33 @@ def main():
 
     DEBUG = args.DEBUG
     
-    in_tile_num = int(in_tile_num)
-    print("\nWorking on tile: ", in_tile_num)
-    print("From layer: ", in_tile_layer)
-    print("In vector file: ", in_tile_fn)
-    
-    out_name_stem = "atl08_filt"
-    cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"
-    #cur_date = "20210819"
-    
-    # TODO: make this an arg. UPDATE: DONE
-    #years_list = [2018, 2019, 2020, 2021]
-    
-    
     seg_str = '_100m'
     if do_30m:
         seg_str = '_30m'
     if args.TEST:
         seg_str = '' 
     
+    in_tile_num = int(in_tile_num)
+    print("\nWorking on tile:\t", in_tile_num)
+    print("From layer:\t\t", in_tile_layer)
+    print("In vector file:\t\t", in_tile_fn)
+    print("ATL08 version:\t\t", v_ATL08)
+    print("Season start:\t\t", date_start)
+    print("Season end:\t\t", date_end)
+    print("Years:\t\t\t", years_list)
+    print("ATL08 bin length:\t",seg_str.replace("_",''))
+    
+    out_name_stem = "atl08_filt"
+    cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"  
+    
     if csv_list_fn is not None:
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
-        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list)
+        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
         
         # Update ATL08 version string
-        all_atl08_for_tile = [update_atl08_version(atl08_h5_name, v_ATL08, maap_v_str='003') for atl08_h5_name in all_atl08_for_tile]
+        #all_atl08_for_tile = [update_atl08_version(atl08_h5_name, v_ATL08, maap_v_str='003') for atl08_h5_name in all_atl08_for_tile]
         
         if DEBUG:
             # Print ATL08 h5 granules for tile
