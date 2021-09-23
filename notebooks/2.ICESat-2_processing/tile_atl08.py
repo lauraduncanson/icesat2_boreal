@@ -54,6 +54,10 @@ def local_to_s3(url, user='nathanmthomas'):
     ''' A Function to convert local paths to s3 urls'''
     return url.replace('/projects/my-private-bucket', f's3://maap-ops-workspace/{user}')
 
+def update_atl08_version(atl08_h5_name, update_v_str, maap_v_str='003'):
+    ''' A function to replace the version string in the ATL08 h5 filename returned from maap query '''
+    return atl08_h5_name.replace('_'+maap_v_str+'_', '_'+update_v_str+'_')
+
 def main():
     '''
     tile_atl08.py: By tile, query, filter, and extract covariates for ATL08
@@ -94,6 +98,8 @@ def main():
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
+    parser.add_argument('-years_list', nargs='+', default=2020, help="Years of ATL08 used")
+    parser.add_argument('-v_ATL08', type=str, default='004', help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
     #parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
     #parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
@@ -128,6 +134,8 @@ def main():
     landsat_stack_list_fn = args.landsat_stack_list_fn
     date_start = args.date_start
     date_end = args.date_end
+    years_list = args.years_list
+    v_ATL08 = args.v_ATL08
     #thresh_h_can = args.thresh_h_can
     #thresh_h_dif = args.thresh_h_dif
     #month_min = args.month_min
@@ -137,6 +145,7 @@ def main():
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
     user = args.user
+    DEBUG = args.DEBUG
     
     in_tile_num = int(in_tile_num)
     print("\nWorking on tile: ", in_tile_num)
@@ -147,8 +156,9 @@ def main():
     cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"
     #cur_date = "20210819"
     
-    # TODO: make this an arg
-    years_list = [2018, 2019, 2020, 2021]
+    # TODO: make this an arg. UPDATE: DONE
+    #years_list = [2018, 2019, 2020, 2021]
+    
     
     seg_str = '_100m'
     if do_30m:
@@ -162,8 +172,12 @@ def main():
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
         all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list)
         
-        # Print ATL08 h5 granules for tile
-        #print([os.path.basename(f) for f in all_atl08_for_tile])      
+        # Update ATL08 version string
+        all_atl08_for_tile = [update_atl08_version(atl08_h5_name, v_ATL08, maap_v_str='003') for atl08_h5_name in all_atl08_for_tile]
+        
+        if DEBUG:
+            # Print ATL08 h5 granules for tile
+            print([os.path.basename(f) for f in all_atl08_for_tile])      
         
         if not os.path.isfile(csv_list_fn):
             print("\nNo CSV list of extracted ATL08 csvs exist.")
@@ -180,11 +194,13 @@ def main():
             
         # Get the s3 location from the location (local_path) indicated in the tindex master csv
         all_atl08_csvs_df['s3'] = [local_to_s3(local_path, args.user) for local_path in all_atl08_csvs_df['local_path']] # in earlier versions of the atl08 csv list 'local_path' was called 'path'
+        if DEBUG:
+            print(all_atl08_csvs_df['s3'][0])
             
         # Find the ATL08 CSVs from extract that are associated with the ATL08 granules that intersect this tile
         # These CSvs are nested deep after DPS runs
         # They should match all the ATL08 granules, but probably wont bc: (1) did DPS for ATL08 30m fully complete with no fails? (2) did DPS for extract fully complete with no fails?
-        all_atl08_csvs_FOUND, all_atl08_csvs_NOT_FOUND = FilterUtils.find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, col_name='s3', DEBUG=args.DEBUG) 
+        all_atl08_csvs_FOUND, all_atl08_csvs_NOT_FOUND = FilterUtils.find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, col_name='s3', DEBUG=DEBUG) 
         
         #all_atl08_csvs_FOUND = [x for x in all_atl08_h5_with_csvs_for_tile if x not in all_atl08_csvs_NOT_FOUND]
         print("\t# of ATL08 CSV found for tile {}: {}".format(in_tile_num, len(all_atl08_csvs_FOUND)))

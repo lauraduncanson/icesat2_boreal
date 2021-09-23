@@ -85,7 +85,8 @@ def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, col_name
     # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
     all_atl08_for_tile_CSVname = [os.path.basename(f).replace("ATL08", "ATL08"+seg_str).replace('.h5', seg_str+'.csv') for f in all_atl08_for_tile]
 
-    #print(all_atl08_for_tile_CSVname)
+    if DEBUG:
+        print(all_atl08_for_tile_CSVname)
     
     print('\t\t# of all ATL08 granules for tile: {}'.format(len(all_atl08_for_tile)))
     all_atl08_csvs = all_atl08_csvs_df[col_name].to_list()
