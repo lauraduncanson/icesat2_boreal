@@ -277,7 +277,6 @@ SplitRas <- function(raster,ppside,save){
 
 # mapping - apply the list of models to a set of sub-tiles, compute AGB, SD, 5th & 95th percentiles 
 agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list, se=NULL,output){
-    pb <- txtProgressBar(min = 0, max = rep, style = 3)
     stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
     stack_df$grid_id<-1:nrow(stack_df)
     stats_df<-NULL
@@ -305,7 +304,6 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list, se=NULL,out
                                     p5=p5,
                                     p95=p95
                                   )
-  close(pb)
   return(agb_maps)
 }
                               
@@ -353,15 +351,19 @@ mapBoreal<-function(rds_models,
                                strat_random=strat_random)
     print(length(models))
     print(models[[1]])
+    print('models successfully fit!')
     
     #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=10,save=TRUE)
     
+    print('tiles successfully split!')
     #run mapping over each tile in a loop
     out_maps <- list()
+    
     for (tile in tile_list){
         tile_stack <- tile
-        
+        pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
+
         maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      se=xtable$SE,
@@ -372,15 +374,17 @@ mapBoreal<-function(rds_models,
         append.list(out_maps, maps)
     }
     
-
     #recombine tiles
+    out_maps$fun   <- max
+    agb.mosaic <- do.call(mosaic,out_maps)
+    plot(agb.mosaic,axes=F,legend=F,bty="n",box=FALSE)
+    writeRaster(rast.mosaic,filename=paste("90km_biomass_tile_test",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
     
-    
-    writeRaster(maps,output,overwrite=T)
+    #writeRaster(maps,output,overwrite=T)
       
     # LD's original return : a list of 2 things (both rasters)
     # Now, we can return a list of 3 things : the 2 maps, and the xtable (this has lat,lons, and AGB, SE for each ATL08 obs)
-    maps = append(maps, list(xtable[,c('lon','lat','AGB','SE')]))
+    maps = append(agb.mosaic, list(xtable[,c('lon','lat','AGB','SE')]))
     
     return(maps)
 
