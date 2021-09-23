@@ -23,6 +23,8 @@ import FilterUtils
 import ExtractUtils
 
 import csv
+import fsspec
+import s3fs
 
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
@@ -34,13 +36,13 @@ def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path')
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
-def get_stack_fn(stack_list_fn, in_tile_num, col_name='local_path'):
+def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path'):
     # Find most recent topo/Landsat stack path for tile in list of stack paths from *tindex_master.csv
     # *tindex_master.csv made with CountOutput.py
     all_stacks_df = pd.read_csv(stack_list_fn)
     
     # Get the s3 location from the location (local_path) indicated in the tindex master csv
-    all_stacks_df['s3'] = [local_to_s3(local_path, args.user) for local_path in all_stacks_df[col_name]]
+    all_stacks_df['s3'] = [local_to_s3(local_path, user) for local_path in all_stacks_df[col_name]]
     
     stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
     print("\nGetting stack fn from: ", stack_list_fn)
@@ -86,7 +88,8 @@ def main():
     parser.add_argument("-csv_list_fn", type=str, default=None, help="The file of all CSVs paths")
     parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
     parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
-    parser.add_argument("-user", type=str, default="nathanmthomas", help="MAAP username for completing the s3 path to tindex master csvs")
+    parser.add_argument("-user_stacks", type=str, default="nathanmthomas", help="MAAP username for the workspace in which the stacks were built; will help complete the s3 path to tindex master csvs")
+    parser.add_argument("-user_atl08", type=str, default="lduncanson", help="MAAP username for the workspace in which the ATL08 csvs were extracted; will help complete the s3 path to tindex master csvs")
     #parser.add_argument("--local", dest='local', action='store_true', help="Dictate whether landsat covars is a run using local paths")
     #parser.set_defaults(local=False)
     #parser.add_argument("-t_h_can", "--thresh_h_can", type=int, default=100, help="The threshold height below which ATL08 obs will be returned")
@@ -144,7 +147,7 @@ def main():
     output_dir = args.output_dir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
-    user = args.user
+
     DEBUG = args.DEBUG
     
     in_tile_num = int(in_tile_num)
@@ -193,7 +196,7 @@ def main():
             all_atl08_csvs_df = pd.read_csv(csv_list_fn)
             
         # Get the s3 location from the location (local_path) indicated in the tindex master csv
-        all_atl08_csvs_df['s3'] = [local_to_s3(local_path, args.user) for local_path in all_atl08_csvs_df['local_path']] # in earlier versions of the atl08 csv list 'local_path' was called 'path'
+        all_atl08_csvs_df['s3'] = [local_to_s3(local_path, args.user_atl08) for local_path in all_atl08_csvs_df['local_path']] # in earlier versions of the atl08 csv list 'local_path' was called 'path'
         if DEBUG:
             print(all_atl08_csvs_df['s3'][0])
             
@@ -241,8 +244,8 @@ def main():
     
     if args.extract_covars and len(atl08_gdf) > 0:
 
-        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, col_name='location') # will need to change col_name to 'local_path' soon
-        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, col_name='location') # will need to change col_name to 'local_path' soon
+        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path') 
+        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path')
        
         if topo_covar_fn is not None and landsat_covar_fn is not None:
             print(f'\nExtract covars for {len(atl08_gdf)} ATL08 obs...')
