@@ -176,15 +176,14 @@ stratRandomSample<-function(agb=y,breaks, p){
   return(ids_selected=sel_all$ids)
 }
 
-# modeling 
-agbModelingMapping<-function(x=x,y=y,se=NULL,s_train=70, rep=10,stack=stack,strat_random=TRUE,output){
+# modeling - fit a number of models and return as a list of models
+agbModeling<-function(x=x,y=y,se=NULL,s_train=70, rep=100,strat_random=TRUE,output){
   
   pb <- txtProgressBar(min = 0, max = rep, style = 3)
   
   stats_df<-NULL
   n<-nrow(x)
   ids<-1:n
-  map_pred<-NULL
   
   #p_load("VSURF")
   #varsel <- VSURF(y=y, x=x, ntree=1000)
@@ -195,12 +194,12 @@ agbModelingMapping<-function(x=x,y=y,se=NULL,s_train=70, rep=10,stack=stack,stra
   #i=10
   i.s=0
   #j=1
-  
+  model_list <- list()
   for (j in 1:rep){
     i.s<-i.s+1
     setTxtProgressBar(pb, i.s)
     set.seed(j)
-    if ( strat_random==TRUE){
+    if (strat_random==TRUE){
       trainRowNumbers<-stratRandomSample(agb=y,breaks=quantile(y, na.rm=T), p=s_train/100)
     } else {
       trainRowNumbers<-sort(sample(ids,round(n*s_train/100), T))
@@ -221,11 +220,6 @@ agbModelingMapping<-function(x=x,y=y,se=NULL,s_train=70, rep=10,stack=stack,stra
     
     fit.rf <- randomForest(y=trainData.y, x=trainData.x, ntree=500)
     pred.rf<-predict(fit.rf, newdata=testData.x) # 
-    #save(trainData.x, trainData.y, file='/projects/traindata.Rdata')
-    #qrf <- quantregForest(x=trainData.x, y=trainData.y, ntree=1000)
-    #save(qrf, file='/projects/qrf.Rdata')
-    #fit.rf <- randomForest(y=trainData.y, x=trainData.x[,varnames], ntree=1000)
-    #pred.rf<-predict(fit.rf, newdata=testData.x[,varnames]) # 
     stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
     
     # model validation stats
@@ -233,48 +227,103 @@ agbModelingMapping<-function(x=x,y=y,se=NULL,s_train=70, rep=10,stack=stack,stra
                     stats.rf)
     row.names(stats_df)<-1:nrow(stats_df)
     
-    #agb <- predict(fit.rf, newdata=stack_df)
-    #  save(stack_df, file='/projects/stack_df.Rdata')
-    #  PI <- predict(qrf, newdata=stack_df, what=c(0.1, 0.9))
-    #  str(PI)
-    # mapping
-    map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
-    #map_i<-cbind(stack_df[,1:2],agb=agb, PI=PI, rep=j, grid_id=stack_df$grid_id)
-    map_pred<-rbind(map_pred,map_i)
+    #save output to a list where length = n(rep)
+    model_list <- append.list(model_list, fit.rf)
     
   }
-  
-  mean_map<-tapply(map_pred$agb,map_pred$grid_id,mean)
-  sd_map<-tapply(map_pred$agb,map_pred$grid_id,sd)
-  
-  
-  agb_maps <- rasterFromXYZ(cbind(stack_df[,1:2],
-                                  agb_mean=mean_map,
-                                  agb_sd=sd_map,
-                                  
-                                  armse_map_mean=mean(stats_df[stats_df[,3]=="rmse",4]),
-                                  armse_map_sd=sd(stats_df[stats_df[,3]=="rmse",4]),
-                                  
-                                  rrmse_map_mean=mean(stats_df[stats_df[,3]=="rmseR",4]),
-                                  rrmse_map_sd=sd(stats_df[stats_df[,3]=="rmseR",4]),
-                                  
-                                  abias_map_mean=mean(stats_df[stats_df[,3]=="bias",4]),
-                                  abias_map_sd=sd(stats_df[stats_df[,3]=="bias",4]),
-                                  
-                                  rbias_map_mean=mean(stats_df[stats_df[,3]=="bias",4]),
-                                  rbias_map_sd=sd(stats_df[stats_df[,3]=="bias",4]),
-                                  
-                                  r2_map_mean=mean(stats_df[stats_df[,3]=="r2",4]),
-                                  r2_map_sd=sd(stats_df[stats_df[,3]=="r2",4])))
-  
+  return(model_list)
+}
+
+#split raster into subtiles, run mapping, recombine
+
+# The function spatially aggregates the original raster
+# it turns each aggregated cell into a polygon
+# then the extent of each polygon is used to crop
+# the original raster.
+# The function returns a list with all the pieces
+# in case you want to keep them in the memory. 
+# it saves and plots each piece
+# The arguments are:
+# raster = raster to be chopped            (raster object)
+# ppside = pieces per side                 (integer)
+# save   = write raster                    (TRUE or FALSE)
+SplitRas <- function(raster,ppside,save){
+  h        <- ceiling(ncol(raster)/ppside)
+  v        <- ceiling(nrow(raster)/ppside)
+  agg      <- aggregate(raster,fact=c(h,v))
+  agg[]    <- 1:ncell(agg)
+  agg_poly <- rasterToPolygons(agg)
+  names(agg_poly) <- "polis"
+  r_list <- list()
+  for(i in 1:ncell(agg)){
+    e1          <- extent(agg_poly[agg_poly$polis==i,])
+    r_list[[i]] <- crop(raster,e1)
+  }
+  if(save==T){
+    for(i in 1:length(r_list)){
+      writeRaster(r_list[[i]],filename=paste("SplitRas",i,sep=""),
+                  format="GTiff",datatype="FLT4S",overwrite=TRUE)  
+    }
+  }
+  if(plot==T){
+    par(mfrow=c(ppside,ppside))
+    for(i in 1:length(r_list)){
+      plot(r_list[[i]],axes=F,legend=F,bty="n",box=FALSE)  
+    }
+  }
+  return(r_list)
+}
+
+
+# mapping - apply the list of models to a set of sub-tiles, compute AGB, SD, 5th & 95th percentiles 
+agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list, se=NULL,output){
+    pb <- txtProgressBar(min = 0, max = rep, style = 3)
+    stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
+    stack_df$grid_id<-1:nrow(stack_df)
+    stats_df<-NULL
+    n<-nrow(x)
+    ids<-1:n
+    map_pred<-NULL
+
+    #loop over predicting for tile with each model in list
+    for (i in 1:length(model_list)){
+        fit.rf <- model_list[[i]]
+        map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
+        map_pred<-rbind(map_pred,map_i)
+    }
     
-    #agb_maps <- rasterFromXYZ(cbind(stack_df[,1:2],
-    #                               agb_pred=agb,
-    #                               agb_PI_low=PI[,1],
-    #                               agb_PI_high=PI[,2]))
+    #take the average and sd per pixel
+    mean_map<-tapply(map_pred$agb,map_pred$grid_id,mean)
+    sd_map<-tapply(map_pred$agb,map_pred$grid_id,sd)
+    p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
+    p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
+    
+    #create output tile grid
+    agb_maps <- rasterFromXYZ(cbind(stack_df[,1:2],
+                                    agb_mean=mean_map,
+                                    agb_sd=sd_map,
+                                    p5=p5,
+                                    p95=p95
+                                  )
   close(pb)
   return(agb_maps)
 }
+                              
+combineTiles <- functions(tiles){         
+# read each piece back in R
+list2 <- list()
+for(i in 1:length(tiles)){ 
+  rx <- raster(tiles[i])
+  list2[[i]] <- rx
+}
+# mosaic them, plot mosaic & save output
+list2$fun   <- max
+rast.mosaic <- do.call(mosaic,list2)
+plot(rast.mosaic,axes=F,legend=F,bty="n",box=FALSE)
+#writeRaster(rast.mosaic,filename=paste("Mosaicked_ras",sep=""),
+            #format="GTiff",datatype="FLT4S",overwrite=TRUE)
+}                              
+                              
 
 mapBoreal<-function(rds_models,
                     models_id,
@@ -293,16 +342,24 @@ mapBoreal<-function(rds_models,
                        offset=offset)
     hist(xtable$AGB)
     # run 
-    #pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCW')
     pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     
-    maps<-agbModelingMapping(x=xtable[pred_vars],
+    models<-agbModeling(x=xtable[pred_vars],
                                y=xtable$AGB,
                                se=xtable$SE,
                                s_train=s_train,
                                rep=rep,
                                stack=stack,
                                strat_random=strat_random)
+    
+    tile_list <- SplitRas(raster=stack,ppside=10,save=TRUE)
+    
+    maps<-agbMapping(x=xtable[pred_vars],
+                               y=xtable$AGB,
+                               se=xtable$SE,
+                               s_train=s_train,
+                               rep=rep,
+                               stack=tile_list)
 
     writeRaster(maps,output,overwrite=T)
       
