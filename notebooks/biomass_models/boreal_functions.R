@@ -34,14 +34,14 @@ GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100){
   # read table
   xtable<-read.table(ice2_30_atl08_path, sep=",", head=T)
   xtable_i<-na.omit(as.data.frame(xtable))
-  names(xtable_i)[1:12]<-c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_85","RH_90","RH_95","RH_98")
+  names(xtable_i)[1:12]<-c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
   
   #
-  xtable_sqrt<-sqrt(xtable_i[3:12])
+  xtable_sqrt<-sqrt(xtable_i[3:11])
   names(xtable_sqrt)<-paste0("sqrt(",names(xtable_sqrt),")")
   #xtable_sqrt<-cbind(xtable_i,xtable_sqrt)
   xtable_sqrt<-xtable_i
-  xtable_sqrt[,3:13]<-xtable_sqrt[,3:13]+offset
+  xtable_sqrt[,3:13]<-xtable_sqrt[,3:11]+offset
   
   # get unique ids
   ids<-unique(xtable_sqrt$model_id)
