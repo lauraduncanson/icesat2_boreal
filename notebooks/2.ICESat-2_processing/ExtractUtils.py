@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 import sys
-sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
+#sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
 #import CovariateUtils
 
@@ -83,7 +83,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
     
     return tile_parts
 
-def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles.gpkg", layer="boreal_tiles_albers",DATE_START='06-01', DATE_END='09-30', YEARS=[2019, 2020, 2021], version="004"):
+def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles.gpkg", layer="boreal_tiles_albers",DATE_START='06-01', DATE_END='09-30', YEARS=[2019, 2020, 2021], version=4):
     '''
     Return a list of ATL08 h5 names that intersect a tile for a give date range across a set of years
     '''
@@ -99,10 +99,11 @@ def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/
     DATE_END = DATE_END + 'T23:59:59Z' # SUMMER end
     
     date_filters = [f'{year}-{DATE_START},{year}-{DATE_END}' for year in YEARS]
+    version = str(f'{version:03}')
     
     base_query = {
     'short_name':"ATL08",
-    'version':version,
+    'version':version, 
     'bounding_box':in_bbox
     }
 

@@ -107,7 +107,7 @@ def main():
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
     parser.add_argument('-years_list', nargs='+', default=2020, help="Years of ATL08 used")
-    parser.add_argument('-v_ATL08', type=str, default='004', help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
+    parser.add_argument('-v_ATL08', type=int, default=4, help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
     #parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
     #parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
@@ -174,7 +174,7 @@ def main():
     print("Years:\t\t\t", years_list)
     print("ATL08 bin length:\t",seg_str.replace("_",''))
     
-    out_name_stem = "atl08_"+v_ATL08+"_filt"
+    out_name_stem = "atl08_"+str(f'{args.v_ATL08:03}')+seg_str+"_filt"
     cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"  
     
     if csv_list_fn is not None:
@@ -268,7 +268,7 @@ def main():
         print(f"No ATL08 obs. for tile {in_tile_num}")
     else:
         # CSV/geojson the file
-        out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(in_tile_num))
+        out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(f'{in_tile_num:04}'))
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
