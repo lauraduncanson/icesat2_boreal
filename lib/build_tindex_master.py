@@ -7,13 +7,13 @@ import subprocess
 import argparse
 
 # This is the glob.glob approach; the other is the os.walk approach
-def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn):
+def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
     #seg_str="_30m"
     print('Running glob.glob to return a list of csv paths...')
     all_atl08_csvs = glob.glob(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv", recursive=True)
     print(len(all_atl08_csvs))
-    all_atl08_csvs_df = pd.DataFrame({"path": all_atl08_csvs})
+    all_atl08_csvs_df = pd.DataFrame({col_name: all_atl08_csvs})
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
@@ -62,7 +62,7 @@ def main():
             root = f"/projects/shared-buckets/montesano/run_extract_atl08_orig_ubuntu/master/{args.dps_year}/07/14"
             ends_with_str = args.seg_str_atl08+".csv"
             
-        df = pd.DataFrame(columns=['location', 'tile_num'])
+        df = pd.DataFrame(columns=[col_name, 'tile_num'])
 
         for dir, subdir, files in os.walk(root):
             for fname in files:
@@ -71,9 +71,9 @@ def main():
                     tile_num = fname.split('_')[1]
                     
                     if "ATL08" in TYPE:
-                        df = df.append({'location':os.path.join(dir+"/", fname), 'tile_num':'NA'},ignore_index=True)
+                        df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':'NA'},ignore_index=True)
                     else:
-                        df = df.append({'location':os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
+                        df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
 
         print(len(df.location.values))
 

@@ -66,20 +66,20 @@ def prep_filter_atl08_qual(atl08):
           
     return(atl08)
 
-def get_topo_stack_fn(topo_stack_list_fn, in_tile_num):
+def get_topo_stack_fn(topo_stack_list_fn, in_tile_num, col_name='local_path'): # in earlier versions, 'local_path' was called 'location'
     # Find most recent topo stack path for tile in list of topo stack paths 
     all_topo_stacks_df = pd.read_csv(topo_stack_list_fn)
-    stack_for_tile = all_topo_stacks_df[all_topo_stacks_df['path'].str.contains("Copernicus_"+str(in_tile_num))]
-    #[print(i) for i in stack_for_tile.path.to_list()]
+    stack_for_tile = all_topo_stacks_df[all_topo_stacks_df[col_name].str.contains("Copernicus_"+str(in_tile_num))]
+    #[print(i) for i in stack_for_tile[col_name].to_list()]
     
     if len(stack_for_tile) > 0:
-        topo_stack_fn = stack_for_tile.path.to_list()[0]
+        topo_stack_fn = stack_for_tile[col_name].to_list()[0]
     else:
         topo_stack_fn = None
         
     return(topo_stack_fn)
 
-def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, DEBUG=False):
+def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, col_name='local_path', DEBUG=False): # in earlier versions, 'local_path' was called 'path'
     
     print("\tFind ATL08 CSVs you expect for a tile based on the h5 granule search...")
     # Change the small ATL08 H5 granule names to match the output filenames from extract_atl08.py (eg, ATL08_*_30m.csv)
@@ -88,7 +88,7 @@ def find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, DEBUG=Fa
     #print(all_atl08_for_tile_CSVname)
     
     print('\t\t# of all ATL08 granules for tile: {}'.format(len(all_atl08_for_tile)))
-    all_atl08_csvs = all_atl08_csvs_df['path'].to_list()
+    all_atl08_csvs = all_atl08_csvs_df[col_name].to_list()
     print('\t\t# of all_atl08_csvs: {}'.format(len(all_atl08_csvs)))
     
     # Get basenames of CSVs

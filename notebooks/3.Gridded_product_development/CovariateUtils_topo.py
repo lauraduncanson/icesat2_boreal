@@ -203,3 +203,17 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
               align = True)
     
     return(topo_stack, topo_stack_names)
+
+def hillshade(array,azimuth,angle_altitude):
+    #https://github.com/rveciana/introduccion-python-geoespacial/blob/master/hillshade.py
+    azimuth = 360.0 - azimuth 
+
+    x, y = np.gradient(array)
+    slope = np.pi/2. - np.arctan(np.sqrt(x*x + y*y))
+    aspect = np.arctan2(-x, y)
+    azimuthrad = azimuth*np.pi/180.
+    altituderad = angle_altitude*np.pi/180.
+
+    shaded = np.sin(altituderad)*np.sin(slope) + np.cos(altituderad)*np.cos(slope)*np.cos((azimuthrad - np.pi/2.) - aspect)
+
+    return 255*(shaded + 1)/2

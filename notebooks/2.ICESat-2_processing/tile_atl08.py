@@ -24,20 +24,24 @@ import ExtractUtils
 
 import csv
 
-def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn):
+def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
     #seg_str="_30m"
     print('Running glob.glob to return a list of csv paths...')
     all_atl08_csvs = glob.glob(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv", recursive=True)
     print(len(all_atl08_csvs))
-    all_atl08_csvs_df = pd.DataFrame({"path": all_atl08_csvs})
+    all_atl08_csvs_df = pd.DataFrame({col_name: all_atl08_csvs})
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
-def get_stack_fn(stack_list_fn, in_tile_num, col_name='location'):
+def get_stack_fn(stack_list_fn, in_tile_num, col_name='local_path'):
     # Find most recent topo/Landsat stack path for tile in list of stack paths from *tindex_master.csv
     # *tindex_master.csv made with CountOutput.py
     all_stacks_df = pd.read_csv(stack_list_fn)
+    
+    # Get the s3 location from the location (local_path) indicated in the tindex master csv
+    all_stacks_df['s3'] = [local_to_s3(local_path, args.user) for local_path in all_stacks_df[col_name]]
+    
     stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
     print("\nGetting stack fn from: ", stack_list_fn)
     [print("\t",i) for i in stack_for_tile[col_name].to_list()]
@@ -45,6 +49,10 @@ def get_stack_fn(stack_list_fn, in_tile_num, col_name='location'):
     if len(stack_for_tile)==0:
         stack_for_tile_fn = None
     return(stack_for_tile_fn)
+
+def local_to_s3(url, user='nathanmthomas'):
+    ''' A Function to convert local paths to s3 urls'''
+    return url.replace('/projects/my-private-bucket', f's3://maap-ops-workspace/{user}')
 
 def main():
     '''
@@ -72,6 +80,7 @@ def main():
     parser.add_argument("-csv_list_fn", type=str, default=None, help="The file of all CSVs paths")
     parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/my-public-bucket/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
     parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/my-public-bucket/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
+    parser.add_argument("-user", type=str, default="nathanmthomas", help="MAAP username for completing the s3 path to tindex master csvs")
     #parser.add_argument("--local", dest='local', action='store_true', help="Dictate whether landsat covars is a run using local paths")
     #parser.set_defaults(local=False)
     #parser.add_argument("-t_h_can", "--thresh_h_can", type=int, default=100, help="The threshold height below which ATL08 obs will be returned")
@@ -125,6 +134,7 @@ def main():
     output_dir = args.output_dir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
+    user = args.user
     
     in_tile_num = int(in_tile_num)
     print("\nWorking on tile: ", in_tile_num)
@@ -166,10 +176,13 @@ def main():
             print("\tDoing 30m ATL08 data? ", do_30m)
             all_atl08_csvs_df = pd.read_csv(csv_list_fn)
             
+        # Get the s3 location from the location (local_path) indicated in the tindex master csv
+        all_atl08_csvs_df['s3'] = [local_to_s3(local_path, args.user) for local_path in all_atl08_csvs_df['local_path']] # in earlier versions of the atl08 csv list 'local_path' was called 'path'
+            
         # Find the ATL08 CSVs from extract that are associated with the ATL08 granules that intersect this tile
         # These CSvs are nested deep after DPS runs
         # They should match all the ATL08 granules, but probably wont bc: (1) did DPS for ATL08 30m fully complete with no fails? (2) did DPS for extract fully complete with no fails?
-        all_atl08_csvs_FOUND, all_atl08_csvs_NOT_FOUND = FilterUtils.find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, DEBUG=args.DEBUG) 
+        all_atl08_csvs_FOUND, all_atl08_csvs_NOT_FOUND = FilterUtils.find_atl08_csv_tile(all_atl08_for_tile, all_atl08_csvs_df, seg_str, col_name='s3', DEBUG=args.DEBUG) 
         
         #all_atl08_csvs_FOUND = [x for x in all_atl08_h5_with_csvs_for_tile if x not in all_atl08_csvs_NOT_FOUND]
         print("\t# of ATL08 CSV found for tile {}: {}".format(in_tile_num, len(all_atl08_csvs_FOUND)))
@@ -210,8 +223,8 @@ def main():
     
     if args.extract_covars and len(atl08_gdf) > 0:
 
-        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num)
-        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num)
+        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, col_name='location') # will need to change col_name to 'local_path' soon
+        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, col_name='location') # will need to change col_name to 'local_path' soon
        
         if topo_covar_fn is not None and landsat_covar_fn is not None:
             print(f'\nExtract covars for {len(atl08_gdf)} ATL08 obs...')
