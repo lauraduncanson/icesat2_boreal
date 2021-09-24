@@ -177,9 +177,9 @@ stratRandomSample<-function(agb=y,breaks, p){
 }
 
 # modeling - fit a number of models and return as a list of models
-agbModeling<-function(x=x,y=y,se=NULL,s_train=70, rep=100,strat_random=TRUE,output){
-  
-  pb <- txtProgressBar(min = 0, max = rep, style = 3)
+agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
+    
+  #pb <- txtProgressBar(min = 0, max = rep, style = 3)
   
   stats_df<-NULL
   n<-nrow(x)
@@ -188,8 +188,8 @@ agbModeling<-function(x=x,y=y,se=NULL,s_train=70, rep=100,strat_random=TRUE,outp
   #p_load("VSURF")
   #varsel <- VSURF(y=y, x=x, ntree=1000)
   #varnames<-colnames(x)[varsel$varselect.interp]
-  stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
-  stack_df$grid_id<-1:nrow(stack_df)
+  #stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
+  #stack_df$grid_id<-1:nrow(stack_df)
   
   #i=10
   i.s=0
@@ -197,7 +197,7 @@ agbModeling<-function(x=x,y=y,se=NULL,s_train=70, rep=100,strat_random=TRUE,outp
   model_list <- list()
   for (j in 1:rep){
     i.s<-i.s+1
-    setTxtProgressBar(pb, i.s)
+    #setTxtProgressBar(pb, i.s)
     set.seed(j)
     if (strat_random==TRUE){
       trainRowNumbers<-stratRandomSample(agb=y,breaks=quantile(y, na.rm=T), p=s_train/100)
@@ -228,7 +228,7 @@ agbModeling<-function(x=x,y=y,se=NULL,s_train=70, rep=100,strat_random=TRUE,outp
     row.names(stats_df)<-1:nrow(stats_df)
     
     #save output to a list where length = n(rep)
-    model_list <- append.list(model_list, fit.rf)
+    model_list <- list.append(model_list, fit.rf)
     
   }
   return(model_list)
@@ -265,18 +265,13 @@ SplitRas <- function(raster,ppside,save){
                   format="GTiff",datatype="FLT4S",overwrite=TRUE)  
     }
   }
-  if(plot==T){
-    par(mfrow=c(ppside,ppside))
-    for(i in 1:length(r_list)){
-      plot(r_list[[i]],axes=F,legend=F,bty="n",box=FALSE)  
-    }
-  }
   return(r_list)
 }
 
 
 # mapping - apply the list of models to a set of sub-tiles, compute AGB, SD, 5th & 95th percentiles 
-agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list, se=NULL,output){
+
+agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list,output){
     stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
     stack_df$grid_id<-1:nrow(stack_df)
     stats_df<-NULL
@@ -304,41 +299,28 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list, se=NULL,out
                                     p5=p5,
                                     p95=p95
                                   )
+                              )
   return(agb_maps)
 }
-                              
-combineTiles <- functions(tiles){         
-# read each piece back in R
-list2 <- list()
-for(i in 1:length(tiles)){ 
-  rx <- raster(tiles[i])
-  list2[[i]] <- rx
-}
-# mosaic them, plot mosaic & save output
-list2$fun   <- max
-rast.mosaic <- do.call(mosaic,list2)
-plot(rast.mosaic,axes=F,legend=F,bty="n",box=FALSE)
-#writeRaster(rast.mosaic,filename=paste("Mosaicked_ras",sep=""),
-            #format="GTiff",datatype="FLT4S",overwrite=TRUE)
-}                              
-                              
 
+                                            
 mapBoreal<-function(rds_models,
                     models_id,
                     ice2_30_atl08_path, 
                     offset=100,
                     s_train=70, 
                     rep=10,
-                    stack,
+                    stack=stack,
                     strat_random=TRUE,
                     output){
-  
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        ice2_30_atl08_path=ice2_30_atl08_path, 
                        offset=offset)
     hist(xtable$AGB)
+    print('table successfully generated!')
+
     # run 
     pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     
@@ -347,14 +329,13 @@ mapBoreal<-function(rds_models,
                                se=xtable$SE,
                                s_train=s_train,
                                rep=rep,
-                               stack=stack,
                                strat_random=strat_random)
     print(length(models))
     print(models[[1]])
     print('models successfully fit!')
     
     #split stack into list of iles
-    tile_list <- SplitRas(raster=stack,ppside=10,save=TRUE)
+    tile_list <- SplitRas(raster=stack,ppside=4,save=TRUE)
     
     print('tiles successfully split!')
     #run mapping over each tile in a loop
@@ -362,16 +343,15 @@ mapBoreal<-function(rds_models,
     
     for (tile in tile_list){
         tile_stack <- tile
-        pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
-
+        #pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
+        print(tile)
         maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
-                     se=xtable$SE,
-                     s_train=s_train,
-                     rep=rep,
                      model_list=models,
-                     stack=tile_list)
-        append.list(out_maps, maps)
+                     stack=tile_stack)
+        list.append(out_maps, maps)
+        
+        #close(pb)
     }
     
     #recombine tiles

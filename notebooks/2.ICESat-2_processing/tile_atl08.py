@@ -114,6 +114,8 @@ def main():
     parser.set_defaults(do_30m=False)
     parser.add_argument('--extract_covars', dest='extract_covars', action='store_true', help='Do extraction of covars for each ATL08 obs')
     parser.set_defaults(extract_covars=False)
+    parser.add_argument('--do_dps', dest='do_dps', action='store_true', help='Do this as a DPS job')
+    parser.set_defaults(do_dps=False)
     parser.add_argument('--TEST', dest='TEST', action='store_true', help='Do testing')
     parser.set_defaults(TEST=False)
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
@@ -183,14 +185,13 @@ def main():
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
         all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
         
-        # Update ATL08 version string
-        #all_atl08_for_tile = [update_atl08_version(atl08_h5_name, v_ATL08, maap_v_str='003') for atl08_h5_name in all_atl08_for_tile]
         
         if DEBUG:
             # Print ATL08 h5 granules for tile
             print([os.path.basename(f) for f in all_atl08_for_tile])      
         
-        if not os.path.isfile(csv_list_fn):
+        if not os.path.isfile(csv_list_fn) and not args.do_dps:
+            print("\nThis is not a DPS job")
             print("\nNo CSV list of extracted ATL08 csvs exist.")
             print("Build one now. This takes a long time.")
             if dps_dir_csv is None:
@@ -199,10 +200,12 @@ def main():
                 os._exit(1)
             all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
         else:
+            print("\nThis is either a DPS job (for which the CSV has an s3 path, or the CSV exists locally.)")
             print(f"\nReading existing list of ATL08 CSVs: {csv_list_fn}")
-            print("\tDoing 30m ATL08 data? ", do_30m)
             all_atl08_csvs_df = pd.read_csv(csv_list_fn)
             
+        print("\tDoing 30m ATL08 data? ", do_30m) 
+        
         # Get the s3 location from the location (local_path) indicated in the tindex master csv
         all_atl08_csvs_df['s3'] = [local_to_s3(local_path, args.user_atl08) for local_path in all_atl08_csvs_df['local_path']] # in earlier versions of the atl08 csv list 'local_path' was called 'path'
         if DEBUG:
