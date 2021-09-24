@@ -17,7 +17,7 @@ import geopandas
 import argparse
 
 from maap.maap import MAAP
-maap = MAAP()
+maap = MAAP(maap_host='api.ops.maap-project.org')
 
 import FilterUtils
 import ExtractUtils

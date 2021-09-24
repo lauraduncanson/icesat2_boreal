@@ -289,8 +289,8 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=tile_list,output){
     #take the average and sd per pixel
     mean_map<-tapply(map_pred$agb,map_pred$grid_id,mean)
     sd_map<-tapply(map_pred$agb,map_pred$grid_id,sd)
-    p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
-    p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
+    p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
+    p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
     
     #create output tile grid
     agb_maps <- rasterFromXYZ(cbind(stack_df[,1:2],
@@ -341,8 +341,8 @@ mapBoreal<-function(rds_models,
     #run mapping over each tile in a loop
     out_maps <- list()
     
-    for (tile in tile_list){
-        tile_stack <- tile
+    for (tile in 1:length(tile_list)){
+        tile_stack <- tile_list[[tile]]
         #pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
         print(tile)
         maps<-agbMapping(x=xtable[pred_vars],

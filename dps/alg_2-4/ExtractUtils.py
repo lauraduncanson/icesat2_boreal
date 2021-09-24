@@ -21,7 +21,7 @@ import copy
 from maap.maap import MAAP
 
 # create MAAP class
-maap = MAAP()
+maap = MAAP(maap_host='api.ops.maap-project.org')
 
 def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
