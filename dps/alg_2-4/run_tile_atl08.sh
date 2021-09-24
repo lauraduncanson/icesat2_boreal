@@ -14,7 +14,9 @@ pip install --user -r ${basedir}/requirements.txt
 
 mkdir output
 
-FILENAME=$(ls -d input/*)
+FILENAMELIST=($(ls -d input/*gpkg))
+INPUT1="${PWD}/${FILENAMELIST[0]}"
+#INPUT2="${PWD}/${FILENAMELIST[1]}
 
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
@@ -27,13 +29,13 @@ echo python ${basedir}/tile_atl08.py \
 -years_list 2020 \
 -o $OUTPUTDIR \
 -in_tile_num $1 \
--in_tile_fn $2 \
--in_tile_layer $3 \
--csv_list_fn $4 \
--topo_stack_list_fn $5 \
--landsat_stack_list_fn $6 \
--user_stacks $7 \
--user_atl08 $8
+-in_tile_fn $INPUT1 \
+-in_tile_layer $2 \
+-csv_list_fn $3 \
+-topo_stack_list_fn $4 \
+-landsat_stack_list_fn $5 \
+-user_stacks $6 \
+-user_atl08 $7
 
 python ${basedir}/tile_atl08.py \
 --extract_covars \
@@ -42,10 +44,10 @@ python ${basedir}/tile_atl08.py \
 -years_list 2020 \
 -o $OUTPUTDIR \
 -in_tile_num $1 \
--in_tile_fn $2 \
--in_tile_layer $3 \
--csv_list_fn $4 \
--topo_stack_list_fn $5 \
--landsat_stack_list_fn $6 \
--user_stacks $7 \
--user_atl08 $8
+-in_tile_fn $INPUT1 \
+-in_tile_layer $2 \
+-csv_list_fn $3 \
+-topo_stack_list_fn $4 \
+-landsat_stack_list_fn $5 \
+-user_stacks $6 \
+-user_atl08 $7

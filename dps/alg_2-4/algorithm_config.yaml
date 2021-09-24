@@ -21,7 +21,7 @@ inputs:
   - name: in_tile_num
     download: False
   - name: in_tile_fn
-    download: False
+    download: True
   - name: in_tile_layer
     download: False
   - name: csv_list_fn
