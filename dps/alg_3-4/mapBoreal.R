@@ -310,13 +310,19 @@ mapBoreal<-function(rds_models,
                     stack=stack,
                     strat_random=TRUE,
                     output){
+    # Get tile num
+    tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
+    print("Modelling and mapping boreal AGB")
+    print(paste0("tile: ", tile_num))
+    print(paste0("ATL08 input: ", ice2_30_atl08_path))
+    
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        ice2_30_atl08_path=ice2_30_atl08_path, 
                        offset=offset)
     hist(xtable$AGB)
-    print('table successfully generated!')
+    print('table for model training generated!')
 
     # run 
     pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
@@ -373,23 +379,33 @@ mapBoreal<-function(rds_models,
     print('mosaics completed!')
 
     
-    # Write a 4-band stack as a COG
-    tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
+    # Make a 4-band stack as a COG
+    
     out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
-    out_filename <- paste("boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), '.tif', sep="_" )
-    writeRaster(out_stack,filename=out_filename,format="GTiff",datatype="FLT4S",overwrite=TRUE)
-
+    out_fn_stem = paste("boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
+    
+    # Setup output filenames
+    out_tif_fn <- paste(out_fn_stem, '.tif', sep="_" )
+    out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
+    out_csv_fn <- paste(out_fn_stem, '.csv', sep="_" )
+    
+    # Write tif, then COG
+    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
+    gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
+    
     #writeRaster(maps,output,overwrite=T)
       
     # LD's original return : a list of 2 things (both rasters)
     # Now, we can return a list of 3 things : the 2 maps, and the xtable (this has lat,lons, and AGB, SE for each ATL08 obs)
     #maps = append(agb.mosaic, list(xtable[,c('lon','lat','AGB','SE')]))
-    out_table = xtable[,c('lon','lat','AGB','SE')]
-    csv_filename <-  out_filename <- paste("boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), '.csv', sep="_")
     
-    write.csv(out_table, file=csv_filename)
-    #return(list(out_stack, out_table))
+     #Write out_table of ATL08 AGB as a csv
+    out_table = xtable[,c('lon','lat','AGB','SE')]    
+    write.csv(out_table, file=out_csv_fn)
+    
+    print("Returning names of COG and CSV...")
+    return(list(out_cog_fn, out_csv_fn))
 }
 
 ### Run code
@@ -412,6 +428,8 @@ library(ggplot2)
 library(rlist)
 library(fs)
 library(stringr)
+library(gdalUtils)
+
 
 # run code
 # adding model ids
