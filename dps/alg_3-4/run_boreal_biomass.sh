@@ -2,7 +2,7 @@
 # this is intended for running DPS jobs; the input directory is where four files have been pulled because download=TRUE in the algorithm_config.yaml file
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
-conda activate r-with-gdal
+source activate r-with-gdal
 
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
