@@ -394,6 +394,7 @@ mapBoreal<-function(rds_models,
     writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
     print(paste0("Write COG tif: ", out_cog_fn))
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
+    file.remove(out_tif_fn)
     
     #writeRaster(maps,output,overwrite=T)
       
