@@ -10,7 +10,7 @@ unset PROJ_LIB
 
 #install requirements packages - R packages
 
-conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr
+conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr r-gdalutils
 
 mkdir output
 
