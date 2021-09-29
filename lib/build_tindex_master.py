@@ -29,7 +29,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2021, help="Specify the year of the DPS output")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
@@ -42,7 +42,7 @@ def main():
         os.makedirs(args.outdir)
     
     if args.type is 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt']
     else:
         TYPE_LIST = [args.type]
     
@@ -60,10 +60,11 @@ def main():
             root = f"/projects/my-private-bucket/dps_output/do_topo_stack_3-1-5_ubuntu/ops/{args.dps_year}/"
             ends_with_str = "_stack.tif"
         if "ATL08" in TYPE:
-            #root = f"/projects/my-private-bucket/dps_output/run_extract_ubuntu/ops/{args.dps_year}/"
-            #root = f"/projects/shared-buckets/montesano/run_extract_atl08_orig_ubuntu/master/{args.dps_year}/07/14"
             root = f"/projects/my-private-bucket/dps_output/run_extract_atl08_ubuntu/master/{args.dps_year}/09"
             ends_with_str = args.seg_str_atl08+".csv"
+        if "filt" in TYPE:
+            root = f"/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/master/{args.dps_year}/09"
+            ends_with_str = ".csv"
             
         df = pd.DataFrame(columns=[col_name, 'tile_num'])
 
@@ -73,8 +74,14 @@ def main():
                     
                     tile_num = fname.split('_')[1]
                     
-                    if "ATL08" in TYPE:
+                    if "ATL08" in TYPE and not "filt" in TYPE:
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':'NA'},ignore_index=True)
+                    elif "ATL08_filt" in TYPE:
+                        if len(fname.split('checkpoint')) > 1:
+                            continue
+                        print(fname)
+                        tile_num = int(os.path.splitext(fname)[0].split("_")[-1])
+                        df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
                     else:
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
 

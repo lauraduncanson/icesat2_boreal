@@ -1,28 +1,30 @@
+# This script was developed by Carlos A Silva and Laura Duncanson to produce tiled boreal biomass 30-m maps
+# Inputs are stacks of Landsat and Copernicus DEM data, and tables of linked 30-m ATL08 data to coincident stack attrbitutes
 
 #----------------------------------------------#
-# loading packages
-#----------------------------------------------#
 
-#require(pacman)
-#pacman::p_load(randomForest, raster,rgdal)
-
-
-# 2.6 ICESat-2 biomass 30m ATL08
+# 3.4 ICESat-2 biomass 30m ATL08
 
 #### i) Description
-#### This notebook use AGB models for estimating sparse ICESat-2 AGB using 30 m ATL08 product.
+#### This script was written by Carlos A Silva and Laura Duncanson to produce tiled boreal biomass 30-m maps
 
 #### ii) How the algorithm works?
-#### AGB models are loaded in R and applied over the ICESat-2 30m ATL08 data. 
+#### Data tables of linked 30-m ATL08 RH metrics and covariate stack metrics are inported
+#### AGB models are loaded in R and applied over the ICESat-2 30m ATL08 data for a 90-km tile
+#### A set of random forest models are fit to predict 30m ICESat-2 biomass as a function of covariates per tile
+#### Raster stacks of covariates are tiled to reduce memory usage
+#### The suite of rf models are applied to each tile, mean, SD, p5 and p95 of predicted biomass are output
+#### Subtiles are recombined and written to disc
 
 #### iii) Inputs
 ####  - rds_models: list of ICESat-2 simulation-derived AGB model paths
 ####  - models_id: models id
-####  - ice2_30_atl08: list containing the path to the ATL08 files
+####  - stack: a combined raster stack of Landsat and Copernicus DEM data
+####  - ice2_30_atl08: list containing the path to the data tables
 ####  - offset: offset applied in the model
 
 #### iii) Outputs
-####  -ICEsat-2 AGB estimates are data.frame object in R
+####  Geotiffs of predicted 30-m AGBD, SD AGBD, 5th and 95th percentile estimates
 
 #----------------------------------------------#
 ############# functions ########################
@@ -34,7 +36,7 @@ GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100){
   # read table
   xtable<-read.table(ice2_30_atl08_path, sep=",", head=T)
   xtable_i<-na.omit(as.data.frame(xtable))
-  names(xtable_i)[1:11]<-c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
+  names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
   
   #
   xtable_sqrt<-xtable_i[3:11]+offset
@@ -185,12 +187,6 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
   n<-nrow(x)
   ids<-1:n
   
-  #p_load("VSURF")
-  #varsel <- VSURF(y=y, x=x, ntree=1000)
-  #varnames<-colnames(x)[varsel$varselect.interp]
-  #stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
-  #stack_df$grid_id<-1:nrow(stack_df)
-  
   #i=10
   i.s=0
   #j=1
@@ -246,7 +242,7 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
 # The arguments are:
 # raster = raster to be chopped            (raster object)
 # ppside = pieces per side                 (integer)
-# save   = write raster                    (TRUE or FALSE)
+
 SplitRas <- function(raster,ppside,save){
   h        <- ceiling(ncol(raster)/ppside)
   v        <- ceiling(nrow(raster)/ppside)
@@ -310,6 +306,7 @@ mapBoreal<-function(rds_models,
                     offset=100,
                     s_train=70, 
                     rep=10,
+                    ppside=2,
                     stack=stack,
                     strat_random=TRUE,
                     output){
@@ -335,11 +332,15 @@ mapBoreal<-function(rds_models,
     print('models successfully fit!')
     
     #split stack into list of iles
-    tile_list <- SplitRas(raster=stack,ppside=4,save=TRUE)
+    tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
     print('tiles successfully split!')
-    #run mapping over each tile in a loop
-    out_maps <- list()
+    
+    #run mapping over each tile in a loop, create a list of tiled rasters for each layer
+    out_agb <- list()
+    out_sd <- list()
+    out_p5 <- list()
+    out_p95 <- list()
     
     for (tile in 1:length(tile_list)){
         tile_stack <- tile_list[[tile]]
@@ -349,25 +350,83 @@ mapBoreal<-function(rds_models,
                      y=xtable$AGB,
                      model_list=models,
                      stack=tile_stack)
-        list.append(out_maps, maps)
         
-        #close(pb)
-    }
+        out_agb <- list.append(out_agb, as.list(maps)[[1]])
+        out_sd <- list.append(out_sd, as.list(maps)[[2]])
+        out_p5 <- list.append(out_p5, as.list(maps)[[3]])
+        out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+        }
     
     #recombine tiles
-    out_maps$fun   <- max
-    agb.mosaic <- do.call(mosaic,out_maps)
-    plot(agb.mosaic,axes=F,legend=F,bty="n",box=FALSE)
-    writeRaster(rast.mosaic,filename=paste("90km_biomass_tile_test",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
+    out_agb$fun   <- max
+    agb.mosaic <- do.call(mosaic,out_agb)
+    
+    out_sd$fun   <- max
+    sd.mosaic <- do.call(mosaic,out_sd)
+    
+    out_agb$fun   <- max
+    p5.mosaic <- do.call(mosaic,out_p5)
+    
+    out_agb$fun   <- max
+    p95.mosaic <- do.call(mosaic,out_p95)
+    
+   # Write Outputs
+    writeRaster(agb.mosaic,filename=paste("/output/90km_biomass_tile_test_agb",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
+    
+    writeRaster(sd.mosaic,filename=paste("/output/90km_biomass_tile_test_sd",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
+    
+    writeRaster(p5.mosaic,filename=paste("/output/90km_biomass_tile_test_p5",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
+    
+    writeRaster(p95.mosaic,filename=paste("/output/90km_biomass_tile_test_p95",sep=""),format="GTiff",datatype="FLT4S",overwrite=TRUE)
     
     #writeRaster(maps,output,overwrite=T)
       
     # LD's original return : a list of 2 things (both rasters)
     # Now, we can return a list of 3 things : the 2 maps, and the xtable (this has lat,lons, and AGB, SE for each ATL08 obs)
-    maps = append(agb.mosaic, list(xtable[,c('lon','lat','AGB','SE')]))
-    
-    return(maps)
-
+    #maps = append(agb.mosaic, list(xtable[,c('lon','lat','AGB','SE')]))
+    out_table = list(xtable[,c('lon','lat','AGB','SE')])
+    return(out_table)
 }
 
+### Run code
 
+# Get command line args
+args = commandArgs(trailingOnly=TRUE)
+
+#rds_filelist <- args[1]
+data_table_file <- args[1]
+topo_stack_file <- args[2]
+l8_stack_file <- args[3]
+
+# loading packages and functions
+#----------------------------------------------#
+library(randomForest)
+library(raster)
+library(rgdal)
+library(data.table)
+library(ggplot2)
+library(rlist)
+
+# run code
+# adding model ids
+rds_models <- list.files('*.rds')
+models_id<-names(rds_models)<-paste0("m",1:length(rds_models))
+
+topo_stack <- stack(topo_files[grep(i, topo_files)])
+l8_stack <- stack(l8_files[grep(i, l8_files)])
+
+# make sure data are linked properly
+stack<-crop(l8_stack,extent(topo_stack));stack<-stack(stack,topo_stack)
+
+maps<-mapBoreal(rds_models=rds_models,
+                models_id=models_id,
+                ice2_30_atl08_path=data_table_file, 
+                offset=100.0,
+                s_train=70, 
+                rep=100,
+                ppside=2,
+                stack=stack,
+                strat_random=FALSE,
+                output=out_fn)
+
+save(out_table, file='/output/out-table-test.Rdata')
