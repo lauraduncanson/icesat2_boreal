@@ -386,12 +386,13 @@ mapBoreal<-function(rds_models,
     out_fn_stem = paste("boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     
     # Setup output filenames
-    out_tif_fn <- paste(out_fn_stem, '.tif', sep="_" )
+    out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
     out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
-    out_csv_fn <- paste(out_fn_stem, '.csv', sep="_" )
+    out_csv_fn <- paste0(out_fn_stem, '.csv' )
     
-    # Write tif, then COG
+    print(paste0("Write tmp tif: ", out_tif_fn))
     writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
+    print(paste0("Write COG tif: ", out_cog_fn))
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
     
     #writeRaster(maps,output,overwrite=T)
