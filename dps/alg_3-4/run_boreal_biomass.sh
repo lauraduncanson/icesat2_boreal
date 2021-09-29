@@ -19,8 +19,8 @@ mkdir output
 ATL08_CSV=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
-TAR_FILE=${4}
-
+#TAR_FILE=${4}
+TAR_FILE=${base_dir}/bio_models.tar
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
 
