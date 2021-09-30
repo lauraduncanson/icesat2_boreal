@@ -435,7 +435,8 @@ library(gdalUtils)
 
 # run code
 # adding model ids
-rds_models <- list.files(path='input/', pattern='*.rds', full.names=TRUE)
+rds_models <- list.files(pattern='*.rds')
+print(rds_models)
 
 models_id<-names(rds_models)<-paste0("m",1:length(rds_models))
 
