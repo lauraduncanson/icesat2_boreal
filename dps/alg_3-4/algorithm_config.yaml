@@ -18,11 +18,9 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
-  - name: in_atl08_fn
+  - name: in_atl08_fn_url
     download: True
-  - name: in_topo_fn
+  - name: in_topo_fn_url
     download: True
-  - name: in_landsat_fn
-    download: True
-  - name: in_models_tar
+  - name: in_landsat_fn_url
     download: True
