@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/bash --login
 # this is intended for running DPS jobs; the input directory is where four files have been pulled because download=TRUE in the algorithm_config.yaml file
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
-source activate r-with-gdal
+conda activate r-with-gdal
 
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
@@ -10,7 +10,7 @@ unset PROJ_LIB
 
 #install requirements packages - R packages
 
-conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr r-gdalutils
+#conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr r-gdalutils
 
 mkdir output
 
@@ -25,12 +25,12 @@ TAR_FILE=${basedir}/bio_models.tar
 #tar -xvf input/bio_models.tar
 
 # This will put the *rds in the same dir as the R script
-tar -xf ${TAR_FILE} -C ${basedir}
+tar -xf ${TAR_FILE}
 
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
 echo Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
-Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
+Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
 
 
