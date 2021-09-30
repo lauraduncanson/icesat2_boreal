@@ -439,6 +439,7 @@ rds_models <- list.files(pattern='*.rds')
 print(rds_models)
 
 models_id<-names(rds_models)<-paste0("m",1:length(rds_models))
+print(topo_stack_file)
 
 topo <- stack(topo_stack_file)
 l8 <- stack(l8_stack_file)
