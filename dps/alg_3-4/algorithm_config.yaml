@@ -6,7 +6,7 @@ environment: ubuntu
 repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
 docker_url: mas.maap-project.org:5000/root/ade-base-images/r:latest
 # queue chosen when registering
-queue: maap-dps-worker-16gb
+queue: maap-dps-worker-32gb
 
 # fill out these fields
 # explain what this algorithm does
@@ -18,6 +18,12 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
+  - name: in_atl08_fn
+    download: False
+  - name: in_topo_fn
+    download: False
+  - name: in_landsat_fn
+    download: False
   - name: in_atl08_fn_url
     download: True
   - name: in_topo_fn_url
