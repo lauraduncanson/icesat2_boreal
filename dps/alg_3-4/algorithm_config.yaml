@@ -19,10 +19,10 @@ inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
   - name: in_atl08_fn
-    download: True
+    download: False
   - name: in_topo_fn
-    download: True
+    download: False
   - name: in_landsat_fn
-    download: True
+    download: False
   - name: in_models_tar
     download: True
