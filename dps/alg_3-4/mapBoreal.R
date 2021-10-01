@@ -383,7 +383,7 @@ mapBoreal<-function(rds_models,
     
     out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
-    out_fn_stem = paste("boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
+    out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
