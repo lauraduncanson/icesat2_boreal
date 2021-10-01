@@ -6,6 +6,14 @@ from shapely.geometry import box
 import subprocess
 import argparse
 
+def local_to_s3(url, user = 'nathanmthomas', type='public'):
+    ''' A Function to convert local paths to s3 urls'''
+    if type is 'public':
+        replacement_str = f's3://maap-ops-workspace/shared/{user}'
+    else:
+        replacement_str = f's3://maap-ops-workspace/{user}'
+    return url.replace(f'/projects/my-{type}-bucket', replacement_str)
+
 # This is the glob.glob approach; the other is the os.walk approach
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
@@ -29,20 +37,24 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2021, help="Specify the year of the DPS output")
+    parser.add_argument("-m", "--dps_month", type=str, default='09', help="Specify the month of the DPS output as a zero-padded string")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
     parser.add_argument("--col_name", type=str, default="local_path", help="Column name for the local path of the found files")
+    parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
+    parser.set_defaults(DEBUG=False)
     args = parser.parse_args()
     
     col_name = args.col_name
+    DEBUG = args.DEBUG
     
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
     
     if args.type is 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB']
     else:
         TYPE_LIST = [args.type]
     
@@ -54,25 +66,45 @@ def main():
         out_name = TYPE + "_tindex_master.csv"
         
         if "Landsat" in TYPE:
-            root = f"/projects/my-private-bucket/dps_output/do_landsat_stack_3-1-2_ubuntu/ops/{args.dps_year}/"
+            dps_out_subdir = f"do_landsat_stack_3-1-2_ubuntu/ops/{args.dps_year}/"
+            user = 'nathanmthomas'
             ends_with_str = "_dps.tif"
         if "Topo" in TYPE:
-            root = f"/projects/my-private-bucket/dps_output/do_topo_stack_3-1-5_ubuntu/ops/{args.dps_year}/"
+            dps_out_subdir = f"do_topo_stack_3-1-5_ubuntu/ops/{args.dps_year}/"
+            user = 'nathanmthomas'
             ends_with_str = "_stack.tif"
         if "ATL08" in TYPE:
-            root = f"/projects/my-private-bucket/dps_output/run_extract_atl08_ubuntu/master/{args.dps_year}/09"
+            dps_out_subdir = f"run_extract_atl08_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            user = 'lduncanson'
             ends_with_str = args.seg_str_atl08+".csv"
         if "filt" in TYPE:
-            root = f"/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/master/{args.dps_year}/09"
+            dps_out_subdir = f"run_tile_atl08_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            user = 'lduncanson'
             ends_with_str = ".csv"
+        if "AGB" in TYPE:
+            dps_out_subdir = f"run_boreal_biomass_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            user = 'lduncanson'
+            ends_with_str = ".tif"
             
         df = pd.DataFrame(columns=[col_name, 'tile_num'])
 
+        # Convert local root to s3
+        root = '/projects/my-private-bucket/dps_output/' + dps_out_subdir
+        #root = local_to_s3(root, user=user, type='private')
+        print(f'Root dir: {root}')
+        
         for dir, subdir, files in os.walk(root):
             for fname in files:
                 if fname.endswith(ends_with_str): 
                     
+                        
                     tile_num = fname.split('_')[1]
+                    
+                    if 'AGB' in TYPE:
+                        tile_num = fname.split('_')[3]
+                        
+                    if DEBUG:
+                        print(f'Tile num: {tile_num}')
                     
                     if "ATL08" in TYPE and not "filt" in TYPE:
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':'NA'},ignore_index=True)
@@ -84,10 +116,13 @@ def main():
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
                     else:
                         df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
+                    if DEBUG:
+                        print(os.path.join(dir+"/", fname))
 
         print(len(df[col_name].values))
-
-        df.to_csv(os.path.join(args.outdir, out_name))
+        out_tindex_fn = os.path.join(args.outdir, out_name)
+        print(f'Writing tindex master csv: {out_tindex_fn}')
+        df.to_csv(out_tindex_fn)
 
 if __name__ == "__main__":
     main()
