@@ -26,6 +26,8 @@ import csv
 import fsspec
 import s3fs
 
+from shutil import copy
+
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
     #seg_str="_30m"
@@ -108,6 +110,7 @@ def main():
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
     parser.add_argument('-years_list', nargs='+', default=2020, help="Years of ATL08 used")
     parser.add_argument('-v_ATL08', type=int, default=4, help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
+    parser.add_argument('-to_dir_cog', type=str, default='/projects/my-public-bucket/in_stacks_copy', help='COG copies of input stacks that are accessible with R in a workspace other than that of their creation')
     #parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
     #parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
@@ -119,6 +122,8 @@ def main():
     parser.add_argument('--TEST', dest='TEST', action='store_true', help='Do testing')
     parser.set_defaults(TEST=False)
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
+    parser.set_defaults(DEBUG=False)
+    parser.add_argument('--copy_cog', dest='copy_cog', action='store_true', help='Copy COGs to local bucket from s3 to access with R later')
     parser.set_defaults(DEBUG=False)
     
     args = parser.parse_args()
@@ -154,6 +159,7 @@ def main():
     outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
+    to_dir_cog = args.to_dir_cog
 
     DEBUG = args.DEBUG
     
@@ -257,6 +263,12 @@ def main():
 
         topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path') 
         landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path')
+        
+        if args.copy_cog:
+            if not os.path.exists(to_dir_cog):
+                os.makedirs(to_dir_cog)
+            copy(topo_covar_fn, os.path.join(to_dir_cog, os.path.basename(topo_covar_fn)))
+            copy(landsat_covar_fn, os.path.join(to_dir_cog, os.path.basename(landsat_covar_fn))) 
        
         if topo_covar_fn is not None and landsat_covar_fn is not None:
             print(f'\nExtract covars for {len(atl08_gdf)} ATL08 obs...')
