@@ -303,3 +303,96 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
     else:
         print("\tFiltered obs. for all columns")
         return(atl08_df_filt)
+    
+def filter_atl08_qual_v2(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_max_can'], filt_cols =['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow', 'sig_topo'], thresh_sig_topo=None, thresh_h_can=None, thresh_h_dif=None, month_min=None, month_max=None, SUBSET_COLS=True, DO_PREP=True):
+    '''
+    Quality filtering Function(Version 2)
+    Returns a data frame
+    Note: beams 1 & 5 strong (better radiometric perf, sensitive), then beam 3 [NOT IMPLEMENTED]
+    '''
+    # TODO: filt col names: make sure you have these in the EPT db
+    print("\nFiltering by quality")
+    
+    if not subset_cols_list:
+        print("filter_atl08: Must supply a list of strings matching ATL08 column names returned from the input EPT")
+        os._exit(1) 
+    elif thresh_h_can is None:
+        print("filter_atl08: Must supply a threshold for h_can")
+        os._exit(1)    
+    elif thresh_h_dif is None:
+        print("filter_atl08: Must supply a threshold for h_dif_ref")
+        os._exit(1)
+    elif month_min is None or month_max is None:
+        print("filter_atl08: Must supply a month_min and month_max")
+        os._exit(1)  
+        
+    if input_fn is not None:
+        if not isinstance(input_fn, pd.DataFrame):
+            if input_fn.endswith('geojson'):
+                atl08_df = gpd.read(input_fn)
+            elif input_fn.endswith('csv'):
+                atl08_df = pd.read_csv(input_fn)
+            else:
+                print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
+                os._exit(1)
+        else:
+            atl08_df = input_fn
+            
+    if DO_PREP:
+        # Run the prep to get fields needed (v003)
+        atl08_df_prepd = prep_filter_atl08_qual(atl08_df)
+    else:
+        atl08_df_prepd = atl08_df
+    
+    
+    # Check that you have the cols that are required for the filter
+    filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df_prepd.columns] 
+    if len(filt_cols_not_in_df) > 0:
+        print("\tThese filter columns not found in input df: {}".format(filt_cols_not_in_df))
+        print("\tNo quality filtering done. Returning original df.")
+        return(atl08_df)
+    
+    atl08_df = None
+    
+    # Filtering
+    #
+    print(f"\tBefore quality filtering: \t\t{atl08_df_prepd.shape[0]} observations in the input dataframe.")
+    
+    # Static quality filter flags for ABoVE AGB
+    filt_params_static = [
+                             ['msw_flg',0],
+                             ['beam_type', 'Strong'],
+                             ['seg_snow' , 1]#,
+                             #['night_flg', 1]
+                        ]
+    
+    #Better way to filter, but not implemented b/c wouldnt provide incremental filter reductions print outs
+    #filt_params_static = {'msw_flg':0, 'beam_type':'Strong', 'seg_snow':1, 'night_flg':1}
+    #atl08_df_filt = atl08_df_filt.loc[(atl08_df_filt[list(filt_params_static)] == pd.Series(filt_params_static)).all(axis=1)]
+    
+    atl08_df_filt = atl08_df_prepd
+    for flag, val in filt_params_static:
+        atl08_df_filt = atl08_df_filt[atl08_df_filt[flag] == val]
+        print(f"\tAfter {flag}={val}: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+    
+    atl08_df_filt =  atl08_df_filt[
+                                (atl08_df_filt.sig_topo < thresh_sig_topo) &
+                                (atl08_df_filt.h_can < thresh_h_can) &
+                                (atl08_df_filt.h_dif_ref < thresh_h_dif) &
+                                (atl08_df_filt.m >= month_min ) & 
+                                (atl08_df_filt.m <= month_max) 
+                    ]    
+    
+    print(f"\tAfter all quality filtering: \t\t{atl08_df_filt.shape[0]} observations in the output dataframe.")
+    
+    atl08_df_prepd = None
+    
+    print("\tReturning a pandas data frame.")
+    if SUBSET_COLS:
+        subset_cols_list = ['lon','lat'] + subset_cols_list
+        print("\tFiltered obs. for columns: {}".format(subset_cols_list))
+        print(f"\tData frame shape: {atl08_df_filt[subset_cols_list].shape} ")
+        return(atl08_df_filt[subset_cols_list])
+    else:
+        print("\tFiltered obs. for all columns")
+        return(atl08_df_filt)
