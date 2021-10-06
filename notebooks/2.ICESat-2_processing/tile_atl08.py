@@ -123,7 +123,7 @@ def main():
     parser.set_defaults(TEST=False)
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
-    parser.add_argument('--updated_filters', dest='copy_cog', action='store_true', help='Use updated quality filtering applied to ATL08 from FilterUtils')
+    parser.add_argument('--updated_filters', dest='updated_filters', action='store_true', help='Use updated quality filtering applied to ATL08 from FilterUtils')
     parser.set_defaults(updated_filters=False)
     
     args = parser.parse_args()
