@@ -39,7 +39,9 @@ def main():
         
     parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2021, help="Specify the year of the DPS output")
-    parser.add_argument("-m", "--dps_month", type=str, default='09', help="Specify the month of the DPS output as a zero-padded string")
+    parser.add_argument("-m", "--dps_month", type=int, default=9, help="Specify the month of the DPS output as a zero-padded string")
+    parser.add_argument("-d_min", "--dps_day_min", type=int, default=1, help = "Specify the first day of the DPS output")
+    #parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
     parser.add_argument("--col_name", type=str, default="local_path", help="Column name for the local path of the found files")
@@ -49,6 +51,12 @@ def main():
     
     col_name = args.col_name
     DEBUG = args.DEBUG
+    dps_month = args.dps_month
+    dps_day_min = args.dps_day_min
+    
+    dps_day_min = format(dps_day_min, '02')
+    dps_month = format(dps_month, '02')
+    #[format(n, '03') for n in list(range(0,5))]
     
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
@@ -74,15 +82,15 @@ def main():
             user = 'nathanmthomas'
             ends_with_str = "_stack.tif"
         if "ATL08" in TYPE:
-            dps_out_subdir = f"run_extract_atl08_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            dps_out_subdir = f"run_extract_atl08_ubuntu/master/{args.dps_year}/{dps_month}/{dps_day_min}/"
             user = 'lduncanson'
             ends_with_str = args.seg_str_atl08+".csv"
         if "filt" in TYPE:
-            dps_out_subdir = f"run_tile_atl08_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            dps_out_subdir = f"run_tile_atl08_ubuntu/master/{args.dps_year}/{dps_month}/{dps_day_min}/"
             user = 'lduncanson'
             ends_with_str = ".csv"
         if "AGB" in TYPE:
-            dps_out_subdir = f"run_boreal_biomass_ubuntu/master/{args.dps_year}/{args.dps_month}/"
+            dps_out_subdir = f"run_boreal_biomass_ubuntu/master/{args.dps_year}/{dps_month}/{dps_day_min}/"
             user = 'lduncanson'
             ends_with_str = ".tif"
             
