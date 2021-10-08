@@ -19,7 +19,7 @@ mkdir output
 ATL08_CSV=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
-#TAR_FILE=${4}
+${DO_SLOPE_VALID_MASK}=${4}
 TAR_FILE=${basedir}/bio_models.tar
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
@@ -31,6 +31,6 @@ tar -xf ${TAR_FILE}
 OUTPUTDIR="${PWD}/output"
 
 echo Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
-Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
+Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK}
 
 
