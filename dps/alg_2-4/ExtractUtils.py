@@ -180,3 +180,42 @@ def get_covar_fn_list(rootDir, tile_num):
                 covar_tile_list.append(os.path.join(dirName , fname))
                 
     return(covar_tile_list)
+
+def add_neighbors_gdf(input_gdf, input_id_field):
+    input_gdf["NEIGHBORS"] = None
+    for index, feature in input_gdf.iterrows():   
+        #print(tile.tile_num)
+        # get 'not disjoint' countries
+        neighbors = input_gdf[~input_gdf.geometry.disjoint(feature.geometry)][input_id_field].tolist()
+        #print(feature.tile_num)
+        # remove own name of the country from the list
+        neighbors = [ fid for fid in neighbors if feature[input_id_field] != fid ]
+        #print(neighbors)
+
+        # https://stackoverflow.com/questions/57348503/how-do-you-store-a-tuple-in-a-geopandas-geodataframe
+        input_gdf['NEIGHBORS'] = input_gdf.apply(lambda row: (neighbors), axis=1)
+        
+    return input_gdf
+
+def get_neighbors(input_gdf, input_id_field, input_id):
+    for index, feature in input_gdf.iterrows():   
+        if feature[input_id_field] == input_id:
+            #print(tile.tile_num)
+            # get 'not disjoint' countries
+            neighbors = input_gdf[~input_gdf.geometry.disjoint(feature.geometry)][input_id_field].tolist()
+            #print(feature.tile_num)
+            # remove own name of the country from the list
+            neighbors = [ fid for fid in neighbors if feature[input_id_field] != fid ]
+            #print(neighbors)
+
+            # add names of neighbors as NEIGHBORS value
+            #boreal_tile_index.at[index, "NEIGHBORS"] = ", ".join(neighbors)
+            if False:
+                # This will put the neighbors list into a field in the subset df
+                # https://stackoverflow.com/questions/57348503/how-do-you-store-a-tuple-in-a-geopandas-geodataframe
+                subset_df = input_gdf.loc[input_gdf[input_id_field] == input_id]
+                subset_df["NEIGHBORS"] = None
+                subset_df['NEIGHBORS'] = subset_df.apply(lambda row: (neighbors), axis=1)
+
+    
+    return neighbors

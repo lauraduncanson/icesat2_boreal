@@ -23,6 +23,7 @@ OUTPUTDIR="${PWD}/output"
 
 #Print to stdout for debugging
 echo python ${basedir}/tile_atl08.py \
+--updated_filters \
 --extract_covars \
 --do_dps \
 --do_30m \
@@ -38,6 +39,7 @@ echo python ${basedir}/tile_atl08.py \
 -user_atl08 $7
 
 python ${basedir}/tile_atl08.py \
+--updated_filters \
 --extract_covars \
 --do_dps \
 --do_30m \
