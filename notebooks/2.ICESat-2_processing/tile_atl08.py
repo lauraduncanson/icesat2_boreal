@@ -255,15 +255,15 @@ def main():
     if not updated_filters:
         print('Original quality filtering')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov'], 
+                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
                                                            thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
     else:
-        print('New quality filtering with updated thresholding')
+        print('New quality filtering with updated thresholding and returning night flag')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov'], 
+                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
-                                                           thresh_h_can=100, thresh_h_dif=5, thresh_sig_topo=2.5, month_min=6, month_max=9)
+                                                           thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=6, month_max=9)
     atl08=None
     
     # Convert to geopandas data frame in lat/lon
@@ -291,6 +291,7 @@ def main():
         out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(f'{in_tile_num:04}'))
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
+        atl08_gdf.sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
         print("Wrote output csv/geojson of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_fn) )
