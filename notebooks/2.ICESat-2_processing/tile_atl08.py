@@ -295,8 +295,14 @@ def main():
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
         
-        print(f'Writing a sample CSV of {N_OBS_SAMPLE} night obs.: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
-        atl08_gdf[atl08_gdf.night_flg == 1].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+        if len(atl08_gdf[atl08_gdf.night_flg == 1]) > N_OBS_SAMPLE:
+            print(f'Writing a sample CSV of {N_OBS_SAMPLE} night obs.: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.night_flg == 1].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+        else:
+            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.night_flg == 1]) 
+            print(f'Writing out a CSV of all night obs. (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.night_flg == 1].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
         print("Wrote output csv/geojson of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_fn) )
