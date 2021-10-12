@@ -32,4 +32,6 @@ inputs:
     download: True
   - name: in_landsat_fn_url
     download: True
+  - name: in_atl08_sample_fn_url
+    download: True
 

@@ -39,7 +39,7 @@ GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_M
   print(names(xtable))
 
   if(DO_MASK){
-      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
+      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & nightmask == 1)
   }
   xtable_i<-na.omit(as.data.frame(xtable))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
@@ -311,6 +311,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
 mapBoreal<-function(rds_models,
                     models_id,
                     ice2_30_atl08_path, 
+                    ice2_30_sample_path,
                     offset=100,
                     s_train=70, 
                     rep=10,
@@ -324,6 +325,11 @@ mapBoreal<-function(rds_models,
     print("Modelling and mapping boreal AGB")
     print(paste0("tile: ", tile_num))
     print(paste0("ATL08 input: ", ice2_30_atl08_path))
+    
+    #combine tables
+    tile_data <- read.csv(ice2_30_atl08_path)
+    broad_data <- read.csv(ice2_30_sample_path)
+    all_train_data <- rbind(tile_data, broad_data)
     
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
@@ -346,6 +352,11 @@ mapBoreal<-function(rds_models,
                                s_train=s_train,
                                rep=rep,
                                strat_random=strat_random)
+    
+    #create one single model for prediction
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    agb_preds <- predict(rf_single, stack)
+    
     print(length(models))
     print(models[[1]])
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
@@ -357,7 +368,7 @@ mapBoreal<-function(rds_models,
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
     
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    out_agb <- list()
+    #out_agb <- list()
     out_sd <- list()
     out_p5 <- list()
     out_p95 <- list()
@@ -371,15 +382,15 @@ mapBoreal<-function(rds_models,
                      model_list=models,
                      stack=tile_stack)
         
-        out_agb <- list.append(out_agb, as.list(maps)[[1]])
+        #out_agb <- list.append(out_agb, as.list(maps)[[1]])
         out_sd <- list.append(out_sd, as.list(maps)[[2]])
         out_p5 <- list.append(out_p5, as.list(maps)[[3]])
         out_p95 <- list.append(out_p95, as.list(maps)[[4]])
         }
     print('AGB successfully predicted!')
     #recombine tiles
-    out_agb$fun   <- max
-    agb.mosaic <- do.call(mosaic,out_agb)
+    #out_agb$fun   <- max
+    #agb.mosaic <- do.call(mosaic,out_agb)
 
     out_sd$fun   <- max
     sd.mosaic <- do.call(mosaic,out_sd)
@@ -395,7 +406,7 @@ mapBoreal<-function(rds_models,
     
     # Make a 4-band stack as a COG
     
-    out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
+    out_stack = stack(agb.preds, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     
@@ -434,6 +445,8 @@ data_table_file <- args[1]
 topo_stack_file <- args[2]
 l8_stack_file <- args[3]
 DO_MASK_WITH_STACK_VARS <- args[4]
+data_sample_file <- args[5]
+
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
 
 print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
@@ -479,6 +492,7 @@ if(DO_MASK_WITH_STACK_VARS){
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
                 ice2_30_atl08_path=data_table_file, 
+                ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
                 rep=30,

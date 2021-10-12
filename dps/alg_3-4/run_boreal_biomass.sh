@@ -20,7 +20,10 @@ ATL08_CSV=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
 ${DO_SLOPE_VALID_MASK}=${4}
+ATL08_SAMPLE_CSV=${5}
 TAR_FILE=${basedir}/bio_models.tar
+
+
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
 
@@ -30,7 +33,7 @@ tar -xf ${TAR_FILE}
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-echo Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF}
-Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK}
+echo Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${ATL08_SAMPLE_CSV}
+Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV}
 
 

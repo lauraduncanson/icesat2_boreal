@@ -216,12 +216,12 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
     
     fit.rf <- randomForest(y=trainData.y, x=trainData.x, ntree=500)
     pred.rf<-predict(fit.rf, newdata=testData.x) # 
-    stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
+    #stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
     
     # model validation stats
-    stats_df<-rbind(stats_df,
+    #stats_df<-rbind(stats_df,
                     stats.rf)
-    row.names(stats_df)<-1:nrow(stats_df)
+    #row.names(stats_df)<-1:nrow(stats_df)
     
     #save output to a list where length = n(rep)
     model_list <- list.append(model_list, fit.rf)
@@ -303,12 +303,14 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
 mapBoreal<-function(rds_models,
                     models_id,
                     ice2_30_atl08_path, 
+                    ice2_30_sample_path,
                     offset=100,
                     s_train=70, 
                     rep=10,
                     ppside=2,
                     stack=stack,
                     strat_random=TRUE,
+                    night_flag=TRUE,
                     output){
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
@@ -316,10 +318,15 @@ mapBoreal<-function(rds_models,
     print(paste0("tile: ", tile_num))
     print(paste0("ATL08 input: ", ice2_30_atl08_path))
     
+    #combine tables
+    tile_data <- read.csv(ice2_30_atl08_path)
+    broad_data <- read.csv(ice2_30_sample_path)
+    all_train_data <- rbind(tile_data, broad_data)
+    
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
-                       ice2_30_atl08_path=ice2_30_atl08_path, 
+                       ice2_30_atl08_path=all_train_data, 
                        offset=offset)
     hist(xtable$AGB)
     print('table for model training generated!')
@@ -333,6 +340,10 @@ mapBoreal<-function(rds_models,
                                s_train=s_train,
                                rep=rep,
                                strat_random=strat_random)
+    
+    #create one single model for prediction
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    agb_preds <- predict(rf_single, stack)
     print(length(models))
     print(models[[1]])
     print('models successfully fit!')
@@ -343,7 +354,7 @@ mapBoreal<-function(rds_models,
     print('tiles successfully split!')
     
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    out_agb <- list()
+    #out_agb <- list()
     out_sd <- list()
     out_p5 <- list()
     out_p95 <- list()
@@ -357,15 +368,15 @@ mapBoreal<-function(rds_models,
                      model_list=models,
                      stack=tile_stack)
         
-        out_agb <- list.append(out_agb, as.list(maps)[[1]])
+        #out_agb <- list.append(out_agb, as.list(maps)[[1]])
         out_sd <- list.append(out_sd, as.list(maps)[[2]])
         out_p5 <- list.append(out_p5, as.list(maps)[[3]])
         out_p95 <- list.append(out_p95, as.list(maps)[[4]])
         }
     print('AGB successfully predicted!')
     #recombine tiles
-    out_agb$fun   <- max
-    agb.mosaic <- do.call(mosaic,out_agb)
+    #out_agb$fun   <- max
+    #agb.mosaic <- do.call(mosaic,out_agb)
 
     out_sd$fun   <- max
     sd.mosaic <- do.call(mosaic,out_sd)
@@ -381,7 +392,7 @@ mapBoreal<-function(rds_models,
     
     # Make a 4-band stack as a COG
     
-    out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
+    out_stack = stack(agb.preds, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     
@@ -419,6 +430,8 @@ args = commandArgs(trailingOnly=TRUE)
 data_table_file <- args[1]
 topo_stack_file <- args[2]
 l8_stack_file <- args[3]
+data_sample_file <- args[4]
+
 
 # loading packages and functions
 #----------------------------------------------#
@@ -450,12 +463,14 @@ stack<-crop(l8,extent(topo)); stack<-stack(stack,topo)
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
                 ice2_30_atl08_path=data_table_file, 
+                ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
                 rep=30,
                 ppside=2,
                 stack=stack,
                 strat_random=FALSE,
+                night_flag=TRUE,
                 output=out_fn)
 
 # Get the tile_num from input atl08 table name
