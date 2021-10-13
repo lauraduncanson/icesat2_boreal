@@ -29,12 +29,12 @@
 #----------------------------------------------#
 ############# functions ########################
 #----------------------------------------------#
-GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_MASK=FALSE){
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE){
   
   # rds_models
   names(rds_models)<-models_id
   # read table
-  xtable<-read.table(ice2_30_atl08_path, sep=",", head=T)
+  xtable<-in_data
   print('names of xtable cols: ')
   print(names(xtable))
 
@@ -337,7 +337,7 @@ mapBoreal<-function(rds_models,
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
-                       ice2_30_atl08_path=ice2_30_atl08_path, 
+                       in_data=all_train_data, 
                        offset=offset,
                        DO_MASK=DO_MASK)
     #hist(xtable$AGB)
