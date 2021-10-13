@@ -8,6 +8,8 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
 unset PROJ_LIB
 
+pip install --user -r ${basedir}/requirements.txt
+
 #install requirements packages - R packages
 
 #conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr r-gdalutils
