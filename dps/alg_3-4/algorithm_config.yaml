@@ -39,7 +39,7 @@ inputs:
   - name: in_tile_num
     download: False
   - name: in_tile_fn
-    download: True
+    download: False
   - name: in_tile_layer
     download: False
 
