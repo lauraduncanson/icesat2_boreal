@@ -13,6 +13,7 @@ pip install --user -r ${basedir}/requirements.txt
 mkdir output
 
 # Note: the numbered args are fed in with the in_param_dict in the Run DPS chunk of 3.4_dps.ipynb
+ATL08_tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv'
 
 ATL08_CSV=${1}
 TOPO_TIF=${2}
@@ -35,7 +36,7 @@ tar -xf ${TAR_FILE}
 OUTPUTDIR="${PWD}/output"
 
 # Get the output merged CSV of filtered ATL08 for the input tile and its neighbors
-cmd="python ${basedir}/merge_neighbors_atl08.py -in_tile_num ${in_tile_num} -in_tile_fn ${in_tile_fn} -in_tile_field layer -csv_list_fn ${ATL08_CSV} -out_dir ${OUTPUTDIR}"
+cmd="python ${basedir}/merge_neighbors_atl08.py -in_tile_num ${in_tile_num} -in_tile_fn ${in_tile_fn} -in_tile_field layer -csv_list_fn ${ATL08_tindex_master_fn} -out_dir ${OUTPUTDIR}"
 echo $cmd
 eval $cmd
 
