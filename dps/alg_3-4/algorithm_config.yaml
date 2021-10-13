@@ -32,6 +32,8 @@ inputs:
     download: True
   - name: DO_SLOPE_VALID_MASK
     download: False
+  - name: in_atl08_sample_fn
+    download: False
   - name: in_atl08_sample_url
     download: True
   - name: in_tile_num
