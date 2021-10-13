@@ -349,16 +349,32 @@ mapBoreal<-function(rds_models,
     }else{
         pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
+    
+    #create one single model for prediction
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    
+    #predict with single rf model
+    stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
+    stack_df$grid_id<-1:nrow(stack_df)
+    stats_df<-NULL
+    n<-nrow(x)
+    ids<-1:n
+    map_pred<-NULL
+    preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
+    
+    #convert back to raster
+    agb.preds <- rasterFromXYZ(cbind(stack_df[,1:2],
+                                    agb_mean=preds
+                                  )
+                              )
+     
+    crs(agb.preds) <- crs(stack)
     models<-agbModeling(x=xtable[pred_vars],
                                y=xtable$AGB,
                                se=xtable$SE,
                                s_train=s_train,
                                rep=rep,
                                strat_random=strat_random)
-    
-    #create one single model for prediction
-    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
-    agb_preds <- predict(rf_single, stack)
     
     print(length(models))
     print(models[[1]])
