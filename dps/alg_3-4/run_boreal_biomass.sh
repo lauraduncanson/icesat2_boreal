@@ -10,10 +10,6 @@ unset PROJ_LIB
 
 pip install --user -r ${basedir}/requirements.txt
 
-#install requirements packages - R packages
-
-#conda install -c conda-forge -y r-gridExtra r-tidyverse r-randomForest r-raster r-rgdal r-data.table r-rlist r-gdalutils r-stringr r-gdalutils
-
 mkdir output
 
 # Note: the numbered args are fed in with the in_param_dict in the Run DPS chunk of 3.4_dps.ipynb
@@ -21,12 +17,11 @@ mkdir output
 ATL08_CSV=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
-${DO_SLOPE_VALID_MASK}=${4}
+DO_SLOPE_VALID_MASK=${4}
 ATL08_SAMPLE_CSV=${5}
 in_tile_num=${6}
 in_tile_fn=${7}
 in_tile_layer=${8}
-
 
 TAR_FILE=${basedir}/bio_models.tar
 
@@ -49,7 +44,7 @@ eval $cmd
 MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
 
 # Run mapBoreal with merged CSV as input
-cmd="Rscript ${basedir}/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} 'TRUE' ${ATL08_SAMPLE_CSV}"
+cmd="Rscript ${basedir}/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV}"
 
 echo $cmd
 eval $cmd
