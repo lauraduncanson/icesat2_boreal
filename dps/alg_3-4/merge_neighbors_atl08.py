@@ -8,7 +8,7 @@ import argparse
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
-    if type is 'public':
+    if type == 'public':
         replacement_str = f's3://maap-ops-workspace/shared/{user}'
     else:
         replacement_str = f's3://maap-ops-workspace/{user}'
