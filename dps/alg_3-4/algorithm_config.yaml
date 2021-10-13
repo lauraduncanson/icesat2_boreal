@@ -42,6 +42,4 @@ inputs:
     download: False
   - name: in_tile_fn_url
     download: True
-  - name: in_tile_layer
-    download: False
 

@@ -21,7 +21,6 @@ DO_SLOPE_VALID_MASK=${4}
 ATL08_SAMPLE_CSV=${5}
 in_tile_num=${6}
 in_tile_fn=${7}
-in_tile_layer=${8}
 
 TAR_FILE=${basedir}/bio_models.tar
 
@@ -36,7 +35,7 @@ tar -xf ${TAR_FILE}
 OUTPUTDIR="${PWD}/output"
 
 # Get the output merged CSV of filtered ATL08 for the input tile and its neighbors
-cmd="python ${basedir}/merge_neighbors_atl08.py -in_tile_num ${in_tile_num} -in_tile_fn ${in_tile_fn} -in_tile_field ${in_tile_layer} -csv_list_fn ${ATL08_CSV} -out_dir ${OUTPUTDIR}"
+cmd="python ${basedir}/merge_neighbors_atl08.py -in_tile_num ${in_tile_num} -in_tile_fn ${in_tile_fn} -in_tile_field layer -csv_list_fn ${ATL08_CSV} -out_dir ${OUTPUTDIR}"
 echo $cmd
 eval $cmd
 
