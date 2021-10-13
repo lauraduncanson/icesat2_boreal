@@ -35,8 +35,8 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
   names(rds_models)<-models_id
   # read table
   xtable<-in_data
-  print('names of xtable cols: ')
-  print(names(xtable))
+  #print('names of xtable cols: ')
+  #print(names(xtable))
 
   if(DO_MASK){
       xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & night_flg == 1)
@@ -44,8 +44,8 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     
   xtable_i<-na.omit(as.data.frame(xtable))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
-  print('names (new) of xtable cols: ')
-  print(names(xtable_i))
+  #print('names (new) of xtable cols: ')
+  #print(names(xtable_i))
     
   #
   xtable_sqrt<-xtable_i[3:11]+offset
@@ -345,7 +345,7 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi',                      'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }else{
         pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
@@ -358,6 +358,8 @@ mapBoreal<-function(rds_models,
     stack_df$grid_id<-1:nrow(stack_df)
 
     preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
+    
+    #apply zero biomass to mask data
     
     #convert back to raster
     agb.preds <- rasterFromXYZ(cbind(stack_df[,1:2],
@@ -503,7 +505,10 @@ if(DO_MASK_WITH_STACK_VARS){
         brick <- mask(brick, m == 0, maskvalue=TRUE)
     }
     rm(m)
+    rm(stack)
 }
+
+print("modelling begins")
 
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
@@ -513,7 +518,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 s_train=70, 
                 rep=2,
                 ppside=2,
-                stack=stack,
+                stack=brick,
                 strat_random=FALSE,
                 output=out_fn,
                 DO_MASK=DO_MASK_WITH_STACK_VARS)
