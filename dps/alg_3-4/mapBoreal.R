@@ -331,14 +331,16 @@ mapBoreal<-function(rds_models,
     tile_data <- read.csv(ice2_30_atl08_path)
     broad_data <- read.csv(ice2_30_sample_path)
     all_train_data <- rbind(tile_data, broad_data)
-    
+    str(tile_data)
+    str(broad_data)
+    str(all_train_data)
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        ice2_30_atl08_path=ice2_30_atl08_path, 
                        offset=offset,
                        DO_MASK=DO_MASK)
-    hist(xtable$AGB)
+    #hist(xtable$AGB)
     print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
 
     # run 
@@ -496,7 +498,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=30,
+                rep=2,
                 ppside=2,
                 stack=stack,
                 strat_random=FALSE,
