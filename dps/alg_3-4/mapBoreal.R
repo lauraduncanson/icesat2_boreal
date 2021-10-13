@@ -356,10 +356,7 @@ mapBoreal<-function(rds_models,
     #predict with single rf model
     stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
     stack_df$grid_id<-1:nrow(stack_df)
-    stats_df<-NULL
-    n<-nrow(x)
-    ids<-1:n
-    map_pred<-NULL
+
     preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
     
     #convert back to raster
