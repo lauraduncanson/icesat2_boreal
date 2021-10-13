@@ -29,15 +29,24 @@
 #----------------------------------------------#
 ############# functions ########################
 #----------------------------------------------#
-GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100){
+GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_MASK=FALSE){
   
   # rds_models
   names(rds_models)<-models_id
   # read table
   xtable<-read.table(ice2_30_atl08_path, sep=",", head=T)
+  print('names of xtable cols: ')
+  print(names(xtable))
+
+  if(DO_MASK){
+      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & nightmask == 1)
+  }
+    
   xtable_i<-na.omit(as.data.frame(xtable))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
-  
+  print('names (new) of xtable cols: ')
+  print(names(xtable_i))
+    
   #
   xtable_sqrt<-xtable_i[3:11]+offset
   #names(xtable_sqrt)<-paste0("sqrt(",names(xtable_sqrt),")")
@@ -216,12 +225,12 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
     
     fit.rf <- randomForest(y=trainData.y, x=trainData.x, ntree=500)
     pred.rf<-predict(fit.rf, newdata=testData.x) # 
-    #stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
+    stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
     
     # model validation stats
-    #stats_df<-rbind(stats_df,
+    stats_df<-rbind(stats_df,
                     stats.rf)
-    #row.names(stats_df)<-1:nrow(stats_df)
+    row.names(stats_df)<-1:nrow(stats_df)
     
     #save output to a list where length = n(rep)
     model_list <- list.append(model_list, fit.rf)
@@ -283,8 +292,8 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     }
     
     #take the average and sd per pixel
-    mean_map<-tapply(map_pred$agb,map_pred$grid_id,mean)
-    sd_map<-tapply(map_pred$agb,map_pred$grid_id,sd)
+    mean_map <-tapply(map_pred$agb,map_pred$grid_id,mean)
+    sd_map <-tapply(map_pred$agb,map_pred$grid_id,sd)
     p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
     p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
     
@@ -310,8 +319,8 @@ mapBoreal<-function(rds_models,
                     ppside=2,
                     stack=stack,
                     strat_random=TRUE,
-                    night_flag=TRUE,
-                    output){
+                    output,
+                    DO_MASK=FALSE){
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
     print("Modelling and mapping boreal AGB")
@@ -326,14 +335,18 @@ mapBoreal<-function(rds_models,
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
-                       ice2_30_atl08_path=all_train_data, 
-                       offset=offset)
+                       ice2_30_atl08_path=ice2_30_atl08_path, 
+                       offset=offset,
+                       DO_MASK=DO_MASK)
     hist(xtable$AGB)
-    print('table for model training generated!')
+    print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
 
     # run 
-    pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
-    
+    if(DO_MASK){
+        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi',                      'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+    }else{
+        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+    }
     models<-agbModeling(x=xtable[pred_vars],
                                y=xtable$AGB,
                                se=xtable$SE,
@@ -344,14 +357,16 @@ mapBoreal<-function(rds_models,
     #create one single model for prediction
     rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
     agb_preds <- predict(rf_single, stack)
+    
     print(length(models))
     print(models[[1]])
-    print('models successfully fit!')
+    print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
+    print(pred_vars)
     
     #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
-    print('tiles successfully split!')
+    print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
     
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
     #out_agb <- list()
@@ -430,8 +445,12 @@ args = commandArgs(trailingOnly=TRUE)
 data_table_file <- args[1]
 topo_stack_file <- args[2]
 l8_stack_file <- args[3]
-data_sample_file <- args[4]
+DO_MASK_WITH_STACK_VARS <- args[4]
+data_sample_file <- args[5]
 
+MASK_LYR_NAMES = c('slopemask', 'ValidMask')
+
+print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
 
 # loading packages and functions
 #----------------------------------------------#
@@ -460,6 +479,17 @@ l8 <- stack(l8_stack_file)
 # make sure data are linked properly
 stack<-crop(l8,extent(topo)); stack<-stack(stack,topo)
 
+if(DO_MASK_WITH_STACK_VARS){
+    print("Making brick from stack and masking...")
+    # Bricking the stack will make the masking faster (i think)
+    brick = brick(stack)
+    for(LYR_NAME in MASK_LYR_NAMES){
+        m <- raster::subset(brick, grep(LYR_NAME, names(brick), value = T))
+        brick <- mask(brick, m == 0, maskvalue=TRUE)
+    }
+    rm(m)
+}
+
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
                 ice2_30_atl08_path=data_table_file, 
@@ -470,8 +500,8 @@ maps<-mapBoreal(rds_models=rds_models,
                 ppside=2,
                 stack=stack,
                 strat_random=FALSE,
-                night_flag=TRUE,
-                output=out_fn)
+                output=out_fn,
+                DO_MASK=DO_MASK_WITH_STACK_VARS)
 
 # Get the tile_num from input atl08 table name
 #tile_num = tail(unlist(strsplit(path_ext_remove(data_table_file), "_")), n=1)

@@ -21,6 +21,11 @@ TOPO_TIF=${2}
 LANDSAT_TIF=${3}
 ${DO_SLOPE_VALID_MASK}=${4}
 ATL08_SAMPLE_CSV=${5}
+in_tile_num=${6}
+in_tile_fn=${7}
+in_tile_layer=${8}
+
+
 TAR_FILE=${basedir}/bio_models.tar
 
 
@@ -33,7 +38,18 @@ tar -xf ${TAR_FILE}
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-echo Rscript mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${ATL08_SAMPLE_CSV}
-Rscript ${basedir}/mapBoreal.R ${ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV}
+# Get the output merged CSV of filtered ATL08 for the input tile and its neighbors
+cmd="python ${basedir}/merge_neighbors_atl08.py -in_tile_num ${in_tile_fn} -in_tile_fn ${in_tile_fn} -in_tile_field ${in_tile_layer} -csv_list_fn ${ATL08_CSV} -out_dir ${OUTPUTDIR}"
+echo $cmd
+eval $cmd
+
+# Set the output merged CSV name to a var
+MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
+
+# Run mapBoreal with merged CSV as input
+cmd="Rscript ${basedir}/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV}"
+
+echo $cmd
+eval $cmd
 
 

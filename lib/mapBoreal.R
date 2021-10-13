@@ -41,6 +41,7 @@ GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_M
   if(DO_MASK){
       xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & nightmask == 1)
   }
+    
   xtable_i<-na.omit(as.data.frame(xtable))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
   print('names (new) of xtable cols: ')
