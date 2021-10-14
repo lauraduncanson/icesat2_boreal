@@ -351,23 +351,23 @@ mapBoreal<-function(rds_models,
     }
     
     #create one single model for prediction
-    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    #rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
     
     #predict with single rf model
-    stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
-    stack_df$grid_id<-1:nrow(stack_df)
+    #stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
+    #stack_df$grid_id<-1:nrow(stack_df)
 
-    preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
+    #preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
     
     #apply zero biomass to mask data
     
     #convert back to raster
-    agb.preds <- rasterFromXYZ(cbind(stack_df[,1:2],
-                                    agb_mean=preds
-                                  )
-                              )
+    #agb.preds <- rasterFromXYZ(cbind(stack_df[,1:2],
+     #                               agb_mean=preds
+     #                             )
+     #                         )
      
-    crs(agb.preds) <- crs(stack)
+    #crs(agb.preds) <- crs(stack)
     models<-agbModeling(x=xtable[pred_vars],
                                y=xtable$AGB,
                                se=xtable$SE,
@@ -386,7 +386,7 @@ mapBoreal<-function(rds_models,
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
     
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    #out_agb <- list()
+    out_agb <- list()
     out_sd <- list()
     out_p5 <- list()
     out_p95 <- list()
@@ -400,15 +400,15 @@ mapBoreal<-function(rds_models,
                      model_list=models,
                      stack=tile_stack)
         
-        #out_agb <- list.append(out_agb, as.list(maps)[[1]])
+        out_agb <- list.append(out_agb, as.list(maps)[[1]])
         out_sd <- list.append(out_sd, as.list(maps)[[2]])
         out_p5 <- list.append(out_p5, as.list(maps)[[3]])
         out_p95 <- list.append(out_p95, as.list(maps)[[4]])
         }
     print('AGB successfully predicted!')
     #recombine tiles
-    #out_agb$fun   <- max
-    #agb.mosaic <- do.call(mosaic,out_agb)
+    out_agb$fun   <- max
+    agb.mosaic <- do.call(mosaic,out_agb)
 
     out_sd$fun   <- max
     sd.mosaic <- do.call(mosaic,out_sd)
@@ -424,7 +424,7 @@ mapBoreal<-function(rds_models,
     
     # Make a 4-band stack as a COG
     
-    out_stack = stack(agb.preds, sd.mosaic, p5.mosaic, p95.mosaic)
+    out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     
@@ -516,7 +516,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=2,
+                rep=4,
                 ppside=2,
                 stack=brick,
                 strat_random=FALSE,
