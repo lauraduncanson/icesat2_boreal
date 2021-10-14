@@ -107,6 +107,9 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     #define C
     C <- mean(model_i$fitted.values)/mean(model_i$model$`sqrt(AGBD)`)
     
+    #set negatives to zero
+    xtable_sqrt$AGB[which(xtable_sqrt$AGB<0)] == 0.0
+      
     #we multiply by C in case there is a systematic over or under estimation in the model (bias correction)
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-C*(xtable_sqrt$AGB[xtable_sqrt$model_id==i]^2)
     #print(head(xtable_sqrt$AGB[xtable_sqrt$model_id==i]))
@@ -292,7 +295,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     }
     
     #take the average and sd per pixel
-    mean_map <-tapply(map_pred$agb,map_pred$grid_id,mean)
+    mean_map <-tapply(map_pred$agb,map_pred$grid_id,median)
     sd_map <-tapply(map_pred$agb,map_pred$grid_id,sd)
     p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
     p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
@@ -516,7 +519,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=4,
+                rep=30,
                 ppside=2,
                 stack=brick,
                 strat_random=FALSE,
