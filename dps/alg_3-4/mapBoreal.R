@@ -108,7 +108,10 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     C <- mean(model_i$fitted.values)/mean(model_i$model$`sqrt(AGBD)`)
     
     #set negatives to zero
-    xtable_sqrt$AGB[which(xtable_sqrt$AGB<0)] == 0.0
+    negs <- which(xtable_sqrt$AGB<0)
+    if(length(negs)>0){
+        xtable_sqrt$AGB[negs] == 0.0
+    }
       
     #we multiply by C in case there is a systematic over or under estimation in the model (bias correction)
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-C*(xtable_sqrt$AGB[xtable_sqrt$model_id==i]^2)
@@ -203,7 +206,11 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
   i.s=0
   #j=1
   model_list <- list()
-  for (j in 1:rep){
+    
+    # create one single rf using all the data; the first in model_list will be used for prediction
+    fit.rf <- randomForest(y=y, x=x, ntree=500)
+    model_list <- list.append(model_list, fit.rf)
+  for (j in 2:rep){
     i.s<-i.s+1
     #setTxtProgressBar(pb, i.s)
     set.seed(j)
@@ -288,14 +295,16 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     map_pred<-NULL
 
     #loop over predicting for tile with each model in list
-    for (i in 1:length(model_list)){
+    for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
         map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
         map_pred<-rbind(map_pred,map_i)
     }
     
     #take the average and sd per pixel
-    mean_map <-tapply(map_pred$agb,map_pred$grid_id,median)
+    #mean_map <-tapply(map_pred$agb,map_pred$grid_id,median)
+    #set predictions to preds from the single rf model
+    mean_map <- predict(model_list[[1]], newdata=stack_df)
     sd_map <-tapply(map_pred$agb,map_pred$grid_id,sd)
     p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
     p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
@@ -332,6 +341,20 @@ mapBoreal<-function(rds_models,
     
     #combine tables
     tile_data <- read.csv(ice2_30_atl08_path)
+    
+    #sub-sample tile data to n_tile
+    n_tile <- 3000
+    night_data <- which(tile_data$night_flg==1)
+    n_avail <- length(night_data)
+
+    if(n_avail > n_tile){
+        tile_data <- tile_data[night_data,]
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
+    
+    #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
     all_train_data <- rbind(tile_data, broad_data)
     
