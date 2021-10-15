@@ -103,7 +103,6 @@ def main():
             user = 'lduncanson'
             ends_with_str = ".tif"
             
-            
         df = pd.DataFrame(columns=[col_name, 'tile_num'])
 
         for dps_out_subdir in dps_out_subdir_list:
@@ -115,16 +114,17 @@ def main():
 
             for dir, subdir, files in os.walk(root):
                 for fname in files:
-                    if DEBUG: print(fname)
-                    if fname.endswith(ends_with_str) and not str_exclude in fname: 
+                    
+                    if fname.endswith(ends_with_str) and not str_exclude in fname:
+                        
                         if DEBUG: print(fname)
+                        
                         tile_num = fname.split('_')[1]
 
                         if 'AGB' in TYPE:
                             tile_num = fname.split('_')[3]
 
-                        if DEBUG:
-                            print(f'Tile num: {tile_num}')
+                        #if DEBUG: print(f'Tile num: {tile_num}')
 
                         if "ATL08" in TYPE and not "filt" in TYPE:
                             df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':'NA'},ignore_index=True)
@@ -136,15 +136,17 @@ def main():
                             df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
                         else:
                             df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
-                        if DEBUG:
-                            print(os.path.join(dir+"/", fname))
+                        #if DEBUG: print(os.path.join(dir+"/", fname))
+        
         num_with_duplicates = len(df[col_name].values)
         print(len(df[col_name].values))
+        
         # Drop duplicates
         df = df.drop_duplicates(subset=['tile_num'], keep='last')
         num_without_duplicates = len(df[col_name].values)
         print(f"# of duplicate tiles: {num_with_duplicates-num_without_duplicates}")
         print(f"Final # of tiles: {num_without_duplicates}")
+        
         out_tindex_fn = os.path.join(args.outdir, out_name)
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn)
