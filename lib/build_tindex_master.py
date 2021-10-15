@@ -138,8 +138,13 @@ def main():
                             df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
                         if DEBUG:
                             print(os.path.join(dir+"/", fname))
-
+        num_with_duplicates = len(df[col_name].values)
         print(len(df[col_name].values))
+        # Drop duplicates
+        df = df.drop_duplicates(subset=['tile_num'], keep='last')
+        num_without_duplicates = len(df[col_name].values)
+        print(f"# of duplicate tiles: {num_with_duplicates-num_without_duplicates}")
+        print(f"Final # of tiles: {num_without_duplicates}")
         out_tindex_fn = os.path.join(args.outdir, out_name)
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn)

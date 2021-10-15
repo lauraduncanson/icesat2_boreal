@@ -334,6 +334,7 @@ mapBoreal<-function(rds_models,
     tile_data <- read.csv(ice2_30_atl08_path)
     broad_data <- read.csv(ice2_30_sample_path)
     all_train_data <- rbind(tile_data, broad_data)
+    
     str(tile_data)
     str(broad_data)
     str(all_train_data)

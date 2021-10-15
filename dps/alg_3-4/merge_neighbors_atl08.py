@@ -72,18 +72,28 @@ def main():
     
     # Get list of neighbor tiles for a given tile_num
     neighbor_tile_ids = get_neighbors(in_tile_gdf, in_tile_field, in_tile_num)
+    print(f"Neighbor tile ids: {neighbor_tile_ids}")
+    print(f"# of neighbor tiles: {len(neighbor_tile_ids)}")
     
     # Build up a dataframe of dps output ATL08 filtered CSVs
     ATL08_filt_tindex_master = pd.read_csv(csv_list_fn)
-    ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
     
+    ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
+    print(ATL08_filt_tindex_master.info())
     if out_dir is None:
         # Get the focal tile's ATL08 filt CSV name to use to make out_csv_fn
-        focal_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
+        focal_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist() #[0]
         out_dir = os.path.split(focal_csv_fn)[0]
     
     # For neighbor tiles, get subset of ATL08 filtered CSVs as a fn list of their s3 paths assciated
-    ATL08_filt_csv_s3_fn_list = [ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == tile_id].tolist()[0] for tile_id in neighbor_tile_ids]
+    ATL08_filt_csv_s3_fn_list = [ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == tile_id].tolist() for tile_id in neighbor_tile_ids]
+    
+    # THis produces a list of lists in which empty spots are removed
+    ATL08_filt_csv_s3_fn_list = list(filter(None, ATL08_filt_csv_s3_fn_list))
+    print(f"# of neighbor tiles with ATL08 CSVs: {len(ATL08_filt_csv_s3_fn_list)} ")
+    
+    # Convert from list of lists to list
+    ATL08_filt_csv_s3_fn_list = [item for sublist in ATL08_filt_csv_s3_fn_list for item in sublist]
     
     # Read these ATL08 filtered CSVs into a single df
     atl08 = pd.concat([pd.read_csv(f) for f in ATL08_filt_csv_s3_fn_list], sort=False)
