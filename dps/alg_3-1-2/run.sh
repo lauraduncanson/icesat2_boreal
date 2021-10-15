@@ -13,6 +13,8 @@ FILENAMELIST=$(ls -d input/*)
 
 basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 
+#test line #
+
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order
 #python get_param.py in_tile_fn
