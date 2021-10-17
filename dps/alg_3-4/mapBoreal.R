@@ -418,20 +418,24 @@ mapBoreal<-function(rds_models,
     out_p5 <- list()
     out_p95 <- list()
     
-    for (tile in 1:length(tile_list)){
+     for (tile in 1:length(tile_list)){
         tile_stack <- tile_list[[tile]]
-        #pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
-        print(tile)
-        maps<-agbMapping(x=xtable[pred_vars],
+        #check if data in tile stack
+        length_valid <- length(unique(tile_stack@data@values[,1]))
+        if(length_valid > 2){
+            print(tile)
+            maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
                      stack=tile_stack)
         
-        out_agb <- list.append(out_agb, as.list(maps)[[1]])
-        out_sd <- list.append(out_sd, as.list(maps)[[2]])
-        out_p5 <- list.append(out_p5, as.list(maps)[[3]])
-        out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+            out_agb <- list.append(out_agb, as.list(maps)[[1]])
+            out_sd <- list.append(out_sd, as.list(maps)[[2]])
+            out_p5 <- list.append(out_p5, as.list(maps)[[3]])
+            out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+            }
         }
+    
     print('AGB successfully predicted!')
     #recombine tiles
     out_agb$fun   <- max
