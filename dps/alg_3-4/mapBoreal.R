@@ -358,6 +358,13 @@ mapBoreal<-function(rds_models,
     broad_data <- read.csv(ice2_30_sample_path)
     all_train_data <- rbind(tile_data, broad_data)
     
+    #set boreal only models for specific weird tiles
+    weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
+    
+    if(tile_num %in% weird_tiles){
+        all_train_data <- broad_data
+    }
+    
     str(tile_data)
     str(broad_data)
     str(all_train_data)
