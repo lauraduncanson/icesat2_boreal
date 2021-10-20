@@ -19,4 +19,5 @@ OUTPUTDIR="${PWD}/output"
 
 #Print to stdout for debugging
 echo gdal_translate -of COG -tr $1 $1 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${INPUT1} "${OUTPUTDIR}/${OUTPUT}"
+gdal_translate -of COG -tr $1 $1 -co COMPRESS=DEFLATE -co PREDICTOR=2 ${INPUT1} "${OUTPUTDIR}/${OUTPUT}"
 
