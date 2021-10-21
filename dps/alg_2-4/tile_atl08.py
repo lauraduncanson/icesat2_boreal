@@ -26,6 +26,8 @@ import csv
 import fsspec
 import s3fs
 
+from shutil import copy
+
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
     #seg_str="_30m"
@@ -108,6 +110,8 @@ def main():
     parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
     parser.add_argument('-years_list', nargs='+', default=2020, help="Years of ATL08 used")
     parser.add_argument('-v_ATL08', type=int, default=4, help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
+    parser.add_argument('-N_OBS_SAMPLE', type=int, default=250, help='Number of ATL08 obs to include in the sample CSV for the tile.')
+    #parser.add_argument('-to_dir_cog', type=str, default='/projects/my-public-bucket/in_stacks_copy', help='COG copies of input stacks that are accessible with R in a workspace other than that of their creation')
     #parser.add_argument('--maap_query', dest='maap_query', action='store_true', help='Run a MAAP query by tile to return list of ATL08 h5 that forms the database of ATL08 observations')
     #parser.set_defaults(maap_query=False)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
@@ -120,6 +124,9 @@ def main():
     parser.set_defaults(TEST=False)
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
+    parser.add_argument('--updated_filters', dest='updated_filters', action='store_true', help='Use updated quality filtering applied to ATL08 from FilterUtils')
+    parser.set_defaults(updated_filters=False)
+
     
     args = parser.parse_args()
     #if args.in_ept_fn == None and not args.maap_query:
@@ -154,6 +161,8 @@ def main():
     outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
+    updated_filters = args.updated_filters
+    N_OBS_SAMPLE = args.N_OBS_SAMPLE
 
     DEBUG = args.DEBUG
     
@@ -225,6 +234,9 @@ def main():
         # Merge all ATL08 CSV files for the current tile into a pandas df
         print("Creating pandas data frame...")
         atl08 = pd.concat([pd.read_csv(f) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
+        if DEBUG:
+            atl08.to_csv(os.path.join(outdir, "atl08_all_" + str(cur_date) + "_" + str(f'{in_tile_num:04}.csv')))
+            print(atl08.info())
         atl08 = FilterUtils.prep_filter_atl08_qual(atl08)
 
         print("\nFiltering by tile: {}".format(in_tile_num))
@@ -243,10 +255,18 @@ def main():
 
     
     # Filter by quality
-    atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                       subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov'], 
-                                                       filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
-                                                       thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
+    if not updated_filters:
+        print('Original quality filtering')
+        atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
+                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
+                                                           thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
+    else:
+        print('New quality filtering with updated thresholding and returning night flag')
+        atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
+                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
+                                                           thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=6, month_max=9)
     atl08=None
     
     # Convert to geopandas data frame in lat/lon
@@ -274,6 +294,15 @@ def main():
         out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(f'{in_tile_num:04}'))
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
+        
+        if len(atl08_gdf[atl08_gdf.night_flg == 1]) > N_OBS_SAMPLE:
+            print(f'Writing a sample CSV of {N_OBS_SAMPLE} night obs.: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.night_flg == 1].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+        else:
+            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.night_flg == 1]) 
+            print(f'Writing out a CSV of all night obs. (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.night_flg == 1].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
         print("Wrote output csv/geojson of filtered ATL08 obs with topo and Landsat covariates for tile {}: {}".format(in_tile_num, out_fn) )
