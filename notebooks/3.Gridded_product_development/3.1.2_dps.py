@@ -15,7 +15,7 @@ from rasterio.session import AWSSession
 from CovariateUtils import write_cog, get_index_tile, get_aws_session
 from fetch_from_api import get_data
 import json
-
+import datetime
 
 def get_shape(bbox, res=30):
     left, bottom, right, top = bbox
@@ -64,7 +64,9 @@ def MaskArrays(file, in_bbox, height, width, epsg="epsg:4326", dst_crs="epsg:432
         img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
     if incl_trans:
         return img.crs, img.transform
-    return np.squeeze(img.as_masked().astype(np.float32))
+    # Surface reflectance collection 2 scaling offset and bias
+    # 0.0000275 + -0.2
+    return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
 
 def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width):
     '''Calculate NDVI for each source scene'''
@@ -82,13 +84,30 @@ def CollapseBands(inArr, NDVItmp, BoolMask):
     inArr = np.ma.masked_equal(inArr, 0)
     inArr[np.logical_not(NDVItmp)]=0 
     compImg = np.ma.masked_array(inArr.sum(0), BoolMask)
+    print(compImg)
     return compImg
 
 def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, dst_crs):
     MaskedFile = [MaskArrays(file_list[i], in_bbox, height, width, epsg, dst_crs) for i in range(len(file_list))]
     Composite=CollapseBands(MaskedFile, NDVItmp, BoolMask)
-
     return Composite
+
+def createJulianDate(file, height, width):
+    date_string = file.split('/')[-1].split('_')[3]
+    fmt = '%Y.%m.%d'
+    date = date_string[:4] + '.' + date_string[4:6] + '.' + date_string[6:]
+    dt = datetime.datetime.strptime(date, fmt)
+    tt = dt.timetuple()
+    jd = tt.tm_yday
+    
+    date_arr = np.full((height, width), jd,dtype=np.float32)
+    return date_arr
+    
+def JulianComposite(file_list, NDVItmp, BoolMask, height, width):
+    JulianDateImages = [createJulianDate(file_list[i], height, width) for i in range(len(file_list))]
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    
+    return JulianComposite
 
 # Co-var functions
 # Reads in bands on the fly, as needed
@@ -135,27 +154,35 @@ def tasseled_cap(bands):
     bands - a 6-layer 3-D (images) or 2-D array (samples) or an OrderedDict with appropriate band names
     tc_coef - a list of 3 tuples, each with 6 coefficients
     '''
-    # Tasseled Cap
-    tc_coef = [
-    (0.3029, 0.2786, 0.4733, 0.5599, 0.5080, 0.1872), #brightness
-    (-0.2941, -0.2430, -0.5424, 0.7276, 0.0713, -0.1608), #greenness
-    (0.1511, 0.1973, 0.3283, 0.3407, -0.7117, -0.4559) #wetness
-    ]
-
-    in_arr = bands
-    print(np.shape(in_arr))
-    tc = np.zeros((len(np.shape(in_arr)), in_arr.shape[1], in_arr.shape[2]), dtype = np.float32())
+    # Tasseled Cap (At Satellite)
+    #tc_coef = [
+    #(0.3029, 0.2786, 0.4733, 0.5599, 0.5080, 0.1872), #brightness
+    #(-0.2941, -0.2430, -0.5424, 0.7276, 0.0713, -0.1608), #greenness
+    #(0.1511, 0.1973, 0.3283, 0.3407, -0.7117, -0.4559) #wetness
+    #]
     
-    #print(np.max(in_arr))
+    # Tasseled Cap (SREF: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0147121#sec028)
+    tc_coef = [
+    (0.2043, 0.4158, 0.5524, 0.5741, 0.3124, 0.2303), #brightness
+    (-0.1603, 0.2819, -0.4934, 0.7940, -0.0002, -0.1446), #greenness
+    (0.0315, 0.2021, 0.3102, 0.1594, -0.6806, -0.6109) #wetness
+    ]
+    
+    tc = np.zeros((len(np.shape(bands)), bands.shape[1], bands.shape[2]), dtype = np.float32())
+    
+    #print(np.max(in_arr_sref))
     for i, t in enumerate(tc_coef):
         for b in range(5): # should be 6
-            tc[i] += (in_arr[b] * t[b]).astype(np.float32())
+            tc[i] += (bands[b] * t[b]).astype(np.float32())
            
     print('TassCap Created')
     return tc[0], tc[1], tc[2] 
 
     # TC Code adapted from: https://github.com/bendv/waffls/blob/master/waffls/indices.py
-    # TC coefs from: https://doi.org/10.1080/2150704X.2014.915434
+    # TC coeffs from: https://doi.org/10.1080/2150704X.2014.915434 (OLD at satellite coeffs)
+    # New coeffs are in sup table 2 here: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0147121#sec028
+    # which in turn are from/built from: Crist 1985. These are sensor non-specific so should be applicable
+    # irrespective of sensor and collection, provided it is SREF
 
 def VegMask(NDVI):
     mask = np.zeros_like(NDVI)
@@ -285,6 +312,8 @@ def main():
         SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs)
         print('Creating NDVI Composite')
         NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
+        print('Creating Julian Date Comp')
+        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
     
     # calculate covars
     print("Generating covariates")
@@ -307,10 +336,10 @@ def main():
     
     # Stack bands together
     print("Create raster stack")
-    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo], [0, 1, 2]) 
+    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp], [0, 1, 2]) 
     print("Assign band names")
     #assign band names
-    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo']
+    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate']
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'
     outdir = args.output_dir
@@ -333,7 +362,7 @@ if __name__ == "__main__":
     Example call:
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 0
     
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/ -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0
     '''
     main()
     
