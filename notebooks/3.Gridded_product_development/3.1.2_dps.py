@@ -221,7 +221,7 @@ def main():
     print("output resolution = ", res)
     
     # Get tile by number form GPKG. Store box and out crs
-    tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = "grid_boreal_albers90k_gpkg")#layer = "boreal_tiles_albers"
+    tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
     #in_bbox = tile_id['bbox_4326']
     in_bbox = tile_id['geom_orig_buffered'].bounds.iloc[0].to_list()
     out_crs = tile_id['tile_crs']
