@@ -118,9 +118,9 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]
     min_cloud = 0
-    max_cloud = 50
+    max_cloud = 20
     # 2015
-    years = range(2019,2021 + 1)
+    years = range(2015,2020 + 1)
     api = sat_api
     
     for bbox in bbox_list:
