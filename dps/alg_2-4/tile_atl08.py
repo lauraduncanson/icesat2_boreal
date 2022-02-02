@@ -103,7 +103,7 @@ def main():
     #parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     #parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
     #parser.add_argument("-m_max", "--month_max", type=int, default=9, help="The max month of each year for which ATL08 obs will be used")
-    #parser.add_argument('-ocl', '--out_cols_list', nargs='+', default=[], help="A select list of strings matching ATL08 col names from the input EPT that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument('-outcols', '--out_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','h_can_unc', 'h_te_unc','seg_landcov','sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
     parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
     parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
@@ -157,7 +157,7 @@ def main():
     #thresh_h_dif = args.thresh_h_dif
     #month_min = args.month_min
     #month_max = args.month_max
-    #out_cols_list = args.out_cols_list
+    out_cols_list = args.out_cols_list
     outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
@@ -258,7 +258,7 @@ def main():
     if not updated_filters:
         print('Original quality filtering')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           subset_cols_list=out_cols_list, #['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
                                                            thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
     else:
