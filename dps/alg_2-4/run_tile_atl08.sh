@@ -36,7 +36,11 @@ echo python ${basedir}/tile_atl08.py \
 -topo_stack_list_fn $4 \
 -landsat_stack_list_fn $5 \
 -user_stacks $6 \
--user_atl08 $7
+-user_atl08 $7 \
+-thresh_sol_el $8 \
+-v_ATL08 $9 \
+-minmonth $10 \
+-maxmonth $11
 
 python ${basedir}/tile_atl08.py \
 --updated_filters \
@@ -52,4 +56,8 @@ python ${basedir}/tile_atl08.py \
 -topo_stack_list_fn $4 \
 -landsat_stack_list_fn $5 \
 -user_stacks $6 \
--user_atl08 $7
+-user_atl08 $7 \
+-thresh_sol_el $8 \
+-v_ATL08 $9 \
+-minmonth $10 \
+-maxmonth $11
