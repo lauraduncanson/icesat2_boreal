@@ -104,7 +104,7 @@ def main():
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars -years_list 2020
     
     # Norway tile test that will return sol_el to the tiled ATL08 dataset
-    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 --thresh_sol_el 5 -v_ATL08 4
     
     Run on v4; need to make sure you specify a cols list that is present in what extract atl08 returned (so, no h_can_unc, seg_cover, )
     for v4 data extracted before late Dec 2021 updates, use these:
@@ -300,7 +300,7 @@ def main():
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
                                                            thresh_h_can=100, thresh_h_dif=100, month_min=minmonth, month_max=maxmonth)
     else:
-        print('New quality filtering with updated thresholding and returning night flag')
+        print('New quality filtering with updated thresholding ...')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
                                                            #subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            subset_cols_list=atl08_cols_list,
@@ -334,13 +334,13 @@ def main():
         
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
         
-        if len(atl08_gdf[atl08_gdf.sol_el < 0]) > N_OBS_SAMPLE:
+        if len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) > N_OBS_SAMPLE:
             print(f'Writing a sample CSV of {N_OBS_SAMPLE} sol elev obs. < {thresh_sol_el}: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
             atl08_gdf[atl08_gdf.sol_el < 0].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
         else:
-            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.sol_el < 0]) 
+            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) 
             print(f'Writing out a CSV of all sol elev obs. < {thresh_sol_el} (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
-            atl08_gdf[atl08_gdf.sol_el < 0].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+            atl08_gdf[atl08_gdf.sol_el < thresh_sol_el].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
 
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
