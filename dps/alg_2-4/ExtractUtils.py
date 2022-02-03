@@ -100,7 +100,7 @@ def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/
     
     date_filters = [f'{year}-{DATE_START},{year}-{DATE_END}' for year in YEARS]
     version = str(f'{version:03}')
-    
+
     base_query = {
     'short_name':"ATL08",
     'version':version, 
@@ -109,6 +109,7 @@ def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/
 
     #q3 = [build_query(copy.copy(base_query), date_filter) for date_filter in date_filters]
     queries = [dict(base_query, temporal=date_filter) for date_filter in date_filters]
+    print(f"\tSearching MAAP for granules using these parameters: \n\t{queries}")
     
     # query CMR as many seasons as necessary
     result_chain = itertools.chain.from_iterable([maap.searchGranule(**query) for query in queries])
