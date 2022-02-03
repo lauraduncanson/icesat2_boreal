@@ -344,11 +344,24 @@ mapBoreal<-function(rds_models,
     
     #sub-sample tile data to n_tile
     n_tile <- 3000
+    
+    #optional filter for only night data
     night_data <- which(tile_data$night_flg==1)
     n_avail <- length(night_data)
 
     if(n_avail > n_tile){
         tile_data <- tile_data[night_data,]
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
+    
+    #optional filter for solar elevation <5
+    sol_e_data <- which(tile_data$sol_el < 5)
+    n_avail <- length(sol_e_data)
+
+    if(n_avail > n_tile){
+        tile_data <- tile_data[sol_e_data,]
         samp_ids <- seq(1,n_avail)
         tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
