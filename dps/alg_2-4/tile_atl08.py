@@ -104,7 +104,7 @@ def main():
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars -years_list 2020
     
     # Norway tile test that will return sol_el to the tiled ATL08 dataset
-    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 --thresh_sol_el 5 -v_ATL08 4
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 -thresh_sol_el 5 -v_ATL08 4
     
     Run on v4; need to make sure you specify a cols list that is present in what extract atl08 returned (so, no h_can_unc, seg_cover, )
     for v4 data extracted before late Dec 2021 updates, use these:
@@ -134,16 +134,16 @@ def main():
     #parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     #parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
     #parser.add_argument("-m_max", "--month_max", type=int, default=9, help="The max month of each year for which ATL08 obs will be used")
-    parser.add_argument("--minmonth" , type=int, choices=[Range(1, 12)], default=6, help="Min month of ATL08 shots for output to include")
-    parser.add_argument("--maxmonth" , type=int, choices=[Range(1, 12)], default=9, help="Max month of ATL08 shots for output to include")
-    parser.add_argument("--thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
-    parser.add_argument('--atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
-    parser.add_argument('--topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
-    parser.add_argument('--landsat_cols_list', nargs='+',  default=['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], help='Landsat composite vars to extract')
+    parser.add_argument("-minmonth" , type=int, choices=[Range(1, 12)], default=6, help="Min month of ATL08 shots for output to include")
+    parser.add_argument("-maxmonth" , type=int, choices=[Range(1, 12)], default=9, help="Max month of ATL08 shots for output to include")
+    parser.add_argument("-thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
+    parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument('-topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
+    parser.add_argument('-landsat_cols_list', nargs='+',  default=['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], help='Landsat composite vars to extract')
     parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
-    parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
-    parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
+    #parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
+    #parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
     parser.add_argument('-years_list', nargs='+', type=int, default=[2020], help="Years of ATL08 used")
     parser.add_argument('-v_ATL08', type=int, default=4, help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
     parser.add_argument('-N_OBS_SAMPLE', type=int, default=250, help='Number of ATL08 obs to include in the sample CSV for the tile.')
@@ -185,14 +185,23 @@ def main():
     csv_list_fn = args.csv_list_fn
     topo_stack_list_fn = args.topo_stack_list_fn
     landsat_stack_list_fn = args.landsat_stack_list_fn
-    date_start = args.date_start
-    date_end = args.date_end
+
     years_list = args.years_list
     v_ATL08 = args.v_ATL08
     #thresh_h_can = args.thresh_h_can
     #thresh_h_dif = args.thresh_h_dif
     minmonth = args.minmonth
     maxmonth = args.maxmonth
+    #date_start = args.date_start
+    #date_end = args.date_end
+    
+    endday = 31
+    if maxmonth in [4,6,9,11]:
+        endday = 30 
+
+    date_start = str(f'{minmonth:02}-01')
+    date_end = str(f'{maxmonth:02}-{endday:02}')
+    
     thresh_sol_el = args.thresh_sol_el
     atl08_cols_list = args.atl08_cols_list
     topo_cols_list = args.topo_cols_list
@@ -224,7 +233,7 @@ def main():
     print("Years:\t\t\t", years_list)
     print("ATL08 bin length:\t",seg_str.replace("_",''))
     
-    out_name_stem = "atl08_"+str(f'{args.v_ATL08:03}')+seg_str+"_filt"
+    out_name_stem = "atl08_"+str(f'{v_ATL08:03}')+seg_str+"_filt"
     cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"  
     
     if csv_list_fn is not None:
@@ -332,11 +341,12 @@ def main():
         # CSV/geojson the file
         out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(f'{in_tile_num:04}'))
         
+        print(f"Writing a the tile's CSV with extracted covars: \n{out_fn}.csv")
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
         
         if len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) > N_OBS_SAMPLE:
             print(f'Writing a sample CSV of {N_OBS_SAMPLE} sol elev obs. < {thresh_sol_el}: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
-            atl08_gdf[atl08_gdf.sol_el < 0].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+            atl08_gdf[atl08_gdf.sol_el < thresh_sol_el].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
         else:
             N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) 
             print(f'Writing out a CSV of all sol elev obs. < {thresh_sol_el} (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
