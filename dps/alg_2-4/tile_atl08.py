@@ -28,23 +28,6 @@ import s3fs
 
 from shutil import copy
 
-class Range(object):
-        def __init__(self, start, end):
-            self.start = start
-            self.end = end
-
-        def __eq__(self, other):
-            return self.start <= other <= self.end
-
-        def __contains__(self, item):
-            return self.__eq__(item)
-
-        def __iter__(self):
-            yield self
-
-        def __str__(self):
-            return '[{0},{1}]'.format(self.start, self.end) 
-
 def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path'):
     print(dps_dir_csv + "/**/ATL08*" + seg_str + ".csv") 
     #seg_str="_30m"
@@ -134,8 +117,8 @@ def main():
     #parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     #parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
     #parser.add_argument("-m_max", "--month_max", type=int, default=9, help="The max month of each year for which ATL08 obs will be used")
-    parser.add_argument("-minmonth" , type=int, choices=[Range(1, 12)], default=6, help="Min month of ATL08 shots for output to include")
-    parser.add_argument("-maxmonth" , type=int, choices=[Range(1, 12)], default=9, help="Max month of ATL08 shots for output to include")
+    parser.add_argument("-minmonth" , type=int, default=6, help="Min month of ATL08 shots for output to include")
+    parser.add_argument("-maxmonth" , type=int, default=9, help="Max month of ATL08 shots for output to include")
     parser.add_argument("-thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
     parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
     parser.add_argument('-topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
