@@ -34,4 +34,11 @@ inputs:
     download: False
   - name: user_atl08
     download: False
-
+  - name: thresh_sol_el
+    download: False
+  - name: v_ATL08
+    download: False
+  - name: minmonth
+    download: False
+  - name: maxmonth
+    download: False
