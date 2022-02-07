@@ -8,7 +8,7 @@ import argparse
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
-    if type is 'public':
+    if type == 'public':
         replacement_str = f's3://maap-ops-workspace/shared/{user}'
     else:
         replacement_str = f's3://maap-ops-workspace/{user}'
@@ -63,7 +63,7 @@ def main():
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
     
-    if args.type is 'all':
+    if args.type == 'all':
         TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB']
     else:
         TYPE_LIST = [args.type]
@@ -111,11 +111,19 @@ def main():
             root = '/projects/my-private-bucket/dps_output/' + dps_out_subdir
             #root = local_to_s3(root, user=user, type='private')
             print(f'Root dir: {root}')
-
+            
+            # Start count at root level 
+            count_dps_out_subdir = 0
             for dir, subdir, files in os.walk(root):
+                
+                # Start count at root level 
+                #count_dps_out_subdir = 0
+                
                 for fname in files:
                     
                     if fname.endswith(ends_with_str) and not str_exclude in fname:
+                        
+                        count_dps_out_subdir = count_dps_out_subdir + 1
                         
                         if DEBUG: print(fname)
                         
@@ -137,9 +145,11 @@ def main():
                         else:
                             df = df.append({col_name:os.path.join(dir+"/", fname), 'tile_num':tile_num},ignore_index=True)
                         #if DEBUG: print(os.path.join(dir+"/", fname))
-        
+                        
+            print(f"{count_dps_out_subdir} AGB tiles in dps_output subdir: {dps_out_subdir}")
+                    
         num_with_duplicates = len(df[col_name].values)
-        print(len(df[col_name].values))
+        print(num_with_duplicates)
         
         # Drop duplicates
         df = df.drop_duplicates(subset=['tile_num'], keep='last')

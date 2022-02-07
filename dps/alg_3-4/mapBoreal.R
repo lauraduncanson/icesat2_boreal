@@ -344,6 +344,8 @@ mapBoreal<-function(rds_models,
     
     #sub-sample tile data to n_tile
     n_tile <- 3000
+    
+    #optional filter for only night data
     night_data <- which(tile_data$night_flg==1)
     n_avail <- length(night_data)
 
@@ -353,6 +355,17 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
+    
+    #optional filter for solar elevation <5
+    #sol_e_data <- which(tile_data$sol_el < 5)
+    #n_avail <- length(sol_e_data)
+
+    #if(n_avail > n_tile){
+    #    tile_data <- tile_data[sol_e_data,]
+    #    samp_ids <- seq(1,n_avail)
+    #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+    #    tile_data <- tile_data[tile_sample_ids,]
+    #}
     
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
@@ -379,9 +392,9 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }else{
-        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
     
     #create one single model for prediction

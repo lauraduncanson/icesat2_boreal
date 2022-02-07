@@ -85,13 +85,27 @@ def main():
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/my-public-bucket/DPS_tile_lists/TEST_BUILD_extract_atl08_csv_list.csv --do_30m -in_tile_num 3000 --extract_covars
     
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 3000 --extract_covars -years_list 2020
+    
+    # Norway tile test that will return sol_el to the tiled ATL08 dataset
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 -thresh_sol_el 5 -v_ATL08 4
+    
+    Run on v4; need to make sure you specify a cols list that is present in what extract atl08 returned (so, no h_can_unc, seg_cover, )
+    for v4 data extracted before late Dec 2021 updates, use these:
+    atl08_cols_list = ['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el']
+    for v4 data extracted after updates to extract_atl08.py (jan 2022), use these:
+    atl08_cols_list = ['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can', 'h_max_can', 'ter_slp', 'seg_landcov', 'sol_el', 'h_can_unc', 'h_te_best', 'h_te_unc', 'h_dif_ref']
+    for v5 data, all extracts will be run after the jan 2022 updates, and the seg_cover field is newly available, so use these:
+    atl08_cols_list = ['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can', 'h_max_can', 'ter_slp', 'seg_landcov', 'sol_el', 'h_can_unc', 'h_te_best', 'h_te_unc', 'h_dif_ref', 'seg_cover']
+    
+    previous default tiles: "/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg"
+    previous layername: grid_boreal_albers90k_gpkg
     '''
     
     parser = argparse.ArgumentParser()
     #parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations") 
     parser.add_argument("-in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
-    parser.add_argument("-in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
-    parser.add_argument("-in_tile_layer", type=str, default="grid_boreal_albers90k_gpkg", help="The layer name of the stack tiles dataset")
+    parser.add_argument("-in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_tiles_v002.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
+    parser.add_argument("-in_tile_layer", type=str, default="boreal_tiles_v002", help="The layer name of the stack tiles dataset")
     parser.add_argument("-csv_list_fn", type=str, default=None, help="The file of all CSVs paths")
     parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
     parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
@@ -103,12 +117,17 @@ def main():
     #parser.add_argument("-t_h_dif", "--thresh_h_dif", type=int, default=100, help="The threshold elev dif from ref below which ATL08 obs will be returned")
     #parser.add_argument("-m_min", "--month_min", type=int, default=6, help="The min month of each year for which ATL08 obs will be used")
     #parser.add_argument("-m_max", "--month_max", type=int, default=9, help="The max month of each year for which ATL08 obs will be used")
-    #parser.add_argument('-ocl', '--out_cols_list', nargs='+', default=[], help="A select list of strings matching ATL08 col names from the input EPT that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument("-minmonth" , type=int, default=6, help="Min month of ATL08 shots for output to include")
+    parser.add_argument("-maxmonth" , type=int, default=9, help="Max month of ATL08 shots for output to include")
+    parser.add_argument("-thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
+    parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument('-topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
+    parser.add_argument('-landsat_cols_list', nargs='+',  default=['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], help='Landsat composite vars to extract')
     parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
     parser.add_argument("-dps_dir_csv", type=str, default=None, help="The top-level DPS output dir for the ATL08 csv files (needed if csv_list_fn doesnt exist)")
-    parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
-    parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
-    parser.add_argument('-years_list', nargs='+', default=2020, help="Years of ATL08 used")
+    #parser.add_argument("-date_start", type=str, default="06-01", help="Seasonal start MM-DD")
+    #parser.add_argument("-date_end", type=str, default="09-30", help="Seasonal end MM-DD")
+    parser.add_argument('-years_list', nargs='+', type=int, default=[2020], help="Years of ATL08 used")
     parser.add_argument('-v_ATL08', type=int, default=4, help='The version of ATL08 that was extracted from the rebinning. Needed in case version string isnt updated in maap')
     parser.add_argument('-N_OBS_SAMPLE', type=int, default=250, help='Number of ATL08 obs to include in the sample CSV for the tile.')
     #parser.add_argument('-to_dir_cog', type=str, default='/projects/my-public-bucket/in_stacks_copy', help='COG copies of input stacks that are accessible with R in a workspace other than that of their creation')
@@ -149,15 +168,27 @@ def main():
     csv_list_fn = args.csv_list_fn
     topo_stack_list_fn = args.topo_stack_list_fn
     landsat_stack_list_fn = args.landsat_stack_list_fn
-    date_start = args.date_start
-    date_end = args.date_end
+
     years_list = args.years_list
     v_ATL08 = args.v_ATL08
     #thresh_h_can = args.thresh_h_can
     #thresh_h_dif = args.thresh_h_dif
-    #month_min = args.month_min
-    #month_max = args.month_max
-    #out_cols_list = args.out_cols_list
+    minmonth = args.minmonth
+    maxmonth = args.maxmonth
+    #date_start = args.date_start
+    #date_end = args.date_end
+    
+    endday = 31
+    if maxmonth in [4,6,9,11]:
+        endday = 30 
+
+    date_start = str(f'{minmonth:02}-01')
+    date_end = str(f'{maxmonth:02}-{endday:02}')
+    
+    thresh_sol_el = args.thresh_sol_el
+    atl08_cols_list = args.atl08_cols_list
+    topo_cols_list = args.topo_cols_list
+    landsat_cols_list = args.landsat_cols_list
     outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
@@ -185,7 +216,7 @@ def main():
     print("Years:\t\t\t", years_list)
     print("ATL08 bin length:\t",seg_str.replace("_",''))
     
-    out_name_stem = "atl08_"+str(f'{args.v_ATL08:03}')+seg_str+"_filt"
+    out_name_stem = "atl08_"+str(f'{v_ATL08:03}')+seg_str+"_filt"
     cur_date = time.strftime("%Y%m%d") #"%Y%m%d%H%M%S"  
     
     if csv_list_fn is not None:
@@ -193,8 +224,7 @@ def main():
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
         all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
-        
-        
+         
         if DEBUG:
             # Print ATL08 h5 granules for tile
             print([os.path.basename(f) for f in all_atl08_for_tile])      
@@ -258,15 +288,16 @@ def main():
     if not updated_filters:
         print('Original quality filtering')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           subset_cols_list=atl08_cols_list, #['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
-                                                           thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
+                                                           thresh_h_can=100, thresh_h_dif=100, month_min=minmonth, month_max=maxmonth)
     else:
-        print('New quality filtering with updated thresholding and returning night flag')
+        print('New quality filtering with updated thresholding ...')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                           subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           #subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
+                                                           subset_cols_list=atl08_cols_list,
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
-                                                           thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=6, month_max=9)
+                                                           thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)
     atl08=None
     
     # Convert to geopandas data frame in lat/lon
@@ -281,10 +312,10 @@ def main():
         if topo_covar_fn is not None and landsat_covar_fn is not None:
             print(f'\nExtract covars for {len(atl08_gdf)} ATL08 obs...')
             
-            atl08_gdf = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, ["elevation","slope","tsri","tpi", "slopemask"], reproject=True)
+            atl08_gdf = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, topo_cols_list, reproject=True)
             out_name_stem = out_name_stem + "_topo"
 
-            atl08_gdf = ExtractUtils.extract_value_gdf(landsat_covar_fn, atl08_gdf, ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], reproject=False)
+            atl08_gdf = ExtractUtils.extract_value_gdf(landsat_covar_fn, atl08_gdf, landsat_cols_list, reproject=False)
             out_name_stem = out_name_stem + "_landsat"
         
     if len(atl08_gdf) == 0:
@@ -293,15 +324,16 @@ def main():
         # CSV/geojson the file
         out_fn = os.path.join(outdir, out_name_stem + "_" + str(cur_date) + "_" + str(f'{in_tile_num:04}'))
         
+        print(f"Writing a the tile's CSV with extracted covars: \n{out_fn}.csv")
         atl08_gdf.to_csv(out_fn+".csv", index=False, encoding="utf-8-sig")
         
-        if len(atl08_gdf[atl08_gdf.night_flg == 1]) > N_OBS_SAMPLE:
-            print(f'Writing a sample CSV of {N_OBS_SAMPLE} night obs.: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
-            atl08_gdf[atl08_gdf.night_flg == 1].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+        if len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) > N_OBS_SAMPLE:
+            print(f'Writing a sample CSV of {N_OBS_SAMPLE} sol elev obs. < {thresh_sol_el}: {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.sol_el < thresh_sol_el].sample(N_OBS_SAMPLE, replace=False).to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
         else:
-            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.night_flg == 1]) 
-            print(f'Writing out a CSV of all night obs. (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
-            atl08_gdf[atl08_gdf.night_flg == 1].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
+            N_OBS_SAMPLE = len(atl08_gdf[atl08_gdf.sol_el < thresh_sol_el]) 
+            print(f'Writing out a CSV of all sol elev obs. < {thresh_sol_el} (no sampling - too few obs.): {out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv"}')
+            atl08_gdf[atl08_gdf.sol_el < thresh_sol_el].to_csv(out_fn+f"_SAMPLE_n{N_OBS_SAMPLE}.csv", index=False, encoding="utf-8-sig")
 
         #atl08_gdf.to_file(out_fn+'.geojson', driver="GeoJSON")
 
