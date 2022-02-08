@@ -59,5 +59,5 @@ python ${basedir}/tile_atl08.py \
 -user_atl08 $7 \
 -thresh_sol_el $8 \
 -v_ATL08 $9 \
--minmonth $10 \
--maxmonth $11
+-minmonth {$10} \
+-maxmonth {$11}
