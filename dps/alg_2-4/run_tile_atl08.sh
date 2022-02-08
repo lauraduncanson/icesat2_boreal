@@ -29,18 +29,18 @@ echo python ${basedir}/tile_atl08.py \
 --do_30m \
 -years_list 2020 \
 -o $OUTPUTDIR \
--in_tile_num $1 \
+-in_tile_num {$1} \
 -in_tile_fn $INPUT1 \
--in_tile_layer $2 \
--csv_list_fn $3 \
--topo_stack_list_fn $4 \
--landsat_stack_list_fn $5 \
--user_stacks $6 \
--user_atl08 $7 \
--thresh_sol_el $8 \
--v_ATL08 $9 \
--minmonth $10 \
--maxmonth $11
+-in_tile_layer {$2} \
+-csv_list_fn {$3} \
+-topo_stack_list_fn {$4} \
+-landsat_stack_list_fn {$5} \
+-user_stacks {$6}\
+-user_atl08 {$7} \
+-thresh_sol_el {$8} \
+-v_ATL08 {$9} \
+-minmonth {$10} \
+-maxmonth {$11}
 
 python ${basedir}/tile_atl08.py \
 --updated_filters \
@@ -49,15 +49,15 @@ python ${basedir}/tile_atl08.py \
 --do_30m \
 -years_list 2020 \
 -o $OUTPUTDIR \
--in_tile_num $1 \
+-in_tile_num {$1} \
 -in_tile_fn $INPUT1 \
--in_tile_layer $2 \
--csv_list_fn $3 \
--topo_stack_list_fn $4 \
--landsat_stack_list_fn $5 \
--user_stacks $6 \
--user_atl08 $7 \
--thresh_sol_el $8 \
--v_ATL08 $9 \
+-in_tile_layer {$2} \
+-csv_list_fn {$3} \
+-topo_stack_list_fn {$4} \
+-landsat_stack_list_fn {$5} \
+-user_stacks {$6} \
+-user_atl08 {$7} \
+-thresh_sol_el {$8} \
+-v_ATL08 {$9} \
 -minmonth {$10} \
 -maxmonth {$11}
