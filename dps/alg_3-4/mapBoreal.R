@@ -346,30 +346,33 @@ mapBoreal<-function(rds_models,
     n_tile <- 3000
     
     #optional filter for only night data
-    night_data <- which(tile_data$night_flg==1)
-    n_avail <- length(night_data)
-
-    if(n_avail > n_tile){
-        tile_data <- tile_data[night_data,]
-        samp_ids <- seq(1,n_avail)
-        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
-        tile_data <- tile_data[tile_sample_ids,]
-    }
-    
-    #optional filter for solar elevation <5
-    #sol_e_data <- which(tile_data$sol_el < 5)
-    #n_avail <- length(sol_e_data)
+    #night_data <- which(tile_data$night_flg==1)
+    #n_avail <- length(night_data)
 
     #if(n_avail > n_tile){
-    #    tile_data <- tile_data[sol_e_data,]
+    #    tile_data <- tile_data[night_data,]
     #    samp_ids <- seq(1,n_avail)
     #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
     #    tile_data <- tile_data[tile_sample_ids,]
     #}
     
+    #optional filter for solar elevation <5
+    sol_e_data <- which(tile_data$sol_el < 5)
+    n_avail <- length(sol_e_data)
+
+    if(n_avail > n_tile){
+        tile_data <- tile_data[sol_e_data,]
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
+    
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
-    all_train_data <- rbind(tile_data, broad_data)
+    
+    #can combine with broad_data or not
+    all_train_data <- tile_data
+    #all_train_data <- rbind(tile_data, broad_data)
     
     #set boreal only models for specific weird tiles
     weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
