@@ -38,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser()
         
     parser.add_argument("-t", "--type", type=str, choices=['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
-    parser.add_argument("-y", "--dps_year", type=str, default=2021, help="Specify the year of the DPS output")
+    parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-m", "--dps_month", type=int, default=9, help="Specify the month of the DPS output as a zero-padded string")
     parser.add_argument("-d_min", "--dps_day_min", type=int, default=1, help = "Specify the first day of the DPS output")
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
