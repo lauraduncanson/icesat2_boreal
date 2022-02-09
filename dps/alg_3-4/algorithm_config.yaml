@@ -12,7 +12,7 @@ queue: maap-dps-worker-32gb
 # explain what this algorithm does
 description: 
 # path to the wrapper script for running the algorithm
-run_command: icesat2_boreal/dps/alg_3-4/run_boreal_biomass.sh
+run_command: icesat2_boreal/dps/alg_3-4/run_boreal_biomass_sol_el.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
 disk_space: 10GB
 inputs:
