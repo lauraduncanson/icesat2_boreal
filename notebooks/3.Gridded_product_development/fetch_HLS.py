@@ -33,20 +33,23 @@ def query_stac(year, bbox, max_cloud, api):
     search = catalog.search(
         collections=["HLSL30.v2.0"],
         datetime=[start,end],
-        # max_items=80, # for testing
+        bbox=bbox,
+        max_items=500, # for testing, and keep it from hanging
         # query={"eo:cloud_cover":{"lt":20}} #doesn't work
     )
     results = search.get_all_items_as_dict()
     
-    print("initial resulats = ", results)
+    print("initial results = ", len(results['features']))
     
     filtered_results = []
     for i in results['features']:
-        if int(i['properties']['eo:cloud_cover']) <= cloudcover:
+        if int(i['properties']['eo:cloud_cover']) <= max_cloud:
             filtered_results.append(i)
     
     results['features'] = filtered_results
-    
+
+    print("filtered results = ", len(results['features']))
+
     return results
 
 def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
@@ -62,7 +65,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     bbox_list = [tile_id['bbox_4326']]
     max_cloud = 20
     # 2015
-    years = [2020]
+    years = [2020, 2021]
     #years = range(2015,2020 + 1)
     api = sat_api
     
@@ -71,7 +74,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
         print('run function')
         response_by_year = [query_stac(year, bbox, max_cloud, api) for year in years]
         
-        print(response_by_year)
+        # print(len(response_by_year[0]['features']))
     '''
     # Take the search over several years, write the geojson response for each
     ## TODO: need unique catalog names that indicate bbox tile, and time range used.
@@ -100,11 +103,11 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
 
     '''
 
+if __name__ == "__main__":
+    in_tile_fn = '/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg'
+    in_tile_layer = 'grid_boreal_albers90k_gpkg'
+    in_tile_num = 3013
+    out_dir = '/projects/tmp/Landsat/TC_test'
+    sat_api = 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD'
 
-in_tile_fn = '/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg'
-in_tile_layer = 'grid_boreal_albers90k_gpkg'
-in_tile_num = 3013
-out_dir = '/projects/tmp/Landsat/TC_test'
-sat_api = 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD'
-
-data = get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False)
+    data = get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False)
