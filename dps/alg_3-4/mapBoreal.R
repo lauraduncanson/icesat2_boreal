@@ -39,7 +39,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
   #print(names(xtable))
 
   if(DO_MASK){
-      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & night_flg == 1)
+      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   }
     
   xtable_i<-na.omit(as.data.frame(xtable))
