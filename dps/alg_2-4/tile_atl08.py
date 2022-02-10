@@ -88,6 +88,10 @@ def main():
     
     # Norway tile test that will return sol_el to the tiled ATL08 dataset
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 -thresh_sol_el 5 -v_ATL08 4
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 222 --extract_covars -years_list 2020 -thresh_sol_el 5 -v_ATL08 4 -minmonth 6 -maxmonth 9
+    # Grabbed the echo'd call from a successful DPS run
+    # removed the path to the script ; removed --do_dps ; replace the gpkg path ; replaced the output dir
+    python tile_atl08.py --updated_filters --extract_covars --do_30m -years_list 2020 -o /projects/my-public-bucket/atl08_filt_covar_tiles -in_tile_num 222 -in_tile_fn /projects/shared-buckets/nathanmthomas/boreal_tiles_v002.gpkg -in_tile_layer boreal_tiles_v002 -csv_list_fn s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv -topo_stack_list_fn s3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv -landsat_stack_list_fn s3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv -user_stacks nathanmthomas -user_atl08 lduncanson -thresh_sol_el 5 -v_ATL08 4 -minmonth 6 -maxmonth 9
     
     Run on v4; need to make sure you specify a cols list that is present in what extract atl08 returned (so, no h_can_unc, seg_cover, )
     for v4 data extracted before late Dec 2021 updates, use these:

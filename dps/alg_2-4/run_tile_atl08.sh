@@ -21,36 +21,15 @@ INPUT1="${PWD}/${FILENAMELIST[0]}"
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-#Print to stdout for debugging
-echo python ${basedir}/tile_atl08.py \
+cmd="python ${basedir}/tile_atl08.py \
 --updated_filters \
 --extract_covars \
 --do_dps \
 --do_30m \
 -years_list 2020 \
--o $OUTPUTDIR \
+-o ${OUTPUTDIR} \
 -in_tile_num ${1} \
--in_tile_fn $INPUT1 \
--in_tile_layer ${2} \
--csv_list_fn ${3} \
--topo_stack_list_fn ${4} \
--landsat_stack_list_fn ${5} \
--user_stacks ${6}\
--user_atl08 ${7} \
--thresh_sol_el ${8} \
--v_ATL08 ${9} \
--minmonth ${10} \
--maxmonth ${11}
-
-python ${basedir}/tile_atl08.py \
---updated_filters \
---extract_covars \
---do_dps \
---do_30m \
--years_list 2020 \
--o $OUTPUTDIR \
--in_tile_num ${1} \
--in_tile_fn $INPUT1 \
+-in_tile_fn ${INPUT1} \
 -in_tile_layer ${2} \
 -csv_list_fn ${3} \
 -topo_stack_list_fn ${4} \
@@ -60,4 +39,9 @@ python ${basedir}/tile_atl08.py \
 -thresh_sol_el ${8} \
 -v_ATL08 ${9} \
 -minmonth ${10} \
--maxmonth ${11}
+-maxmonth ${11}"
+
+# Print the command to stdout for debugging
+echo ${cmd}
+# Run the command
+eval ${cmd}
