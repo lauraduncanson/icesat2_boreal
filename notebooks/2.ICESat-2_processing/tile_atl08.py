@@ -262,11 +262,22 @@ def main():
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
                                                            thresh_h_can=100, thresh_h_dif=100, month_min=6, month_max=9)
     else:
+        '''
         print('New quality filtering with updated thresholding and returning night flag')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
                                                            subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
                                                            thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=6, month_max=9)
+        '''
+        
+        print('Apply the aggressive land-cover based (v3) filters updated in Jan/Feb 2022')
+        atl08_pdf_filt = FilterUtils.filter_atl08_qual_v3(atl08, SUBSET_COLS=True, DO_PREP=False,
+                                                            subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','h_te_best','granule_name',
+                                                                             'seg_landcov','seg_cover','sol_el','y','m','doy'], 
+                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
+                                                            list_lc_h_can_thresh=[0, 60, 60, 60, 60, 60, 60, 50, 50, 50, 50, 50, 50, 20, 10, 10, 5, 5, 0, 0, 0, 0, 0],
+                                                            thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=1, month_max=12)
+        
     atl08=None
     
     # Convert to geopandas data frame in lat/lon

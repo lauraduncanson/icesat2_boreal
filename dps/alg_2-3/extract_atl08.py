@@ -11,29 +11,15 @@ import numpy as np
 import pandas as pd
 import subprocess
 import os
-import math
-
 import argparse
 
 import datetime, time
 from datetime import datetime
 
-def rec_merge1(d1, d2):
-    '''return new merged dict of dicts'''
-    for k, v in d1.items(): # in Python 2, use .iteritems()!
-        if k in d2:
-            d2[k] = rec_merge1(v, d2[k])
-    d3 = d1.copy()
-    d3.update(d2)
-    return d3
 
-def extract_atl08(args):
-    TEST = args.TEST
-    do_30m = args.do_30m
-    
+def ICESAT2GRD(args):
     # File path to ICESat-2h5 file
     H5 = args.input
-    
     # Get the filepath where the H5 is stored and filename
     inDir = '/'.join(H5.split('/')[:-1])
     Name = H5.split('/')[-1].split('.')[0]
@@ -42,9 +28,8 @@ def extract_atl08(args):
         outbase = os.path.join(inDir, Name)
     else:
         outbase = os.path.join(args.output, Name)
-        
-    print("\nATL08 granule name: \t{}".format(Name))
-    print("Input dir: \t\t{}".format(inDir))
+    print(Name)
+    print(inDir)
 
     if args.overwrite:
         # Overwite is True (on)
@@ -58,25 +43,17 @@ def extract_atl08(args):
             # Overwite is False (off) but file DOES NOT exist
             pass
 
-    land_seg_path = '/land_segments/'
-    if do_30m:
-        segment_length = 30
-        land_seg_path = land_seg_path + str(segment_length) + 'm_segment/'
-    else:
-        segment_length = 100
-        
-    fn_tail = '_' + str(segment_length) + 'm.csv'
-    
-    print("\nSegment length: {}m".format(segment_length)) 
-    
+
     # open file
     f = h5py.File(H5,'r')
 
     # Set up acq date
-    dt, yr, m, d = ([] for i in range(4))
+    yr, m, d = ([] for i in range(3))
+
 
     # Set up orbit info fields
     gt, orb_num, rgt, orb_orient = ([] for i in range(4))
+
 
     # Set the names of the 6 lasers
     lines = ['gt1r', 'gt1l', 'gt2r', 'gt2l', 'gt3r', 'gt3l']
@@ -85,8 +62,7 @@ def extract_atl08(args):
     latitude, longitude, segid_beg, segid_end = ([] for i in range(4))
 
     # Canopy fields
-    can_h_met_0, can_h_met_1, can_h_met_2, can_h_met_3, can_h_met_4, can_h_met_5, can_h_met_6, can_h_met_7, can_h_met_8 = ([] for i in range(9))
-    can_h_met = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,50,	60,	70,	75,	80,	85,	90,	95
+    can_h_met = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,	50,	60,	70,	75,	80,	85,	90,	95
     h_max_can = []
     h_can = []      # 98% height of all the individual canopy relative heights for the segment above the estimated terrain surface. Relative canopy heights have been computed by differencing the canopy photon height from the estimated terrain surface.
 
@@ -101,7 +77,6 @@ def extract_atl08(args):
     cloud_flg = []     # Valid range is 0 - 10. Cloud confidence flag from ATL09 that indicates the number of cloud or aerosol layers identified in each 25Hz atmospheric profile. If the flag is greater than 0, aerosols or clouds could be present.
     msw_flg = []    # Multiple Scattering warning flag. The multiple scattering warning flag (ATL09 parameter msw_flag) has values from -1 to 5 where zero means no multiple scattering and 5 the greatest. If no layers were detected, then msw_flag = 0. If blowing snow is detected and its estimated optical depth is greater than or equal to 0.5, then msw_flag = 5. If the blowing snow optical depth is less than 0.5, then msw_flag = 4. If no blowing snow is detected but there are cloud or aerosol layers detected, the msw_flag assumes values of 1 to 3 based on the height of the bottom of the lowest layer: < 1 km, msw_flag = 3; 1-3 km, msw_flag = 2; > 3km, msw_flag = 1. A value of -1 indicates that the signal to noise of the data was too low to reliably ascertain the presence of cloud or blowing snow. We expect values of -1 to occur only during daylight.
     night_flg = []
-    seg_landcov = [] # IGBP Land Cover Surface type classification as reference from MODIS Land Cover(ANC18) at the 0.5 arcsecond res. flag_values: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 flag_meanings : Water Evergreen_Needleleaf_Forest Evergreen_Broadleaf_Forest Deciduous_Needleleaf_Forest Deciduous_Broadleaf_Forest Mixed_Forest Closed_Shrublands Open_Shrubla
 
     seg_snow = []  # 0=ice free water; 1=snow free land;  2=snow; 3=ice. Daily snow/ice cover from ATL09 at the 25 Hz rate(275m) indicating likely presence of snow and ice within each segment.
     seg_water = []  # no_water=0, water=1. Water mask(i.e. flag) indicating inland water as referenced from the Global Raster Water Mask(ANC33) at 250 m spatial resolution.
@@ -132,41 +107,33 @@ def extract_atl08(args):
     h_canopy_uncertainty = []
     h_canopy_quad = []
 
-    if False:
-        # Granule level info
-        granule_dt = datetime.strptime(Name.split('_')[1], '%Y%m%d%H%M%S')
+    # Granule level info
+    granule_dt = datetime.strptime(Name.split('_')[1], '%Y%m%d%H%M%S')
+    YEAR = granule_dt.year
+    MONTH = granule_dt.month
+    DOY = granule_dt.timetuple().tm_yday
 
-        YEAR = granule_dt.year
-        MONTH = granule_dt.month
-        DOY = granule_dt.timetuple().tm_yday
+    Arrtemp = f['/orbit_info/orbit_number/'][...,]
 
-        Arrtemp = f['/orbit_info/orbit_number/'][...,]
+    temp = np.empty_like(Arrtemp, dtype='a255')
+    temp[...] = YEAR
+    yr.append(temp)
 
-        temp = np.empty_like(Arrtemp, dtype='a255')
-        temp[...] = YEAR
-        yr.append(temp)
+    temp = np.empty_like(Arrtemp, dtype='a255')
+    temp[...] = MONTH
+    m.append(temp)
 
-        temp = np.empty_like(Arrtemp, dtype='a255')
-        temp[...] = YEAR
-        yr.append(temp)
+    temp = np.empty_like(Arrtemp, dtype='a255')
+    temp[...] = DOY
+    d.append(temp)
 
-        temp = np.empty_like(Arrtemp, dtype='a255')
-        temp[...] = MONTH
-        m.append(temp)
-
-        temp = np.empty_like(Arrtemp, dtype='a255')
-        temp[...] = DOY
-        d.append(temp)
-
-    dt.append(f['/ancillary_data/granule_end_utc/'][...,].tolist())
     orb_orient.append(f['/orbit_info/sc_orient/'][...,].tolist())
     orb_num.append(f['/orbit_info/orbit_number/'][...,].tolist())
     rgt.append(f['/orbit_info/rgt/'][...,].tolist())
 
-    #yr          =np.array([yr[l][k] for l in range(1) for k in range(len(yr[l]))] )
-    #m           =np.array([m[l][k] for l in range(1) for k in range(len(m[l]))] )
-    #d           =np.array([d[l][k] for l in range(1) for k in range(len(d[l]))] )
-    dt          =np.array([dt[l][k] for l in range(1) for k in range(len(dt[l]))] )    
+    yr          =np.array([yr[l][k] for l in range(1) for k in range(len(yr[l]))] )
+    m           =np.array([m[l][k] for l in range(1) for k in range(len(m[l]))] )
+    d           =np.array([d[l][k] for l in range(1) for k in range(len(d[l]))] )
     orb_orient  =np.array([orb_orient[l][k] for l in range(1) for k in range(len(orb_orient[l]))] )
     orb_num     =np.array([orb_num[l][k] for l in range(1) for k in range(len(orb_num[l]))] )
     rgt         =np.array([rgt[l][k] for l in range(1) for k in range(len(rgt[l]))] )
@@ -178,97 +145,64 @@ def extract_atl08(args):
         # It might be the case that a specific line/laser has no members in the h5 file.
         # If so, catch the error and skip - MW 3/31
         try:
-            latitude.append(f['/' + line    + land_seg_path + 'latitude/'][...,].tolist())
+            latitude.append(f['/' + line    + '/land_segments/latitude/'][...,].tolist())
         except KeyError:
             continue # No info for laser/line, skip it and move on to next line
 
-        longitude.append(f['/' + line   + land_seg_path + 'longitude/'][...,].tolist())
+        longitude.append(f['/' + line   + '/land_segments/longitude/'][...,].tolist())
 
         # Get ground track
-        Arrtemp = f['/' + line  + land_seg_path + 'latitude/'][...,]
+        Arrtemp = f['/' + line  + '/land_segments/latitude/'][...,]
         temp = np.empty_like(Arrtemp, dtype='a255')
         temp[...] = line
         gt.append(temp)
 
-        segid_beg.append(f['/' + line   + land_seg_path + 'segment_id_beg/'][...,].tolist())
-        segid_end.append(f['/' + line   + land_seg_path + 'segment_id_end/'][...,].tolist())
-        
-        # Canopy fields
-        if do_30m:
+        segid_beg.append(f['/' + line   + '/land_segments/segment_id_beg/'][...,].tolist())
+        segid_end.append(f['/' + line   + '/land_segments/segment_id_end/'][...,].tolist())
 
-            can_h_met_0.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_25/'][...,].tolist() )
-            can_h_met_1.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_30/'][...,].tolist() )
-            can_h_met_2.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_40/'][...,].tolist() )
-            can_h_met_3.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_50/'][...,].tolist() )
-            can_h_met_4.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_60/'][...,].tolist() )
-            can_h_met_5.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_70/'][...,].tolist() )
-            can_h_met_6.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_75/'][...,].tolist() )
-            can_h_met_7.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_80/'][...,].tolist() )
-            can_h_met_8.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_90/'][...,].tolist() )
-            
-            if TEST:
-                pass
-                #print(len(can_h_met_0), len(can_h_met_1), len(can_h_met_2))
-                
-            h_max_can.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_100/'][...,].tolist())
-            h_can.append(f['/' + line       + '/land_segments/30m_segment/atl03_rh_98/'][...,].tolist())
-            
-            n_ca_ph.append(f['/' + line     + '/land_segments/30m_segment/n_ca_photons/'][...,].tolist())
-            n_toc_ph.append(f['/' + line    + '/land_segments/30m_segment/n_toc_photons/'][...,].tolist())
-            can_open.append(f['/' + line    + '/land_segments/30m_segment/canopy_openness/'][...,].tolist())
-            tcc_flg.append(f['/' + line     + '/land_segments/30m_segment/landsat_flag/'][...,].tolist())
-            tcc_prc.append(f['/' + line     + '/land_segments/30m_segment/landsat_perc/'][...,].tolist())            
-        else:
-            can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
-            
-            h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
-            h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
-            
-            n_ca_ph.append(f['/' + line     + '/land_segments/canopy/n_ca_photons/'][...,].tolist())
-            n_toc_ph.append(f['/' + line    + '/land_segments/canopy/n_toc_photons/'][...,].tolist())
-            can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
-            tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
-            tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
-      
-    
+        # Canopy fields
+        can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
+        h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
+        h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
+
+        n_ca_ph.append(f['/' + line    	+ '/land_segments/canopy/n_ca_photons/'][...,].tolist())
+        n_toc_ph.append(f['/' + line   	+ '/land_segments/canopy/n_toc_photons/'][...,].tolist())
+        can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
+        tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
+        tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
+
         # Uncertinaty fields
-        cloud_flg.append(f['/' + line   + land_seg_path + 'cloud_flag_atm/'][...,].tolist())
-        msw_flg.append(f['/' + line     + land_seg_path + 'msw_flag/'][...,].tolist())
-        n_seg_ph.append(f['/' + line    + land_seg_path + 'n_seg_ph/'][...,].tolist())
-        night_flg.append(f['/' + line   + land_seg_path + 'night_flag/'][...,].tolist())
-        seg_landcov.append(f['/' + line + land_seg_path + 'segment_landcover/'][...,].tolist())
-        seg_snow.append(f['/' + line    + land_seg_path + 'segment_snowcover/'][...,].tolist())
-        seg_water.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
-        sig_vert.append(f['/' + line    + land_seg_path + 'sigma_atlas_land/'][...,].tolist())
-        sig_acr.append(f['/' + line     + land_seg_path + 'sigma_across/'][...,].tolist())
-        sig_along.append(f['/' + line   + land_seg_path + 'sigma_along/'][...,].tolist())
-        sig_h.append(f['/' + line       + land_seg_path + 'sigma_h/'][...,].tolist())
-        sig_topo.append(f['/' + line    + land_seg_path + 'sigma_topo/'][...,].tolist())
+        cloud_flg.append(f['/' + line   + '/land_segments/cloud_flag_atm/'][...,].tolist())
+        msw_flg.append(f['/' + line     + '/land_segments/msw_flag/'][...,].tolist())
+        n_seg_ph.append(f['/' + line    + '/land_segments/n_seg_ph/'][...,].tolist())
+        night_flg.append(f['/' + line   + '/land_segments/night_flag/'][...,].tolist())
+
+        seg_snow.append(f['/' + line    + '/land_segments/segment_snowcover/'][...,].tolist())
+        seg_water.append(f['/' + line   + '/land_segments/segment_watermask/'][...,].tolist())
+        sig_vert.append(f['/' + line    + '/land_segments/sigma_atlas_land/'][...,].tolist())
+        sig_acr.append(f['/' + line     + '/land_segments/sigma_across/'][...,].tolist())
+        sig_along.append(f['/' + line   + '/land_segments/sigma_along/'][...,].tolist())
+        sig_h.append(f['/' + line       + '/land_segments/sigma_h/'][...,].tolist())
+        sig_topo.append(f['/' + line    + '/land_segments/sigma_topo/'][...,].tolist())
 
         # Terrain fields
-        if do_30m:
-            n_te_ph.append(f['/' + line     + '/land_segments/30m_segment/n_te_photons/'][...,].tolist())
-            h_te_best.append(f['/' + line   + '/land_segments/30m_segment/h_te_best_fit/'][...,].tolist())
-            h_te_unc.append(f['/' + line    + '/land_segments/30m_segment/h_te_uncertainty/'][...,].tolist())
-            ter_slp.append(f['/' + line     + '/land_segments/30m_segment/terrain_slope/'][...,].tolist())
-        else:
-            n_te_ph.append(f['/' + line     + '/land_segments/terrain/n_te_photons/'][...,].tolist())
-            h_te_best.append(f['/' + line   + '/land_segments/terrain/h_te_best_fit/'][...,].tolist())
-            h_te_unc.append(f['/' + line    + '/land_segments/terrain/h_te_uncertainty/'][...,].tolist())
-            ter_slp.append(f['/' + line     + '/land_segments/terrain/terrain_slope/'][...,].tolist())
-            
-        snr.append(f['/' + line         + land_seg_path + 'snr/'][...,].tolist())
-        sol_az.append(f['/' + line      + land_seg_path + 'solar_azimuth/'][...,].tolist())
-        sol_el.append(f['/' + line      + land_seg_path + 'solar_elevation/'][...,].tolist())
+        n_te_ph.append(f['/' + line    	+ '/land_segments/terrain/n_te_photons/'][...,].tolist())
+        h_te_best.append(f['/' + line   + '/land_segments/terrain/h_te_best_fit/'][...,].tolist())
+        h_te_unc.append(f['/' + line    + '/land_segments/terrain/h_te_uncertainty/'][...,].tolist())
+        ter_slp.append(f['/' + line     + '/land_segments/terrain/terrain_slope/'][...,].tolist())
+        snr.append(f['/' + line         + '/land_segments/snr/'][...,].tolist())
+        sol_az.append(f['/' + line      + '/land_segments/solar_azimuth/'][...,].tolist())
+        sol_el.append(f['/' + line      + '/land_segments/solar_elevation/'][...,].tolist())
 
-        asr.append(f['/' + line         + land_seg_path + 'asr/'][...,].tolist())
-        h_dif_ref.append(f['/' + line   + land_seg_path + 'h_dif_ref/'][...,].tolist())
-        ter_flg.append(f['/' + line     + land_seg_path + 'terrain_flg/'][...,].tolist())
-        ph_rem_flg.append(f['/' + line  + land_seg_path + 'ph_removal_flag/'][...,].tolist())
-        dem_rem_flg.append(f['/' + line + land_seg_path + 'dem_removal_flag/'][...,].tolist())
-        seg_wmask.append(f['/' + line   + land_seg_path + 'segment_watermask/'][...,].tolist())
-        lyr_flg.append(f['/' + line     + land_seg_path + 'layer_flag/'][...,].tolist())
-    
+        asr.append(f['/' + line    		+ '/land_segments/asr/'][...,].tolist())
+        h_dif_ref.append(f['/' + line   + '/land_segments/h_dif_ref/'][...,].tolist())
+        ter_flg.append(f['/' + line    	+ '/land_segments/terrain_flg/'][...,].tolist())
+        ph_rem_flg.append(f['/' + line  + '/land_segments/ph_removal_flag/'][...,].tolist())
+        dem_rem_flg.append(f['/' + line + '/land_segments/dem_removal_flag/'][...,].tolist())
+        seg_wmask.append(f['/' + line   + '/land_segments/segment_watermask/'][...,].tolist())
+        lyr_flg.append(f['/' + line    	+ '/land_segments/layer_flag/'][...,].tolist())
+
+
     # MW 3/31: Originally a length of 6 was hardcoded into the below calculations because the
     #          assumption was made that 6 lines/lasers worth of data was stored in the arrays. With
     #	       the above changes made to the beginning of the 'for line in lines' loop on 3/31, this
@@ -278,10 +212,8 @@ def extract_atl08(args):
     # Be sure at least one of the lasers/lines for the h5 file had data points - MW added block 3/31
     if nLines == 0:
         return None # No usable points in h5 file, can't process
-    if TEST:
-        pass
-        #print("Convert the list of lists into a single list...")
-        
+
+    # Convert the list of lists into a single list
     latitude    =np.array([latitude[l][k] for l in range(nLines) for k in range(len(latitude[l]))] )
     longitude   =np.array([longitude[l][k] for l in range(nLines) for k in range(len(longitude[l]))] )
 
@@ -290,23 +222,10 @@ def extract_atl08(args):
     segid_beg   =np.array([segid_beg[l][k] for l in range(nLines) for k in range(len(segid_beg[l]))] )
     segid_end   =np.array([segid_end[l][k] for l in range(nLines) for k in range(len(segid_end[l]))] )
 
-    
+    can_h_met   =np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))] )
     h_max_can   =np.array([h_max_can[l][k] for l in range(nLines) for k in range(len(h_max_can[l]))] )
     h_can       =np.array([h_can[l][k] for l in range(nLines) for k in range(len(h_can[l]))] )
-    
-    if do_30m:
-        can_h_met_0 = np.array([can_h_met_0[l][k] for l in range(nLines) for k in range(len(can_h_met_0[l]))])
-        can_h_met_1 = np.array([can_h_met_1[l][k] for l in range(nLines) for k in range(len(can_h_met_1[l]))])
-        can_h_met_2 = np.array([can_h_met_2[l][k] for l in range(nLines) for k in range(len(can_h_met_2[l]))])
-        can_h_met_3 = np.array([can_h_met_3[l][k] for l in range(nLines) for k in range(len(can_h_met_3[l]))])
-        can_h_met_4 = np.array([can_h_met_4[l][k] for l in range(nLines) for k in range(len(can_h_met_4[l]))])
-        can_h_met_5 = np.array([can_h_met_5[l][k] for l in range(nLines) for k in range(len(can_h_met_5[l]))])
-        can_h_met_6 = np.array([can_h_met_6[l][k] for l in range(nLines) for k in range(len(can_h_met_6[l]))])
-        can_h_met_7 = np.array([can_h_met_7[l][k] for l in range(nLines) for k in range(len(can_h_met_7[l]))])
-        can_h_met_8 = np.array([can_h_met_8[l][k] for l in range(nLines) for k in range(len(can_h_met_8[l]))])
-    else:
-        can_h_met = np.array([can_h_met[l][k] for l in range(nLines) for k in range(len(can_h_met[l]))])
-        
+
     n_ca_ph     =np.array([n_ca_ph[l][k] for l in range(nLines) for k in range(len(n_ca_ph[l]))] )
     n_toc_ph    =np.array([n_toc_ph[l][k] for l in range(nLines) for k in range(len(n_toc_ph[l]))] )
     can_open    =np.array([can_open[l][k] for l in range(nLines) for k in range(len(can_open[l]))] )
@@ -317,7 +236,7 @@ def extract_atl08(args):
     msw_flg     =np.array([msw_flg[l][k] for l in range(nLines) for k in range(len(msw_flg[l]))] )
     n_seg_ph    =np.array([n_seg_ph[l][k] for l in range(nLines) for k in range(len(n_seg_ph[l]))] )
     night_flg    =np.array([night_flg[l][k] for l in range(nLines) for k in range(len(night_flg[l]))] )
-    seg_landcov =np.array([seg_landcov[l][k] for l in range(nLines) for k in range(len(seg_landcov[l]))] )
+
     seg_snow    =np.array([seg_snow[l][k] for l in range(nLines) for k in range(len(seg_snow[l]))] )
     seg_water   =np.array([seg_water[l][k] for l in range(nLines) for k in range(len(seg_water[l]))] )
     sig_vert    =np.array([sig_vert[l][k] for l in range(nLines) for k in range(len(sig_vert[l]))] )
@@ -342,111 +261,65 @@ def extract_atl08(args):
     seg_wmask	=np.array([seg_wmask[l][k] for l in range(nLines) for k in range(len(seg_wmask[l]))] )
     lyr_flg		=np.array([lyr_flg[l][k] for l in range(nLines) for k in range(len(lyr_flg[l]))] )
 
-    # Handle nodata
-    val_invalid = np.finfo('float32').max
-    val_nan = np.nan
-    val_nodata_src = np.max(h_can)
-    print("Find src nodata value using max of h_can: \t{}".format(val_nodata_src))
+
+    print(len(latitude), len(sol_el))
     
-    if TEST:
-        
-        # Testing with 'h_can'
-        
-        print("\n\tNan used for 30m version, not for 100m version.")
-        print("\t\tCheck max of h_can...")
-        print("\t\tnp.nanmax: \t{}".format(np.nanmax(h_can)) )
-        print("\t\tnp.max: \t{}".format(np.max(h_can)) )
-        
-           
-        
-        print('[BEFORE] # of nan ATL08 obs of h_can: \t{}'.format(len( h_can[np.isnan(h_can) ] )))
-        h_can = np.array([val_invalid if math.isnan(x) else x for x in h_can])
-        print("Set h_can max to float32 max; np.max: \t {}".format(np.max(h_can)))
-        print('[AFTER] # of nan ATL08 obs of h_can: \t{}'.format(len( h_can[np.isnan(h_can) ] )))
-        
-        print("\nData type: \t{}".format(h_can.dtype))
-        print("# of nan ATL08 obs of  h_can: \t{}".format( np.count_nonzero(np.isnan(h_can)) ))
-        print('# of invalid ATL08 obs of h_can: \t{}'.format(len( h_can[h_can == val_invalid ] )))
-        
-        print('# of ATL08 obs: \t\t{}'.format(len(latitude)))
-        print('# of ATL08 obs (can pho.>0): \t{}'.format(len(n_ca_ph[n_ca_ph>0])))
-        print('# of ATL08 obs (toc pho.>0): \t{}'.format(len(n_toc_ph[n_toc_ph>0])))
-        print('# of ATL08 obs (h_can>0): \t{}'.format(len(h_can[h_can>0])))
+    #
+    # Default set to 100.0. Set to 0 all heights above threshold
+    #
+    h_max_can[h_max_can>args.thresh_ht_max_can] = 0
 
     # Get approx path center Lat
     #CenterLat = latitude[len(latitude)/2]
     CenterLat = latitude[int(len(latitude)/2)]
 
-    if False:
-        # Calc args.resolution in degrees
-        ellipse = [6378137.0, 6356752.314245]
-        radlat = np.deg2rad(CenterLat)
-        Rsq = (ellipse[0]*np.cos(radlat))**2+(ellipse[1]*np.sin(radlat))**2
-        Mlat = (ellipse[0]*ellipse[1])**2/(Rsq**1.5)
-        Nlon = ellipse[0]**2/np.sqrt(Rsq)
-        pixelSpacingInDegreeX = float(args.resolution) / (np.pi/180*np.cos(radlat)*Nlon)
-        pixelSpacingInDegreeY = float(args.resolution) / (np.pi/180*Mlat)
-        print('Raster X (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeX))
-        print('Raster Y (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeY))
+    # Calc args.resolution in degrees
+    ellipse = [6378137.0, 6356752.314245]
+    radlat = np.deg2rad(CenterLat)
+    Rsq = (ellipse[0]*np.cos(radlat))**2+(ellipse[1]*np.sin(radlat))**2
+    Mlat = (ellipse[0]*ellipse[1])**2/(Rsq**1.5)
+    Nlon = ellipse[0]**2/np.sqrt(Rsq)
+    pixelSpacingInDegreeX = float(args.resolution) / (np.pi/180*np.cos(radlat)*Nlon)
+    pixelSpacingInDegreeY = float(args.resolution) / (np.pi/180*Mlat)
+    print('Raster X (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeX))
+    print('Raster Y (' + str(args.resolution) + ' m) Resolution at ' + str(CenterLat) + ' degrees N = ' + str(pixelSpacingInDegreeY))
 
     # Create a handy ID label for each point
     fid = np.arange(1, len(h_max_can)+1, 1)
 
-    if TEST:
-        print("\nSet up a dataframe dictionary...")
+    # Set up a dataframe
+    out=pd.DataFrame({
 
-    dict_pandas_df = {}
-    
-    dict_orb_gt_seg = {
                     'fid'       :fid,
                     'lon'       :longitude,
                     'lat'       :latitude,
 
-                    #'yr'        :np.full(longitude.shape, yr[0]),
-                    #'m'         :np.full(longitude.shape, m[0]),
-                    #'d'         :np.full(longitude.shape, d[0]),
-                    'dt'        :np.full(longitude.shape, dt[0]),
+                    'yr'        :np.full(longitude.shape, yr[0]),
+                    'm'         :np.full(longitude.shape, m[0]),
+                    'd'         :np.full(longitude.shape, d[0]),
+
                     'orb_orient':np.full(longitude.shape, orb_orient[0]),
                     'orb_num'   :np.full(longitude.shape, orb_num[0]),
                     'rgt'       :np.full(longitude.shape, rgt[0]),
                     'gt'        :gt,
 
                     'segid_beg' :segid_beg,
-                    'segid_end' :segid_end
-    }
-    if do_30m:
-        dict_rh_metrics_30m = {
-                        'h_max_can' :h_max_can,
-                        'h_can'     :h_can,
+                    'segid_end' :segid_end,
 
-                        'rh25'      :can_h_met_0,
-                        'rh30'      :can_h_met_1,
-                        'rh40'      :can_h_met_2,
-                        'rh50'      :can_h_met_3,
-                        'rh60'      :can_h_met_4,
-                        'rh70'      :can_h_met_5,
-                        'rh75'      :can_h_met_6,
-                        'rh80'      :can_h_met_7,
-                        'rh90'      :can_h_met_8     
-        }
-    else:
-        dict_rh_metrics_100m = {
-                        'h_max_can' :h_max_can,
-                        'h_can'     :h_can,
+                    'h_max_can' :h_max_can,
+                    'h_can'     :h_can,
+                    'rh25'      :can_h_met[:,0],
+                    'rh50'      :can_h_met[:,1],
+                    'rh60'      :can_h_met[:,2],
+                    'rh70'      :can_h_met[:,3],
+                    'rh75'      :can_h_met[:,4],
+                    'rh80'      :can_h_met[:,5],
+                    'rh85'      :can_h_met[:,6],
+                    'rh90'      :can_h_met[:,7],
+                    'rh95'      :can_h_met[:,8],
 
-                        'rh25'      :can_h_met[:,0],
-                        'rh50'      :can_h_met[:,1],
-                        'rh60'      :can_h_met[:,2],
-                        'rh70'      :can_h_met[:,3],
-                        'rh75'      :can_h_met[:,4],
-                        'rh80'      :can_h_met[:,5],
-                        'rh85'      :can_h_met[:,6],
-                        'rh90'      :can_h_met[:,7],
-                        'rh95'      :can_h_met[:,8]
-        }
-    dict_other_fields = {
-                    'n_ca_ph'   :n_ca_ph,
-                    'n_toc_ph'  :n_toc_ph,
+                    'n_ca_ph'  :n_ca_ph,
+                    'n_toc_ph' :n_toc_ph,
                     'can_open'  :can_open,
                     'tcc_flg'   :tcc_flg,
                     'tcc_prc'   :tcc_prc,
@@ -455,7 +328,7 @@ def extract_atl08(args):
                     'msw_flg'   :msw_flg,
                     'n_seg_ph'  :n_seg_ph,
                     'night_flg' :night_flg,
-                    'seg_landcov':seg_landcov,
+
                     'seg_snow'  :seg_snow,
                     'seg_water' :seg_water,
                     'sig_vert'  :sig_vert,
@@ -472,67 +345,29 @@ def extract_atl08(args):
                     'sol_az'    :sol_az,
                     'sol_el'    :sol_el,
 
-                    'asr'       :asr,
-                    'h_dif_ref' :h_dif_ref,
-                    'ter_flg'   :ter_flg,
-                    'ph_rem_flg':ph_rem_flg,
-                    'dem_rem_flg':dem_rem_flg,
-                    'seg_wmask' :seg_wmask,
-                    'lyr_flg'   :lyr_flg
-    }
-    print("\nBuilding pandas dataframe...")
-    if do_30m:
-        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_30m,dict_other_fields)) )
-    else:
-        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_100m,dict_other_fields)) )
+    				'asr'		:asr,
+    				'h_dif_ref'	:h_dif_ref,
+    				'ter_flg'	:ter_flg,
+    				'ph_rem_flg':ph_rem_flg,
+    				'dem_rem_flg':dem_rem_flg,
+    				'seg_wmask' :seg_wmask,
+    				'lyr_flg'	:lyr_flg
+
+                     })
     
-    print("Setting pandas df nodata values to np.nan for some basic eval.")
-    out = out.replace(val_nodata_src, np.nan)
-   
-    print('# of ATL08 obs: \t\t{}'.format(len(out.lat[out.lat.notnull()])))
-    print('# of ATL08 obs (can pho.>=0): \t{}'.format(len(out.n_ca_ph[
-                                                                    (out.h_can.notnull() ) & 
-                                                                    (out.n_ca_ph >= 0) 
-                                                                ])))
-    print('# of ATL08 obs (toc pho.>=0): \t{}'.format(len(out.n_toc_ph[
-                                                                    (out.h_can.notnull() ) & 
-                                                                    (out.n_toc_ph >= 0) 
-                                                                ])))
-    print('# of ATL08 obs (h_can>=0): \t{}'.format(len(out.h_can[
-                                                                (out.h_can.notnull() ) & 
-                                                                (out.h_can >= 0) 
-                                                               ])))
-    print('# of ATL08 obs (h_can<0): \t{}'.format(len(out.h_can[
-                                                                (out.h_can.notnull() ) & 
-                                                                (out.h_can < 0) 
-                                                               ])))
-    if args.set_nodata_nan:
-        val_nodata_out = val_nan
-    else:
-        val_nodata_out = val_invalid
-    print("Setting out pandas df nodata values: \t{}".format(val_nodata_out))
-    out = out.replace(np.nan, val_nodata_out)
-    
-    if args.set_flag_names:
-        # Set flag names
-        out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
-                                                     3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
-                                                     5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \
-                                                     8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \
-                                                     12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \
-                                                     15: "permanent snow-ice", 16: "barren"})
-        out['seg_snow'] = out['seg_snow'].map({0: "ice free water", 1: "snow free land", 2: "snow", 3: "ice"})
-        out['cloud_flg'] = out['cloud_flg'].map({0: "High conf. clear skies", 1: "Medium conf. clear skies", 2: "Low conf. clear skies", \
-                                                 3: "Low conf. cloudy skies", 4: "Medium conf. cloudy skies", 5: "High conf. cloudy skies"})
-        out['night_flg'] = out['night_flg'].map({0: "day", 1: "night"})
-        #out['tcc_flg'] = out['tcc_flg'].map({0: "=<5%", 1: ">5%"})
+    # Maybe add filtering right here, instead of using 'filter_atl08.R' next?
+    # Set flag names
+    out['seg_snow'] = out['seg_snow'].map({0: "ice free water", 1: "snow free land", 2: "snow", 3: "ice"})
+    out['cloud_flg'] = out['cloud_flg'].map({0: "High conf. clear skies", 1: "Medium conf. clear skies", 2: "Low conf. clear skies", 3: "Low conf. cloudy skies", 4: "Medium conf. cloudy skies", 5: "High conf. cloudy skies"})
+    out['night_flg'] = out['night_flg'].map({0: "day", 1: "night"})
+    #out['tcc_flg'] = out['tcc_flg'].map({0: "=<5%", 1: ">5%"})
                                          
     # Bin tcc values                                     
     tcc_bins = [0,10,20,30,40,50,60,70,80,90,100]
     out['tcc_bin'] = pd.cut(out['tcc_prc'], bins=tcc_bins, labels=tcc_bins[1:])
     
     if args.filter_qual:
-        print('Quality Filtering: \t\t[ON]')
+        print('Quality Filtering...')
 
         # These filters are customized for boreal 
         out = out[ (out['h_can']    <= args.max_h_can) & 
@@ -542,10 +377,10 @@ def extract_atl08(args):
                    (out['msw_flg']  == 0)
                   ]
     else:
-        print('Quality Filtering: \t[OFF] (do downstream)')
+        print('Turned off quality filtering; do downstream.')
 
     if args.filter_geo:
-        print('Geographic Filtering: \t[ON] xmin = {}, xmax = {}, ymin = {}, ymax = {}'.format(args.minlon, args.maxlon, args.minlat, args.maxlat))        
+        print('Geographic Filtering...')        
         # These filters are customized for boreal 
         out = out[ (out['lon']     >= args.minlon) & 
                    (out['lon']     <= args.maxlon) & 
@@ -553,64 +388,46 @@ def extract_atl08(args):
                    (out['lat']     <= args.maxlat)
                  ]
     else:
-        print('Geographic Filtering: \t[OFF] (do downstream)')
+        print('Turned off geographic filtering; do downstream.')
 
     if out.empty:
         print('File is empty.')
     else:
         # Write out to a csv
-        out_csv_fn = os.path.join(outbase + fn_tail)
-        print('Creating CSV: \t\t{}'.format(out_csv_fn))
-        out.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
+        print('Creating CSV...')
+        out.to_csv(os.path.join(outbase + '.csv'),index=False, encoding="utf-8-sig")
 
 
 def main():
-    print("\nWritten by:\n\tNathan Thomas\t| @Nmt28\n\tPaul Montesano\t| paul.m.montesano@nasa.gov\n")
+    print("\nICESat2GRD is written by Nathan Thomas (@Nmt28).\nModified by Paul Montesano | paul.m.montesano@nasa.gov\nUse '-h' for help and required input parameters\n")
                                          
     class Range(object):
         def __init__(self, start, end):
             self.start = start
             self.end = end
-
         def __eq__(self, other):
-            return self.start <= other <= self.end
-
-        def __contains__(self, item):
-            return self.__eq__(item)
-
-        def __iter__(self):
-            yield self
-
-        def __str__(self):
-            return '[{0},{1}]'.format(self.start, self.end)                                           
-
+            return self.start <= other <= self.end                                             
+                                         
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Specify the input ICESAT H5 file")
     parser.add_argument("-r", "--resolution", type=str, default='100', help="Specify the output raster resolution (m)")
     parser.add_argument("-o", "--output", type=str, help="Specify the output directory (optional)")
+    parser.add_argument("-t", "--thresh_ht_max_can", type=float, choices=[Range(0.0, 100.0)], default=100.0, help="The maximum height of valid canopy estimates" )
     parser.add_argument("-v", "--out_var", type=str, default='h_max_can', help="A selected variable to rasterize")
     parser.add_argument("-prj", "--out_epsg", type=str, default='102001', help="Out raster prj (default: Canada Albers Equal Area)")
     parser.add_argument("--max_h_can" , type=float, choices=[Range(0.0, 100.0)], default=30.0, help="Max value of h_can to include")
     parser.add_argument("--min_n_toc_ph" , type=int, default=1, help="Min number of top of canopy classified photons required for shot to be output")
-    parser.add_argument("--minlon" , type=float, choices=[Range(-180.0, 180.0)], default=-180.0, help="Min longitude of ATL08 shots for output to include") 
-    parser.add_argument("--maxlon" , type=float, choices=[Range(-180.0, 180.0)], default=180.0, help="Max longitude of ATL08 shots for output to include")
+    parser.add_argument("--minlon" , type=float, choices=[Range(-180.0, 180.0)], default=-160.0, help="Min longitude of ATL08 shots for output to include") 
+    parser.add_argument("--maxlon" , type=float, choices=[Range(-180.0, 180.0)], default=-50.0, help="Max longitude of ATL08 shots for output to include")
     parser.add_argument("--minlat" , type=float, choices=[Range(-90.0, 90.0)], default=45.0, help="Min latitude of ATL08 shots for output to include") 
     parser.add_argument("--maxlat" , type=float, choices=[Range(-90.0, 90.0)], default=75.0, help="Max latitude of ATL08 shots for output to include")
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false', help='Turn overwrite off (To help complete big runs that were interrupted)')
     parser.set_defaults(overwrite=True)
-    parser.add_argument('--no-filter-qual', dest='filter_qual', action='store_false', help='Turn off quality filtering (To control filtering downstream)')
+    parser.add_argument('--no-filter-qual', dest='filter_qual', action='store_false', help='Turn quality filtering off (To control filtering downstream)')
     parser.set_defaults(filter_qual=True)
-    parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn off geographic filtering (To control filtering downstream)')
+    parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn geographic filtering off (To control filtering downstream)')
     parser.set_defaults(filter_geo=True)
-    parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
-    parser.set_defaults(do_30m=False)
-    parser.add_argument('--set_flag_names', dest='set_flag_names', action='store_true', help='Set the flag values to meaningful flag names')
-    parser.set_defaults(set_flag_names=False)
-    parser.add_argument('--set_nodata_nan', dest='set_nodata_nan', action='store_true', help='Set output nodata to nan')
-    parser.set_defaults(set_nodata_nan=False)
-    parser.add_argument('--TEST', dest='TEST', action='store_true', help='Turn on testing')
-    parser.set_defaults(TEST=False)
-    
+
 
     args = parser.parse_args()
 
@@ -636,7 +453,7 @@ def main():
         print("Min lon: {}".format(args.minlon))
         print("Max lon: {}".format(args.maxlon))
 
-    extract_atl08(args)
+    ICESAT2GRD(args)
 
 
 if __name__ == "__main__":
