@@ -31,8 +31,8 @@ def main():
     This list is used to build a MosaicJSON for display in 3-DPSmosaic.ipynb
     
     Example calls: 
-        python CountOutput.py -t Topo -y 2021 --outdir /projects/my-public-bucket/DPS_tile_lists
-        python CountOutput.py -t Landsat -y 2021
+        python build_tindex_master.py -t Topo -y 2021 --outdir /projects/my-public-bucket/DPS_tile_lists
+        python build_tindex_master.py -t Landsat -y 2021
     """
     
     parser = argparse.ArgumentParser()
@@ -88,7 +88,7 @@ def main():
             ends_with_str = "_stack.tif"
         if "ATL08" in TYPE:
             #dps_out_subdir = f"run_extract_atl08_ubuntu/master/{args.dps_year}/{dps_month}/{dps_day_min}/"
-            dps_out_subdir_list = [f"run_extract_atl08_ubuntu/master/{args.dps_year}/{dps_month}/{format(d, '02')}/" for d in range(args.dps_day_min, args.dps_day_max)]
+            dps_out_subdir_list = [f"run_extract_filter_atl08_ubuntu/master/{args.dps_year}/{dps_month}/{format(d, '02')}/" for d in range(args.dps_day_min, args.dps_day_max)]
             user = 'lduncanson'
             ends_with_str = args.seg_str_atl08+".csv"
         if "filt" in TYPE:
