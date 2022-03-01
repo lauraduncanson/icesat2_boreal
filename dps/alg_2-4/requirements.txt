@@ -6,4 +6,5 @@ rasterio==1.2.6
 importlib_resources
 contextily
 fsspec
-s3fs==2022.1.0
+#s3fs==2022.1.0
+s3fs
