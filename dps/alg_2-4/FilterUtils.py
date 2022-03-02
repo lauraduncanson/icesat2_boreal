@@ -10,15 +10,15 @@ from pyproj import CRS, Transformer
 import sys
 #sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
-import ExtractUtils
+#import ExtractUtils
 
 #def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
-def reorder_4326_bounds(tile_parts):    
-    #tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
-    bounds_order = [0, 2, 1, 3]
-    out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
-    
-    return(out_4326_bounds)
+#def reorder_4326_bounds(tile_parts):    
+#    #tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+#    bounds_order = [0, 2, 1, 3]
+#    out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
+#    
+#    return(out_4326_bounds)
 
 def get_granules_list(granules):
     '''
@@ -43,13 +43,24 @@ def prep_filter_atl08_qual(atl08):
     '''
     
     print("\nPre-filter data cleaning...")
-     
-    atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Strong' 
-    atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Weak'
-    atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Weak'
-    atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Strong'
-    print(f"\tGet beam type from orbit orientation and ground track: {atl08.beam_type.unique()}")
+    print(f'Pandas version: {pd.__version__}')
 
+    # This always worked when running on MAAP: pandas 1.2.2
+    # This doesnt work with pandas 1.3.3 or pandas 1.2.2 on ADAPT
+    # if this fails, add back in this: '.str.decode('utf-8')'
+    # like:
+    # atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.decode('utf-8').str.contains('r')) ), "beam_type"] = 'Strong'
+    try:
+        atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Strong' 
+        atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Weak'
+        atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('r')) ), "beam_type"] = 'Weak'
+        atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.contains('l')) ), "beam_type"] = 'Strong'
+    except:
+        atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.decode('utf-8').str.contains('r')) ), "beam_type"] = 'Strong' 
+        atl08.loc[( (atl08.orb_orient == 1 ) & (atl08['gt'].str.decode('utf-8').str.contains('l')) ), "beam_type"] = 'Weak'
+        atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.decode('utf-8').str.contains('r')) ), "beam_type"] = 'Weak'
+        atl08.loc[( (atl08.orb_orient == 0 ) & (atl08['gt'].str.decode('utf-8').str.contains('l')) ), "beam_type"] = 'Strong'        
+    print(f"\tGet beam type from orbit orientation and ground track: {atl08.beam_type.unique()}")
 
     cols_float = ['lat', 'lon', 'h_can', 'h_te_best', 'ter_slp']
     print("\tCast some columns to:")
@@ -60,9 +71,20 @@ def prep_filter_atl08_qual(atl08):
     print(f"\t\ttype integer: {cols_int}")
     atl08[cols_int] = atl08[cols_int].apply(pd.to_numeric, downcast='signed', errors='coerce')
     
-    atl08['y'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.year    
-    atl08['m'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.month
-    atl08['d'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.day
+    # If there is a fail here, try the other version:
+    # atl08['y'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.year
+    # atl08['y'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.year
+    try:
+        atl08['y'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.year    
+        atl08['m'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.month
+        atl08['d'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.day
+        atl08['doy'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.dayofyear
+    except:
+        print('Attempt to decode datetime string of utf-8...')
+        atl08['y'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.year
+        atl08['m'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.month
+        atl08['d'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.day
+        atl08['doy'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.dayofyear
           
     return(atl08)
 
@@ -383,6 +405,135 @@ def filter_atl08_qual_v2(input_fn=None, subset_cols_list=['rh25','rh50','rh60','
                                 (atl08_df_filt.m <= month_max) 
                     ]    
     
+    print(f"\tAfter all quality filtering: \t\t{atl08_df_filt.shape[0]} observations in the output dataframe.")
+    
+    atl08_df_prepd = None
+    
+    print("\tReturning a pandas data frame.")
+    if SUBSET_COLS:
+        subset_cols_list = ['lon','lat'] + subset_cols_list
+        print("\tFiltered obs. for columns: {}".format(subset_cols_list))
+        print(f"\tData frame shape: {atl08_df_filt[subset_cols_list].shape} ")
+        return(atl08_df_filt[subset_cols_list])
+    else:
+        print("\tFiltered obs. for all columns")
+        return(atl08_df_filt)
+    
+def filter_atl08_qual_v3(input_fn=None, 
+                         subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh85','rh90','rh95','h_can','h_max_can','sol_el','seg_landcov'], 
+                         filt_cols =['h_can', 'h_can_unc','h_dif_ref','m','msw_flg','beam_type','seg_snow', 'sig_topo','seg_cover','sol_el','seg_landcov'], 
+                         list_lc_class_values=[0, 111, 113, 112, 114, 115, 116, 121, 123, 122, 124, 125, 126, 20, 30, 90, 100, 60, 40, 50, 70, 80, 200],
+                         list_lc_h_can_thresh=None,
+                         thresh_sig_topo=None, thresh_h_dif=None, 
+                         thresh_h_can = 100,
+                         thresh_seg_cov = 32767, # Copernicus fractional cover nodata flag
+                         thresh_sol_el = 5,
+                         thresh_h_can_unc = 5,
+                         month_min=None, month_max=None, 
+                         SUBSET_COLS=True, DO_PREP=True):
+    '''
+    Quality filtering Function(Version 3)
+    This is only appropriate for ATL08 v5 and above
+    Update to handle land-cover based h_can thresholding
+    Returns a data frame
+    Note: beams 1 & 5 strong (better radiometric perf, sensitive), then beam 3 [NOT IMPLEMENTED]
+    '''
+    # TODO: filt col names: make sure you have these in the EPT db
+    print("\nFiltering by quality")
+    
+    if not subset_cols_list:
+        print("filter_atl08_qual_v3: Must supply a list of strings matching ATL08 column that will be used to return a subset")
+        os._exit(1) 
+    elif thresh_h_can and list_lc_h_can_thresh is None:
+        print("filter_atl08_qual_v3: Must supply one of these: a threshold for h_can, or a land cover-specific list of h_can thresholds")
+        os._exit(1)    
+    elif thresh_h_dif is None:
+        print("filter_atl08_qual_v3: Must supply a threshold for h_dif_ref")
+        os._exit(1)
+    elif month_min is None or month_max is None:
+        print("filter_atl08_qual_v3: Must supply a month_min and month_max")
+        os._exit(1)  
+        
+    if input_fn is not None:
+        if not isinstance(input_fn, pd.DataFrame):
+            if input_fn.endswith('geojson'):
+                atl08_df = gpd.read(input_fn)
+            elif input_fn.endswith('csv'):
+                atl08_df = pd.read_csv(input_fn)
+            else:
+                print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
+                os._exit(1)
+        else:
+            atl08_df = input_fn
+            
+    if DO_PREP:
+        # Run the prep to get fields needed (v003)
+        atl08_df_prepd = prep_filter_atl08_qual(atl08_df)
+    else:
+        atl08_df_prepd = atl08_df
+    
+    
+    # Check that you have the cols that are required for the filter
+    filt_cols_not_in_df = [col for col in filt_cols if col not in atl08_df_prepd.columns] 
+    if len(filt_cols_not_in_df) > 0:
+        print("\tThese filter columns not found in input df: {}".format(filt_cols_not_in_df))
+        print("\tNo quality filtering done. Returning original df.")
+        return(atl08_df)
+    
+    atl08_df = None
+    
+    # Filtering
+    #
+    print(f"\tBefore quality filtering: \t\t{atl08_df_prepd.shape[0]} observations in the input dataframe.")
+                        
+    # Return a df prep'd for filtering
+    atl08_df_filt = atl08_df_prepd
+    
+    # [1] Filter using basic flags
+    #
+    # Static quality filter flags
+    filt_params_static = [
+                             ['msw_flg', 0],
+                             ['beam_type', 'Strong'],
+                             ['seg_snow' , 1]
+                        ]
+    # Apply filter
+    for flag, val in filt_params_static:
+        atl08_df_filt = atl08_df_filt[atl08_df_filt[flag] == val]
+        print(f"\tAfter {flag}={val}: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+        
+    # [2] Filter with h_can thresholds
+    if list_lc_h_can_thresh is None:
+        atl08_df_filt = atl08_df_filt[atl08_df_filt.h_can < thresh_h_can]
+        print(f"\tAfter basic h_can threshold: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+    else:
+        
+        dict_lc_h_can_thresh = dict(zip(list_lc_class_values, list_lc_h_can_thresh))
+        print(f"\tLand cover threshold dictionary: \n{dict_lc_h_can_thresh}")
+        atl08_df_filt = pd.concat([atl08_df_filt[(atl08_df_filt.seg_landcov == lc_val) & (atl08_df_filt.h_can < thresh_h_can)] for lc_val, thresh_h_can in dict_lc_h_can_thresh.items()])
+        print(f"\tAfter land-cover specific h_can thresholds: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+      
+    # [3] Filter using misc thresholds (global; eg not LC-specific)
+    #
+    # Obs LESS than these values will remain
+    dict_misc_thresh = {#'h_te_unc': 5, 
+                        'h_can_unc': thresh_h_can_unc, 
+                        'seg_cover': thresh_seg_cov, 
+                        'sol_el': thresh_sol_el,
+                        'sig_topo': thresh_sig_topo,
+                        'h_dif_ref': thresh_h_dif
+                        }
+    # Apply filter
+    atl08_df_filt = atl08_df_filt.loc[(atl08_df_filt[list(dict_misc_thresh)] < pd.Series(dict_misc_thresh)).all(axis=1)] 
+    print(f"\tAfter h_can_unc <{thresh_h_can_unc}, seg_cover<{thresh_seg_cov}, sol_el<{thresh_sol_el}, sig_topo<{thresh_sig_topo}, h_dif_ref<{thresh_h_dif}: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+    
+    # [4] Filter using min and max months
+    #
+    atl08_df_filt =  atl08_df_filt[
+                                (atl08_df_filt.m >= month_min ) & 
+                                (atl08_df_filt.m <= month_max) 
+                                    ]    
+    print(f"\tAfter month filters: {month_min}-{month_max}")
     print(f"\tAfter all quality filtering: \t\t{atl08_df_filt.shape[0]} observations in the output dataframe.")
     
     atl08_df_prepd = None
