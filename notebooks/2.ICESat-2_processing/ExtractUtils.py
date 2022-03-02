@@ -83,7 +83,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
     
     return tile_parts
 
-def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles.gpkg", layer="boreal_tiles_albers",DATE_START='06-01', DATE_END='09-30', YEARS=[2019, 2020, 2021], version=4):
+def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/boreal_tiles.gpkg", layer="boreal_tiles_albers",DATE_START='06-01', DATE_END='09-30', YEARS=[2019, 2020, 2021], version=4, MAX_GRANULES=10000):
     '''
     Return a list of ATL08 h5 names that intersect a tile for a give date range across a set of years
     '''
@@ -100,15 +100,17 @@ def maap_search_get_h5_list(tile_num, tile_fn="/projects/maap-users/alexdevseed/
     
     date_filters = [f'{year}-{DATE_START},{year}-{DATE_END}' for year in YEARS]
     version = str(f'{version:03}')
-    
+
     base_query = {
     'short_name':"ATL08",
     'version':version, 
-    'bounding_box':in_bbox
+    'bounding_box':in_bbox,
+    'limit': MAX_GRANULES,
     }
 
     #q3 = [build_query(copy.copy(base_query), date_filter) for date_filter in date_filters]
     queries = [dict(base_query, temporal=date_filter) for date_filter in date_filters]
+    print(f"\tSearching MAAP for granules using these parameters: \n\t{queries}")
     
     # query CMR as many seasons as necessary
     result_chain = itertools.chain.from_iterable([maap.searchGranule(**query) for query in queries])
