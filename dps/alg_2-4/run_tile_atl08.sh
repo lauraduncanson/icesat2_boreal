@@ -26,7 +26,6 @@ cmd="python ${basedir}/tile_atl08.py \
 --extract_covars \
 --do_dps \
 --do_30m \
--years_list 2020 \
 -o ${OUTPUTDIR} \
 -in_tile_num ${1} \
 -in_tile_fn ${INPUT1} \
@@ -34,12 +33,13 @@ cmd="python ${basedir}/tile_atl08.py \
 -csv_list_fn ${3} \
 -topo_stack_list_fn ${4} \
 -landsat_stack_list_fn ${5} \
--user_stacks ${6} \
--user_atl08 ${7} \
--thresh_sol_el ${8} \
--v_ATL08 ${9} \
--minmonth ${10} \
--maxmonth ${11}"
+-years_list ${6} \
+-user_stacks ${7} \
+-user_atl08 ${8} \
+-thresh_sol_el ${9} \
+-v_ATL08 ${10} \
+-minmonth ${11} \
+-maxmonth ${12}"
 
 # Print the command to stdout for debugging
 echo ${cmd}
