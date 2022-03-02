@@ -10,15 +10,15 @@ from pyproj import CRS, Transformer
 import sys
 #sys.path.append('/projects/code/icesat2_boreal/notebooks/3.Gridded_product_development')
 #from CovariateUtils import *
-#import ExtractUtils
+import ExtractUtils
 
 #def reorder_4326_bounds(boreal_tile_index_path, test_tile_id, buffer, layer):
-#def reorder_4326_bounds(tile_parts):    
-#    #tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
-#    bounds_order = [0, 2, 1, 3]
-#    out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
-#    
-#    return(out_4326_bounds)
+def reorder_4326_bounds(tile_parts):    
+    #tile_parts = ExtractUtils.get_index_tile(boreal_tile_index_path, test_tile_id, buffer=buffer, layer=layer)
+    bounds_order = [0, 2, 1, 3]
+    out_4326_bounds = [tile_parts['bbox_4326'][i] for i in bounds_order]
+    
+    return(out_4326_bounds)
 
 def get_granules_list(granules):
     '''
