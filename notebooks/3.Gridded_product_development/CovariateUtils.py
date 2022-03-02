@@ -11,7 +11,8 @@ from rio_cogeo.cogeo import cog_translate
 import geopandas
 import os
 import boto3
-
+from maap.maap import MAAP
+maap = MAAP(maap_host='api.ops.maap-project.org')
 
 
 def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
@@ -218,3 +219,14 @@ def get_aws_session():
         aws_session_token=credentials['SessionToken']
     )
     return AWSSession(boto3_session, requester_pays=True)
+
+def get_aws_session_DAAC():
+    """Create a Rasterio AWS Session with Credentials"""
+    creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
+    boto3_session = boto3.Session(
+        aws_access_key_id=creds['accessKeyId'], 
+        aws_secret_access_key=creds['secretAccessKey'],
+        aws_session_token=creds['sessionToken'],
+        region_name='us-west-2'
+    )
+    return AWSSession(boto3_session)
