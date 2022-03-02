@@ -11,9 +11,56 @@ import itertools
 import botocore
 import boto3
 from pystac_client import Client
+from maap.maap import MAAP
+maap = MAAP(maap_host='api.ops.maap-project.org')
 
 
-
+def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s3://"):
+    '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
+    creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
+    aws_session = boto3.session.Session(
+        aws_access_key_id=creds['accessKeyId'], 
+        aws_secret_access_key=creds['secretAccessKey'],
+        aws_session_token=creds['sessionToken'],
+        region_name='us-west-2')
+    s3 = aws_session.client('s3')
+    
+    with open(catalog) as f:
+        clean_features = []
+        asset_catalog = json.load(f)
+        
+        
+        
+        # Remove duplicate scenes, keeping newest
+        features = asset_catalog['features']
+        #sorted_features = sorted(features, key=lambda f: (f["properties"]["landsat:scene_id"], f["id"]))
+        #most_recent_features = list({ f["properties"]["landsat:scene_id"]: f for f in sorted_features }.values())
+        
+        for feature in features:
+            #print(feature)
+            try:
+                for band in bands:
+                    output_file = feature['assets'][band]['href'].replace('https://data.lpdaac.earthdatacloud.nasa.gov/', s3_path)
+                    # Only update the url to s3 if the s3 file exists
+                    #print(output_file)
+                    bucket_name = output_file.split("/")[2]
+                    s3_key = "/".join(output_file.split("/")[3:])
+                    head = s3.head_object(Bucket = bucket_name, Key = s3_key, RequestPayer='requester')
+                    if head['ResponseMetadata']['HTTPStatusCode'] == 200:
+                        feature['assets'][band]['href'] = output_file
+                clean_features.append(feature)
+            except botocore.exceptions.ClientError as e:
+                if e.response['Error']['Code'] == "404":
+                    print(f"The object does not exist. {output_file}")
+                else:
+                    raise
+        # save and updated catalog with local paths
+        asset_catalog['features'] = clean_features
+        local_catalog = catalog.replace('response', 'local-s3')
+        with open(local_catalog,'w') as jsonfile:
+            json.dump(asset_catalog, jsonfile)
+        
+        return local_catalog
 
 def query_stac(year, bbox, max_cloud, api):
     print('opening client')
@@ -52,6 +99,7 @@ def query_stac(year, bbox, max_cloud, api):
 
     return results
 
+
 def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
 
     geojson_path_albers = in_tile_fn
@@ -63,7 +111,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     # Accessing imagery
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]
-    max_cloud = 20
+    max_cloud = 40
     # 2015
     years = [2020, 2021]
     #years = range(2015,2020 + 1)
@@ -74,8 +122,8 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
         print('run function')
         response_by_year = [query_stac(year, bbox, max_cloud, api) for year in years]
         
-        # print(len(response_by_year[0]['features']))
-    '''
+        print(len(response_by_year[0]['features']))
+    
     # Take the search over several years, write the geojson response for each
     ## TODO: need unique catalog names that indicate bbox tile, and time range used.
     save_path = out_dir
@@ -86,28 +134,25 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
         "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
         
-    master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}.json')
+    master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}-HLS.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
     
-    bands = ['blue', 'green', 'red', 'nir08', 'swir16', 'swir22']
+    bands = ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']
     # If local True, rewrite the s3 paths to internal not public buckets
-    if (local):
-        # create local versions, only for the bands we use currently
-        #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
-        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://maap-ops-dataset/maap-users/alexdevseed/landsat8/sample2/")
-    else:
-        #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
-        master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://usgs-landsat/")
+    #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+    master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://")
+    
     return master_json
 
-    '''
-
+    
+'''
 if __name__ == "__main__":
     in_tile_fn = '/projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg'
     in_tile_layer = 'grid_boreal_albers90k_gpkg'
     in_tile_num = 3013
-    out_dir = '/projects/tmp/Landsat/TC_test'
-    sat_api = 'https://cmr.earthdata.nasa.gov/stac/LPCLOUD'
+    out_dir = '/projects/Developer/icesat2_boreal/notebooks/3.Gridded_product_development/'
+    sat_api = "https://cmr.earthdata.nasa.gov/stac/LPCLOUD"
 
     data = get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False)
+'''

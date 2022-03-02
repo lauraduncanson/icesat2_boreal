@@ -12,10 +12,12 @@ from rasterio.crs import CRS
 from rio_tiler.io import COGReader
 import numpy as np
 from rasterio.session import AWSSession
-from CovariateUtils import write_cog, get_index_tile, get_aws_session
-from fetch_from_api import get_data
+from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC
+from fetch_HLS import get_data
 import json
 import datetime
+from maap.maap import MAAP
+maap = MAAP(maap_host='api.ops.maap-project.org')
 
 def get_shape(bbox, res=30):
     left, bottom, right, top = bbox
@@ -40,7 +42,8 @@ def get_json(s3path, output):
     return catalog
 
 def GetBandLists(inJSON, bandnum):
-    bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
+    #bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
+    bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
     BandList = []
     with open(inJSON) as f:
         response = json.load(f)
@@ -66,15 +69,18 @@ def MaskArrays(file, in_bbox, height, width, epsg="epsg:4326", dst_crs="epsg:432
         return img.crs, img.transform
     # Surface reflectance collection 2 scaling offset and bias
     # 0.0000275 + -0.2
-    return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
 
-def CreateNDVIstack(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width):
+    return (np.squeeze(img.as_masked().astype(np.float32)) * 0.001)
+    #return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
+
+def CreateNDVIstack(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width):
     '''Calculate NDVI for each source scene'''
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, epsg, dst_crs)
+    fmaskarr = MaskArrays(fmask, in_bbox, height, width, epsg, dst_crs)
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
-    return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+    return np.ma.array(np.where(fmaskarr==1, -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
 
 # insert the bands as arrays (made earlier)
@@ -108,6 +114,18 @@ def JulianComposite(file_list, NDVItmp, BoolMask, height, width):
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
     
     return JulianComposite
+
+def createJulianDateHLS(file, height, width):
+    j_date = file.split('/')[-1].split('.')[3][4:7]
+    date_arr = np.full((height, width),j_date,dtype=np.float32)
+    return date_arr
+    
+def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
+    JulianDateImages = [createJulianDateHLS(file_list[i], height, width) for i in range(len(file_list))]
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    
+    return JulianComposite
+    
 
 # Co-var functions
 # Reads in bands on the fly, as needed
@@ -192,9 +210,11 @@ def VegMask(NDVI):
 
 def get_pixel_coords(arr, transform):
     rows = np.arange(0,np.shape(arr)[0],1)
-    Ygeo = np.tile(((transform[2]+(0.5*transform[0])) + (rows*transform[0])).reshape(np.shape(arr)[0],1), np.shape(arr)[1]).astype(np.float32())
+    Yarr = (((transform[2]+(0.5*transform[0])) + (rows*transform[0])).reshape(np.shape(arr)[0],1))[::-1]
+    Ygeo = np.tile(Yarr, np.shape(arr)[1]).astype(np.float32())
     cols = np.arange(0,np.shape(arr)[1],1)
-    Xgeo = np.tile(((transform[5]+(0.5*transform[4])) + (cols*transform[4])), (np.shape(arr)[0],1)).astype(np.float32())
+    Xarr = ((transform[5]+(0.5*transform[4])) + (cols*transform[4]))[::-1]
+    Xgeo = np.tile(Xarr, (np.shape(arr)[0],1)).astype(np.float32())
     
     return Xgeo, Ygeo
 
@@ -255,6 +275,7 @@ def main():
     nir_bands = GetBandLists(master_json, 5)
     swir_bands = GetBandLists(master_json, 6)
     swir2_bands = GetBandLists(master_json, 7)
+    fmask_bands = GetBandLists(master_json, 8)
     
     print("Number of files per band =", len(blue_bands))
     print(blue_bands[0])
@@ -266,12 +287,12 @@ def main():
     print('Creating NDVI stack...')
     
     # insert AWS credentials here if needed
-    aws_session = get_aws_session()
+    aws_session = get_aws_session_DAAC()
     # Start reading data
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, out_crs, out_crs, incl_trans=True)
         print(in_crs)
-        NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs, height, width) for i in range(len(red_bands))]
+        NDVIstack = [CreateNDVIstack(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width) for i in range(len(red_bands))]
         print('finished')
     
     
@@ -313,7 +334,7 @@ def main():
         print('Creating NDVI Composite')
         NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
         print('Creating Julian Date Comp')
-        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
+        JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
     
     # calculate covars
     print("Generating covariates")
@@ -363,6 +384,8 @@ if __name__ == "__main__":
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 0
     
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0
+    
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0
     '''
     main()
     
