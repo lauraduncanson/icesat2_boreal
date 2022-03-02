@@ -30,6 +30,8 @@ inputs:
     download: False
   - name: landsat_stack_list_fn
     download: False
+  - name: years_list
+    download: False
   - name: user_stacks
     download: False
   - name: user_atl08

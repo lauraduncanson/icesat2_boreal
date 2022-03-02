@@ -30,14 +30,27 @@ def rec_merge1(d1, d2):
 def extract_atl08(args):
     TEST = args.TEST
     do_30m = args.do_30m
+    filter_qual = args.filter_qual
     
     # File path to ICESat-2h5 file
     H5 = args.input
     
     # Get the filepath where the H5 is stored and filename
     inDir = '/'.join(H5.split('/')[:-1])
-    Name = H5.split('/')[-1].split('.')[0]
+    granule_fname = H5.split('/')[-1]
+    Name = granule_fname.split('.')[0]
 
+    # Get version
+    atl08_version = int(granule_fname.split('_')[-2])
+    
+    if atl08_version < 5:
+        print("\nNeed ATL08 v5 or above to implement the updated v3 filtering.")
+        print("The v3 quality filtering from FilterUtils.py wants to use 'seg_cover' which is not available before ATL08 v5")
+        print("Build in logic to this script to use v2 quality filtering from FilterUtils.py, which will work with ATL08 v3")
+        print("Turning filtering off now.")
+        print('Quality Filtering: \t[OFF] (you should upgrade ATL08 to v5)')
+        filter_qual = False
+    
     if args.output == None:
         outbase = os.path.join(inDir, Name)
     else:
@@ -89,12 +102,16 @@ def extract_atl08(args):
     can_h_met = []   # Relative	(RH--)	canopy height	metrics calculated	at	the	following	percentiles: 25,50,	60,	70,	75,	80,	85,	90,	95
     h_max_can = []
     h_can = []      # 98% height of all the individual canopy relative heights for the segment above the estimated terrain surface. Relative canopy heights have been computed by differencing the canopy photon height from the estimated terrain surface.
+    h_can_unc = []
+    h_can_quad = []
 
     n_ca_ph = []
     n_toc_ph = []
     can_open = []    # stdv of all photons classified as canopy within segment
+    can_rh_conf = [] # Canopy relative height confidence flag based on percentage of ground and canopy photons within a segment: 0 (<5% canopy), 1 (>5% canopy, <5% ground), 2 (>5% canopy, >5% ground)
     tcc_flg = [] # Flag indicating that more than 50% of the Landsat Continuous Cover product have values > 100 for the L-Km segment.  Canopy is assumed present along the L-km segment if landsat_flag is 1.
     tcc_prc = [] # Average percentage value of the valid (value <= 100) Landsat Tree Cover Continuous Fields product for each 100 m segment
+    seg_cover = [] # Average percentage value of the valid (value <= 100) Copernicus fractional cover product for each 100 m segment
 
     # Uncertainty fields
     n_seg_ph = []   # Number of photons within each land segment.
@@ -127,10 +144,6 @@ def extract_atl08(args):
     dem_rem_flg = []
     seg_wmask = []
     lyr_flg = []
-
-    # NEED TO ADD THESE
-    h_canopy_uncertainty = []
-    h_canopy_quad = []
 
     if False:
         # Granule level info
@@ -212,23 +225,37 @@ def extract_atl08(args):
                 
             h_max_can.append(f['/' + line   + '/land_segments/30m_segment/atl03_rh_100/'][...,].tolist())
             h_can.append(f['/' + line       + '/land_segments/30m_segment/atl03_rh_98/'][...,].tolist())
+            h_can_quad.append(f['/' + line  + '/land_segments/30m_segment/h_canopy_quad'][...,].tolist())
+            h_can_unc.append(f['/' + line   + '/land_segments/30m_segment/h_canopy_uncertainty'][...,].tolist())
             
             n_ca_ph.append(f['/' + line     + '/land_segments/30m_segment/n_ca_photons/'][...,].tolist())
             n_toc_ph.append(f['/' + line    + '/land_segments/30m_segment/n_toc_photons/'][...,].tolist())
             can_open.append(f['/' + line    + '/land_segments/30m_segment/canopy_openness/'][...,].tolist())
-            tcc_flg.append(f['/' + line     + '/land_segments/30m_segment/landsat_flag/'][...,].tolist())
-            tcc_prc.append(f['/' + line     + '/land_segments/30m_segment/landsat_perc/'][...,].tolist())            
+            can_rh_conf.append(f['/' + line + '/land_segments/30m_segment/canopy_rh_conf/'][...,].tolist())
+            
+            if(atl08_version > 4):
+                seg_cover.append(f['/' + line   + '/land_segments/30m_segment/segment_cover/'][...,].tolist())
+            else:
+                tcc_flg.append(f['/' + line     + '/land_segments/30m_segment/landsat_flag/'][...,].tolist())
+                tcc_prc.append(f['/' + line     + '/land_segments/30m_segment/landsat_perc/'][...,].tolist())
         else:
             can_h_met.append(f['/' + line   + '/land_segments/canopy/canopy_h_metrics/'][...,].tolist())
             
             h_max_can.append(f['/' + line   + '/land_segments/canopy/h_max_canopy/'][...,].tolist())
             h_can.append(f['/' + line       + '/land_segments/canopy/h_canopy/'][...,].tolist())
+            h_can_quad.append(f['/' + line  + '/land_segments/canopy/h_canopy_quad'][...,].tolist())
+            h_can_unc.append(f['/' + line   + '/land_segments/canopy/h_canopy_uncertainty'][...,].tolist())
             
             n_ca_ph.append(f['/' + line     + '/land_segments/canopy/n_ca_photons/'][...,].tolist())
             n_toc_ph.append(f['/' + line    + '/land_segments/canopy/n_toc_photons/'][...,].tolist())
             can_open.append(f['/' + line    + '/land_segments/canopy/canopy_openness/'][...,].tolist())
-            tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
-            tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
+            can_rh_conf.append(f['/' + line + '/land_segments/canopy/canopy_rh_conf/'][...,].tolist())
+
+            if(atl08_version > 4):
+                seg_cover.append(f['/' + line   + '/land_segments/canopy/segment_cover/'][...,].tolist())
+            else:
+                tcc_flg.append(f['/' + line     + '/land_segments/canopy/landsat_flag/'][...,].tolist())
+                tcc_prc.append(f['/' + line     + '/land_segments/canopy/landsat_perc/'][...,].tolist())
       
     
         # Uncertinaty fields
@@ -293,6 +320,8 @@ def extract_atl08(args):
     
     h_max_can   =np.array([h_max_can[l][k] for l in range(nLines) for k in range(len(h_max_can[l]))] )
     h_can       =np.array([h_can[l][k] for l in range(nLines) for k in range(len(h_can[l]))] )
+    h_can_unc   =np.array([h_can_unc[l][k] for l in range(nLines) for k in range(len(h_can_unc[l]))] )
+    h_can_quad  =np.array([h_can_quad[l][k] for l in range(nLines) for k in range(len(h_can_quad[l]))] )
     
     if do_30m:
         can_h_met_0 = np.array([can_h_met_0[l][k] for l in range(nLines) for k in range(len(can_h_met_0[l]))])
@@ -310,8 +339,12 @@ def extract_atl08(args):
     n_ca_ph     =np.array([n_ca_ph[l][k] for l in range(nLines) for k in range(len(n_ca_ph[l]))] )
     n_toc_ph    =np.array([n_toc_ph[l][k] for l in range(nLines) for k in range(len(n_toc_ph[l]))] )
     can_open    =np.array([can_open[l][k] for l in range(nLines) for k in range(len(can_open[l]))] )
-    tcc_flg     =np.array([tcc_flg[l][k] for l in range(nLines) for k in range(len(tcc_flg[l]))] )
-    tcc_prc     =np.array([tcc_prc[l][k] for l in range(nLines) for k in range(len(tcc_prc[l]))] )
+    can_rh_conf =np.array([can_rh_conf[l][k] for l in range(nLines) for k in range(len(can_rh_conf[l]))] )
+    if(atl08_version > 4):
+        seg_cover    =np.array([seg_cover[l][k] for l in range(nLines) for k in range(len(seg_cover[l]))] )
+    else:
+        tcc_flg     =np.array([tcc_flg[l][k] for l in range(nLines) for k in range(len(tcc_flg[l]))] )
+        tcc_prc     =np.array([tcc_prc[l][k] for l in range(nLines) for k in range(len(tcc_prc[l]))] )
 
     cloud_flg   =np.array([cloud_flg[l][k] for l in range(nLines) for k in range(len(cloud_flg[l]))] )
     msw_flg     =np.array([msw_flg[l][k] for l in range(nLines) for k in range(len(msw_flg[l]))] )
@@ -394,9 +427,7 @@ def extract_atl08(args):
 
     if TEST:
         print("\nSet up a dataframe dictionary...")
-
-    dict_pandas_df = {}
-    
+ 
     dict_orb_gt_seg = {
                     'fid'       :fid,
                     'lon'       :longitude,
@@ -415,9 +446,11 @@ def extract_atl08(args):
                     'segid_end' :segid_end
     }
     if do_30m:
-        dict_rh_metrics_30m = {
+        dict_rh_metrics = {
                         'h_max_can' :h_max_can,
                         'h_can'     :h_can,
+                        'h_can_quad':h_can_quad,
+                        'h_can_unc' :h_can_unc,
 
                         'rh25'      :can_h_met_0,
                         'rh30'      :can_h_met_1,
@@ -430,9 +463,11 @@ def extract_atl08(args):
                         'rh90'      :can_h_met_8     
         }
     else:
-        dict_rh_metrics_100m = {
+        dict_rh_metrics = {
                         'h_max_can' :h_max_can,
                         'h_can'     :h_can,
+                        'h_can_quad':h_can_quad,
+                        'h_can_unc' :h_can_unc,
 
                         'rh25'      :can_h_met[:,0],
                         'rh50'      :can_h_met[:,1],
@@ -444,12 +479,11 @@ def extract_atl08(args):
                         'rh90'      :can_h_met[:,7],
                         'rh95'      :can_h_met[:,8]
         }
-    dict_other_fields = {
+    dict_misc_fields = {
                     'n_ca_ph'   :n_ca_ph,
                     'n_toc_ph'  :n_toc_ph,
                     'can_open'  :can_open,
-                    'tcc_flg'   :tcc_flg,
-                    'tcc_prc'   :tcc_prc,
+                    'can_rh_conf':can_rh_conf,
 
                     'cloud_flg' :cloud_flg,
                     'msw_flg'   :msw_flg,
@@ -480,11 +514,19 @@ def extract_atl08(args):
                     'seg_wmask' :seg_wmask,
                     'lyr_flg'   :lyr_flg
     }
-    print("\nBuilding pandas dataframe...")
-    if do_30m:
-        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_30m,dict_other_fields)) )
+
+    if(atl08_version > 4):
+        dict_version_dep_fields = {
+                                'seg_cover'  :seg_cover
+        }
     else:
-        out=pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics_100m,dict_other_fields)) )
+        dict_version_dep_fields = {
+                                'tcc_flg'   :tcc_flg,
+                                'tcc_prc'   :tcc_prc
+                                    }
+        
+    print("\nBuilding pandas dataframe...")
+    out = pd.DataFrame(rec_merge1(dict_orb_gt_seg, rec_merge1(dict_rh_metrics, rec_merge1(dict_misc_fields, dict_version_dep_fields))))
     
     print("Setting pandas df nodata values to np.nan for some basic eval.")
     out = out.replace(val_nodata_src, np.nan)
@@ -515,30 +557,55 @@ def extract_atl08(args):
     
     if args.set_flag_names:
         # Set flag names
-        out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
-                                                     3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
-                                                     5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \
-                                                     8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \
-                                                     12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \
-                                                     15: "permanent snow-ice", 16: "barren"})
+        if(atl08_version > 4):
+            class_values = [ 0, 111, 113, 112, 114, 115, 116, 121, 123, 122, 124, 125, 126, 20, 30, 90, 100, 60, 40, 50, 70, 80, 200] 
+            class_names = ['No data','Closed forest\nevergreen needle','Closed forest\ndeciduous needle','Closed forest\nevergreen_broad','Closed forest\ndeciduous broad','Closed forest\nmixed', 'Closed forest\nunknown','Open forest\nevergreen needle',
+                'Open forest deciduous needle','Open forest evergreen_broad','Open forest deciduous_broad','Open forest mixed', 'Open forest unknown', 'Shrubs','Herbaceous', 'Herbaceous\nwetleand','Moss/lichen', 'Bare/sparse','Cultivated/managed',
+                'Urban/built', 'Snow/ice','Permanent\nwater', 'Open sea']
+            out['seg_landcov'] = out['seg_landcov'].map(dict(zip(class_values, class_names)))
+        else:
+            out['seg_landcov'] = out['seg_landcov'].map({0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \
+                                                         3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \
+                                                         5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \
+                                                         8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \
+                                                         12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \
+                                                         15: "permanent snow-ice", 16: "barren"})
         out['seg_snow'] = out['seg_snow'].map({0: "ice free water", 1: "snow free land", 2: "snow", 3: "ice"})
         out['cloud_flg'] = out['cloud_flg'].map({0: "High conf. clear skies", 1: "Medium conf. clear skies", 2: "Low conf. clear skies", \
                                                  3: "Low conf. cloudy skies", 4: "Medium conf. cloudy skies", 5: "High conf. cloudy skies"})
         out['night_flg'] = out['night_flg'].map({0: "day", 1: "night"})
         #out['tcc_flg'] = out['tcc_flg'].map({0: "=<5%", 1: ">5%"})
                                          
-    # Bin tcc values                                     
-    tcc_bins = [0,10,20,30,40,50,60,70,80,90,100]
-    out['tcc_bin'] = pd.cut(out['tcc_prc'], bins=tcc_bins, labels=tcc_bins[1:])
+    ## Bin tcc values                                     
+    #tcc_bins = [0,10,20,30,40,50,60,70,80,90,100]
+    #out['tcc_bin'] = pd.cut(out['tcc_prc'], bins=tcc_bins, labels=tcc_bins[1:])
+
+    # Add granule name to table
+    out['granule_name'] = granule_fname
     
-    if args.filter_qual:
+    if filter_qual:
+
         print('Quality Filtering: \t\t[ON]')
+
         import FilterUtils
+
         # These filters are customized for boreal
+        '''out = FilterUtils.prep_filter_atl08_qual(out)
         out = FilterUtils.filter_atl08_qual_v2(out, SUBSET_COLS=True, DO_PREP=False,
-                                                   subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg','dt','orb_num'], 
+                                                   subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','h_can_quad','h_can_unc',
+                                                                     'h_te_best','h_te_unc', 'granule_name','can_rh_conf', 'h_dif_ref',
+                                                                     'seg_landcov','seg_cover','night_flg','seg_water','sol_el','asr','ter_slp', 'ter_flg','y','m','d'], 
                                                    filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
-                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=6, month_max=9)
+                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=args.minmonth, month_max=args.maxmonth)
+                                                   '''
+        print('Apply the aggressive land-cover based (v3) filters updated in Jan/Feb 2022')
+        out = FilterUtils.filter_atl08_qual_v3(out, SUBSET_COLS=True, DO_PREP=True,
+                                              subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can',
+                                                                     'h_te_best','granule_name',
+                                                                     'seg_landcov','seg_cover','sol_el','y','m','doy'], 
+                                                   filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
+                                                   list_lc_h_can_thresh=args.list_lc_h_can_thresh,
+                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=args.minmonth, month_max=args.maxmonth)
 
     else:
         print('Quality Filtering: \t[OFF] (do downstream)')
@@ -557,10 +624,14 @@ def extract_atl08(args):
     if out.empty:
         print('File is empty.')
     else:
-        # Write out to a csv
-        out_csv_fn = os.path.join(outbase + fn_tail)
-        print('Creating CSV: \t\t{}'.format(out_csv_fn))
-        out.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
+        if args.output_dataframe:
+            print(f'Returning output dataframe of shape: {out.shape}')
+            return out
+        else:
+            # Write out to a csv
+            out_csv_fn = os.path.join(outbase + fn_tail)
+            print('Creating CSV: \t\t{}'.format(out_csv_fn))
+            out.to_csv(out_csv_fn,index=False, encoding="utf-8-sig")
 
 
 def main():
@@ -595,6 +666,9 @@ def main():
     parser.add_argument("--maxlon" , type=float, choices=[Range(-180.0, 180.0)], default=180.0, help="Max longitude of ATL08 shots for output to include")
     parser.add_argument("--minlat" , type=float, choices=[Range(-90.0, 90.0)], default=45.0, help="Min latitude of ATL08 shots for output to include") 
     parser.add_argument("--maxlat" , type=float, choices=[Range(-90.0, 90.0)], default=75.0, help="Max latitude of ATL08 shots for output to include")
+    parser.add_argument("--minmonth" , type=int, choices=[Range(1, 12)], default=6, help="Min month of ATL08 shots for output to include")
+    parser.add_argument("--maxmonth" , type=int, choices=[Range(1, 12)], default=9, help="Max month of ATL08 shots for output to include")
+    parser.add_argument("--list_lc_h_can_thresh", nargs="+", type=int, default=[0, 60, 60, 60, 60, 60, 60, 50, 50, 50, 50, 50, 50, 20, 10, 10, 5, 5, 0, 0, 0, 0, 0], help="A list of land-cover specific thresholds for h_can")
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false', help='Turn overwrite off (To help complete big runs that were interrupted)')
     parser.set_defaults(overwrite=True)
     parser.add_argument('--no-filter-qual', dest='filter_qual', action='store_false', help='Turn off quality filtering (To control filtering downstream)')
@@ -603,6 +677,8 @@ def main():
     parser.set_defaults(filter_geo=True)
     parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
     parser.set_defaults(do_30m=False)
+    parser.add_argument('--output_dataframe', dest='output_dataframe', action='store_true', help='Output a pandas dataframe instead of a csv')
+    parser.set_defaults(output_dataframe=False)
     parser.add_argument('--set_flag_names', dest='set_flag_names', action='store_true', help='Set the flag values to meaningful flag names')
     parser.set_defaults(set_flag_names=False)
     parser.add_argument('--set_nodata_nan', dest='set_nodata_nan', action='store_true', help='Set output nodata to nan')
@@ -634,6 +710,8 @@ def main():
         print("Max lat: {}".format(args.maxlat))
         print("Min lon: {}".format(args.minlon))
         print("Max lon: {}".format(args.maxlon))
+
+    print(f'Month range: {args.minmonth}-{args.maxmonth}')
 
     extract_atl08(args)
 

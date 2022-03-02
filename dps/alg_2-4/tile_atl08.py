@@ -89,6 +89,12 @@ def main():
     # Norway tile test that will return sol_el to the tiled ATL08 dataset
     python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 224 --extract_covars -years_list 2018 2019 2020 -thresh_sol_el 5 -v_ATL08 4
     
+    python tile_atl08.py -o /projects/my-public-bucket/atl08_filt_covar_tiles -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv --do_30m -in_tile_num 222 --extract_covars -years_list 2020 -thresh_sol_el 5 -v_ATL08 4 -minmonth 6 -maxmonth 9
+    
+    # Grabbed the echo'd call from a successful DPS run
+    # removed the path to the script ; removed --do_dps ; replace the gpkg path ; replaced the output dir ; changed input tile list paths from s3 path to local path
+    python tile_atl08.py --updated_filters --extract_covars --do_30m -years_list 2020 -o /projects/my-public-bucket/atl08_filt_covar_tiles -in_tile_num 222 -in_tile_fn /projects/shared-buckets/nathanmthomas/boreal_tiles_v002.gpkg -in_tile_layer boreal_tiles_v002 -csv_list_fn /projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_tindex_master.csv -topo_stack_list_fn /projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv -landsat_stack_list_fn /projects/shared-buckets/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv -user_stacks nathanmthomas -user_atl08 lduncanson -thresh_sol_el 5 -v_ATL08 4 -minmonth 6 -maxmonth 9
+    
     Run on v4; need to make sure you specify a cols list that is present in what extract atl08 returned (so, no h_can_unc, seg_cover, )
     for v4 data extracted before late Dec 2021 updates, use these:
     atl08_cols_list = ['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el']
@@ -120,7 +126,7 @@ def main():
     parser.add_argument("-minmonth" , type=int, default=6, help="Min month of ATL08 shots for output to include")
     parser.add_argument("-maxmonth" , type=int, default=9, help="Max month of ATL08 shots for output to include")
     parser.add_argument("-thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
-    parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp', 'seg_landcov', 'sol_el'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp','h_te_best','granule_name', 'seg_landcov','sol_el','y','m','doy'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
     parser.add_argument('-topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
     parser.add_argument('-landsat_cols_list', nargs='+',  default=['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], help='Landsat composite vars to extract')
     parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")
@@ -178,11 +184,14 @@ def main():
     #date_start = args.date_start
     #date_end = args.date_end
     
+    startday = 1
     endday = 31
     if maxmonth in [4,6,9,11]:
-        endday = 30 
+        endday = 30
+    if maxmonth in [2]:
+        endday = 28
 
-    date_start = str(f'{minmonth:02}-01')
+    date_start = str(f'{minmonth:02}-{startday:02}')
     date_end = str(f'{maxmonth:02}-{endday:02}')
     
     thresh_sol_el = args.thresh_sol_el
@@ -285,19 +294,31 @@ def main():
 
     
     # Filter by quality
+    if v_ATL08 == 4:
+        print(f'\nATL08 version is {v_ATL08}. Cannot apply aggressive land-cover filtering.')
+        updated_filters = False
+        
     if not updated_filters:
-        print('Original quality filtering')
+        '''print('Original quality filtering')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
                                                            subset_cols_list=atl08_cols_list, #['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow'], 
                                                            thresh_h_can=100, thresh_h_dif=100, month_min=minmonth, month_max=maxmonth)
-    else:
-        print('New quality filtering with updated thresholding ...')
+                                                           '''
+        print('Quality filtering with thresholding use in the preliminary map ...')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v2(atl08, SUBSET_COLS=True, DO_PREP=False,
                                                            #subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
-                                                           subset_cols_list=atl08_cols_list,
+                                                           subset_cols_list = atl08_cols_list,
                                                            filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
                                                            thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)
+    else:  
+        print('Quality filtering with aggressive land-cover based (v3) filters updated in Jan/Feb 2022 ...')
+        atl08_pdf_filt = FilterUtils.filter_atl08_qual_v3(atl08, SUBSET_COLS=True, DO_PREP=False,
+                                                          subset_cols_list = atl08_cols_list + ['seg_cover'], 
+                                                   filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
+                                                   list_lc_h_can_thresh=args.list_lc_h_can_thresh,
+                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)
+        
     atl08=None
     
     # Convert to geopandas data frame in lat/lon
