@@ -513,6 +513,8 @@ mapBoreal<-function(rds_models,
     out_table = xtable[,c('lon','lat','AGB','SE')]    
     write.csv(out_table, file=out_csv_fn)
     
+    #write output for model accuracy and importance variables
+    
     print("Returning names of COG and CSV...")
     return(list(out_cog_fn, out_csv_fn))
 }
@@ -580,7 +582,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=30,
+                rep=10,
                 ppside=2,
                 stack=brick,
                 strat_random=FALSE,
