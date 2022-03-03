@@ -488,9 +488,19 @@ mapBoreal<-function(rds_models,
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     
     print(paste0("Write tmp tif: ", out_tif_fn))
+    #Change suggested from A Mandel to visualize cogs faster
+    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
+    #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
+    system2(command = "rio", 
+        args    = c("cogeo", "create", "--overview-level=5", out_tif_fn, out_cog_fn), 
+        stdout  = TRUE,
+        stderr  = TRUE,
+        wait    = TRUE
+        )
     writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
     print(paste0("Write COG tif: ", out_cog_fn))
-    gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
+    
+    #gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
     file.remove(out_tif_fn)
     
     #writeRaster(maps,output,overwrite=T)
