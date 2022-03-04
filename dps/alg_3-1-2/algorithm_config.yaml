@@ -4,7 +4,7 @@ algo_name: do_landsat_stack_3-1-2
 version: master
 environment: ubuntu
 repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
-docker_url: mas.maap-project.org:5000/root/ade-base-images/vanilla:latest
+docker_url: mas.maap-project.org:5000/root/ade-base-images/vanilla:v2.1
 # queue chosen when registering
 queue: maap-dps-worker-16gb
 
