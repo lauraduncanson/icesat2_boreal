@@ -7,3 +7,4 @@ importlib_resources
 contextily
 fsspec
 s3fs
+rio-cogeo
