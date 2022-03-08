@@ -7,4 +7,4 @@ importlib_resources
 contextily
 fsspec
 s3fs
-rio-cogeo
+rio-cogeo==2.3.1

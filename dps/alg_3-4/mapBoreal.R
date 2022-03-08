@@ -375,11 +375,11 @@ mapBoreal<-function(rds_models,
     #all_train_data <- rbind(tile_data, broad_data)
     
     #set boreal only models for specific weird tiles
-    weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
+    #weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
     
-    if(tile_num %in% weird_tiles){
-        all_train_data <- broad_data
-    }
+    #if(tile_num %in% weird_tiles){
+    #    all_train_data <- broad_data
+    #}
     
     str(tile_data)
     str(broad_data)
@@ -399,9 +399,6 @@ mapBoreal<-function(rds_models,
     }else{
         pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
-    
-    #create one single model for prediction
-    #rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
     
     #predict with single rf model
     #stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
@@ -429,7 +426,7 @@ mapBoreal<-function(rds_models,
     print(models[[1]])
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
     print(pred_vars)
-    
+        
     #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
@@ -480,16 +477,20 @@ mapBoreal<-function(rds_models,
     
     out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
+    #out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
-    
+
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
     out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
+    out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
     
     print(paste0("Write tmp tif: ", out_tif_fn))
     #Change suggested from A Mandel to visualize cogs faster
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
+    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
+
     #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
     system2(command = "rio", 
         args    = c("cogeo", "create", "--overview-level=5", out_tif_fn, out_cog_fn), 
@@ -497,11 +498,10 @@ mapBoreal<-function(rds_models,
         stderr  = TRUE,
         wait    = TRUE
         )
-    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
     print(paste0("Write COG tif: ", out_cog_fn))
     
     #gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    file.remove(out_tif_fn)
+    #file.remove(out_tif_fn)
     
     #writeRaster(maps,output,overwrite=T)
       
@@ -511,9 +511,17 @@ mapBoreal<-function(rds_models,
     
      #Write out_table of ATL08 AGB as a csv
     out_table = xtable[,c('lon','lat','AGB','SE')]    
-    write.csv(out_table, file=out_csv_fn)
+    write.csv(out_table, file=out_stats_fn)
     
-    #write output for model accuracy and importance variables
+    #write output for model accuracy and importance variables for single model
+    #create one single model for stats
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
+    
+    rsq <- max(rf_single$rsq, na.rm=T)
+    rmse <- min(rf_single$mse, na.rm=T)
+    imp_vars <- rf_single$importance
+    out_accuracy <- list(rsq, rmse, imp_vars)
+    capture.output(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
     return(list(out_cog_fn, out_csv_fn))
@@ -582,7 +590,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=10,
+                rep=2,
                 ppside=2,
                 stack=brick,
                 strat_random=FALSE,
