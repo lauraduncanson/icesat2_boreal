@@ -229,7 +229,14 @@ def main():
     parser.add_argument("-a", "--sat_api", type=str, default="https://landsatlook.usgs.gov/sat-api", help="URL of USGS query endpoint")
     parser.add_argument("-j", "--json_file", type=str, default=None, help="The S3 path to the query response json")
     parser.add_argument("-l", "--local", type=bool, default=False, help="Dictate whether it is a run using local paths")
+    parser.add_argument("-sy", "--start_year", type=str, default="2020", help="specify the start year date (e.g., 2020)")
+    parser.add_argument("-ey", "--end_year", type=str, default="2021", help="specify the end year date (e.g., 2021)")
+    parser.add_argument("-smd", "--start_month_day", type=str, default="06-01", help="specify the start month and day (e.g., 06-01)")
+    parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
+    parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     args = parser.parse_args()    
+    
+    print(args.start_month_day)
 
     # EXAMPLE CALL
     # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
@@ -263,7 +270,7 @@ def main():
             print("MUST SPECIFY -o FOR JSON PATH")
             os.exit(1)
         else:
-            master_json = get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.local)
+            master_json = get_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
     else:
         master_json = args.json_file
     
@@ -364,7 +371,9 @@ def main():
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'
     outdir = args.output_dir
-    out_stack_fn = os.path.join(outdir, 'Landsat8_' + str(tile_n) + '_comp_cog_2015-2020_dps.tif')
+    sd = args.start_year + '-' + args.start_month_day
+    ed = args.end_year + '-' + args.end_month_day
+    out_stack_fn = os.path.join(outdir, 'HLS' + str(tile_n) + '_' + sd + '_' + ed + '_cog_dps.tif')
     
     # write COG to disk
     write_cog(stack, 
@@ -385,7 +394,7 @@ if __name__ == "__main__":
     
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0
     
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 06 -ey 09 -smd 06-01 -emd 09-15 -mc 40
     '''
     main()
     

@@ -62,12 +62,13 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
         
         return local_catalog
 
-def query_stac(year, bbox, max_cloud, api):
+def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     print('opening client')
     catalog = Client.open(api)
     
-    date_min = '-'.join([str(year), "06-01"])
-    date_max = '-'.join([str(year), "09-15"])
+    date_min = str(year) + '-' + start_month_day
+    print('start_month_day', start_month_day)
+    date_max = str(year) + '-' + end_month_day
     start_date = datetime.datetime.strptime(date_min, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(date_max, "%Y-%m-%d") 
     start = start_date.strftime("%Y-%m-%dT00:00:00Z")
@@ -100,7 +101,7 @@ def query_stac(year, bbox, max_cloud, api):
     return results
 
 
-def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
+def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False):
 
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
@@ -111,16 +112,14 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
     # Accessing imagery
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]
-    max_cloud = 40
-    # 2015
-    years = [2020, 2021]
-    #years = range(2015,2020 + 1)
+    max_cloud = max_cloud
+    years = range(int(start_year), int(end_year)+1)
     api = sat_api
     
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
         print('run function')
-        response_by_year = [query_stac(year, bbox, max_cloud, api) for year in years]
+        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day) for year in years]
         
         print(len(response_by_year[0]['features']))
     
@@ -134,7 +133,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
         "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
         
-    master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}-HLS.json')
+    master_json = os.path.join(save_path, f'master_{tile_n}_{np.min(years)}-{start_month_day}_{np.max(years)}-{end_month_day}_HLS.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
     

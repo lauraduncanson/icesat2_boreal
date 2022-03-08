@@ -77,7 +77,7 @@ def main():
         out_name = TYPE + "_tindex_master.csv"
         str_exclude = 'xxx'
         
-         if "HLS" in TYPE:
+        if "HLS" in TYPE:
             #dps_out_subdir = f"do_landsat_stack_3-1-2_ubuntu/ops/{args.dps_year}/"
             dps_out_subdir_list = [f"do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/" for d in range(args.dps_day_min, args.dps_day_max)]
             user = 'nathanmthomas'
