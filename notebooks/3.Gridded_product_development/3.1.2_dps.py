@@ -49,7 +49,7 @@ def GetBandLists(inJSON, bandnum, comp_type):
         bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
     else:
         print("comp type not recognized")
-        os.exit(1)
+        os._exit(1)
     #bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
     BandList = []
     with open(inJSON) as f:
@@ -84,7 +84,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
     else:
         print("composite type not recognized")
-        os.exit(1)
+        os._exit(1)
 
 def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type):
     '''Calculate NDVI for each source scene'''
@@ -292,7 +292,7 @@ def main():
     if args.json_file == None:
         if args.output_dir == None:
             print("MUST SPECIFY -o FOR JSON PATH")
-            os.exit(1)
+            os._exit(1)
         elif args.composite_type == 'HLS':
             print("get HLS data")
             master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
@@ -301,7 +301,7 @@ def main():
             master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
         else:
             print("specify the composite type (HLS, LS8)")
-            os.exit(1)
+            os._exit(1)
     else:
         master_json = args.json_file
     
@@ -334,7 +334,7 @@ def main():
         aws_session = get_aws_session()
     else:
         print("specify the composite type (HLS, ls8)")
-        os.exit(1)
+        os._exit(1)
     
     print(aws_session)
     
