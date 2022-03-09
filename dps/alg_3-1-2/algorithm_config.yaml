@@ -11,6 +11,12 @@ queue: maap-dps-worker-16gb
 # fill out these fields
 # explain what this algorithm does
 description: 
+# path to the build script for installing and building the algorithm in the docker image
+build_command: icesat2_boreal/dps/alg_3-1-2/build_algorithm.sh
+
+# fill out these fields
+# explain what this algorithm does
+description: 
 # path to the wrapper script for running the algorithm
 run_command: icesat2_boreal/dps/alg_3-1-2/run.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
