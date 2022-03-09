@@ -76,14 +76,18 @@ def query_satapi(query, api):
     
     return data
 
-def query_year(year, bbox, min_cloud, max_cloud, api):
+def query_year(year, bbox, max_cloud, api, start_month_day, end_month_day):
     '''Given the year, finds the number of scenes matching the query and returns it.'''
-    date_min = '-'.join([str(year), "06-01"])
-    date_max = '-'.join([str(year), "09-15"])
+    date_min = str(year) + '-' + start_month_day
+    date_max = str(year) + '-' + end_month_day
     start_date = datetime.datetime.strptime(date_min, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(date_max, "%Y-%m-%d") 
     start = start_date.strftime("%Y-%m-%dT00:00:00Z")
     end = end_date.strftime("%Y-%m-%dT23:59:59Z")
+    
+    print('start date, end date = ', start, end)
+    
+    print('conducting search now')
     
     query = {
     "time": f"{start}/{end}",
@@ -91,7 +95,7 @@ def query_year(year, bbox, min_cloud, max_cloud, api):
     "query": {
         "collections": ["landsat-c2l2-sr"],
         "platform": {"in": ["LANDSAT_8"]},
-        "eo:cloud_cover": {"gte": min_cloud, "lt": max_cloud},
+        "eo:cloud_cover": {"gte": 0, "lt": max_cloud},
         "landsat:collection_category":{"in": ["T1"]}
         },
     "limit": 20 # We limit to 500 items per Page (requests) to make sure sat-api doesn't fail to return big features collection
@@ -106,26 +110,25 @@ def read_json(json_file):
         response = json.load(f)
     return response
 
-def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=False):
+def get_ls8_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False):
 
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
     tile_n = int(in_tile_num)
 
     tile_id = get_index_tile(geojson_path_albers, tile_n, buffer=0, layer = layer)
-
+    print(tile_id)
     # Accessing imagery
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]
-    min_cloud = 0
-    max_cloud = 20
-    # 2015
-    years = range(2015,2020 + 1)
+    max_cloud = max_cloud
+    years = range(int(start_year), int(end_year)+1)
+    print(years)
     api = sat_api
     
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
-        response_by_year = [query_year(year, bbox, min_cloud, max_cloud, api) for year in years]
+        response_by_year = [query_year(year, bbox, max_cloud, api, start_month_day, end_month_day) for year in years]
         scene_totals = [each['meta']['found'] for each in response_by_year]
         print('scene total: ', scene_totals)
     
@@ -139,7 +142,7 @@ def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, local=Fal
         "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
         
-    master_json = os.path.join(save_path, f'master-{tile_n}-{np.min(years)}-{np.max(years)}.json')
+    master_json = os.path.join(save_path, f'master_{tile_n}_{np.min(years)}-{start_month_day}_{np.max(years)}-{end_month_day}_LS8.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
     

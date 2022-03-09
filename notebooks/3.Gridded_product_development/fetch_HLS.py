@@ -101,7 +101,7 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     return results
 
 
-def get_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False):
+def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False):
 
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
