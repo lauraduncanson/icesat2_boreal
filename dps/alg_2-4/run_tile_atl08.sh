@@ -10,7 +10,7 @@ unset PROJ_LIB
 
 #install requirements packages
 
-pip install --user -r ${basedir}/requirements.txt
+#pip install --user -r ${basedir}/requirements.txt
 
 mkdir output
 
