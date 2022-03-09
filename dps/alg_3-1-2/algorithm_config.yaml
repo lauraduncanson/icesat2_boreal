@@ -32,3 +32,15 @@ inputs:
     download: False
   - name: tile_buffer_m
     download: False
+  - name: start_year
+    download: False
+  - name: end_year
+    download: False
+  - name: start_month_day
+    download: False
+  - name: end_month_day
+    download: False
+  - name: max_cloud
+    download: False
+  - name: composite_type
+    download: False
