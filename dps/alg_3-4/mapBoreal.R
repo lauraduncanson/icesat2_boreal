@@ -478,7 +478,7 @@ mapBoreal<-function(rds_models,
     out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
     #out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
-    out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
+    out_fn_stem = paste("/projects/testing/output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
 
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
@@ -518,7 +518,7 @@ mapBoreal<-function(rds_models,
     rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
     
     rsq <- max(rf_single$rsq, na.rm=T)
-    rmse <- min(rf_single$mse, na.rm=T)
+    rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
     out_accuracy <- list(rsq, rmse, imp_vars)
     capture.output(out_accuracy, file=out_stats_fn)
