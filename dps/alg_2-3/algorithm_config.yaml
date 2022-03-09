@@ -4,7 +4,7 @@ algo_name: run_extract_filter_atl08
 version: master
 environment: ubuntu
 repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
-docker_url: mas.maap-project.org:5000/root/ade-base-images/rsgislib:latest
+docker_url: mas.maap-project.org:5000/root/ade-base-images/vanilla:latest
 # queue chosen when registering
 queue: maap-dps-worker-8gb
 
@@ -12,7 +12,7 @@ queue: maap-dps-worker-8gb
 # explain what this algorithm does
 description:
 # path to the build script for installing and building the algorithm in the docker image
-#build_command: icesat2_boreal/dps/alg_2-3/build_algorithm.sh
+build_command: icesat2_boreal/dps/alg_2-3/build_command.sh
 # path to the wrapper script for running the algorithm
 run_command: icesat2_boreal/dps/alg_2-3/run_extract_filter_atl08.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
