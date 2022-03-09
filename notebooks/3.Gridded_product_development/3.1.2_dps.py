@@ -442,12 +442,23 @@ def main():
     
 if __name__ == "__main__":
     '''
+    
+    if args.back_fill == True:
+        start_year = 2019
+        end_year = 2019
+        start_month_day = '06-01'
+        end_month_day = '09-15'
+        max_cloud = 40
+        
+        build_backfill_composite_HLS(geojson_path_albers, tile_n, res, args.tile_buffer_m, args.in_tile_layer, outdir, comp_type, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, args.local)
+    
+    
     Example call:
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 0
     
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t LS8
     
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t HLS
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles_v002.gpkg -n 3013 -lyr boreal_tiles_v002 -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t HLS
     '''
     main()
     
