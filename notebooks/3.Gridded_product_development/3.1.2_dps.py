@@ -428,9 +428,16 @@ def main():
     comp_type = args.composite_type
     out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '.tif')
     
-    
+    '''
     if args.back_fill == True:
+        start_year = 2019
+        end_year = 2019
+        start_month_day = '06-01'
+        end_month_day = '09-15'
+        max_cloud = 40
         
+        build_backfill_composite_HLS(geojson_path_albers, tile_n, res, args.tile_buffer_m, args.in_tile_layer, outdir, comp_type, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, args.local)
+    '''
     
     # write COG to disk
     write_cog(stack, 
