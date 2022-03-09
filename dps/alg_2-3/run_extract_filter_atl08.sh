@@ -9,7 +9,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 unset PROJ_LIB
 
 #install requirements packages
-#pip install --user -r ${basedir}/requirements.txt
+pip install --user -r ${basedir}/requirements.txt
 
 mkdir output
 
