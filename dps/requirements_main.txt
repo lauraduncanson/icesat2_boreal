@@ -2,7 +2,6 @@
 #numpy==1.19.5
 h5py==3.1.0
 pandas==1.2.2
-osgeo
 #
 #alg_2-4
 numpy==1.21.0
