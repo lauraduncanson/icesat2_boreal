@@ -44,4 +44,9 @@ inputs:
     download: False
   - name: in_tile_fn_url
     download: True
+  - name: iters
+    download: False
+  - name: ppside
+    download: False
+
 
