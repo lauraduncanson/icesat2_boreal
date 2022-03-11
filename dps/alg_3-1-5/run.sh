@@ -41,20 +41,16 @@ OUTPUTDIR="${PWD}/output"
 #python 3.1.5_dps.py --in_tile_fn '/projects/maap-users/alexdevseed/boreal_tiles.gpkg' --in_tile_num 30550 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
 
 #Print to stdout for debugging
-echo python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py \
+cmd="python ${basedir}/../../lib/3.1.5_dps.py \
 --in_tile_fn ${INPUT1} \
 --in_tile_num $1 \
 --tile_buffer_m $2 \
 --in_tile_layer $3 \
 --output_dir $OUTPUTDIR \
 --tmp_out_path $OUTPUTDIR \
---topo_tile_fn ${INPUT2}
+--topo_tile_fn ${INPUT2}"
 
-python ${basedir}/../../notebooks/3.Gridded_product_development/3.1.5_dps.py \
---in_tile_fn ${INPUT1} \
---in_tile_num $1 \
---tile_buffer_m $2 \
---in_tile_layer $3 \
---output_dir $OUTPUTDIR \
---tmp_out_path $OUTPUTDIR \
---topo_tile_fn ${INPUT2}
+# Print the command to stdout for debugging
+echo ${cmd}
+# Run the command
+eval ${cmd}

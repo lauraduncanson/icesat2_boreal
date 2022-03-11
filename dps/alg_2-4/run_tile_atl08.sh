@@ -21,7 +21,7 @@ INPUT1="${PWD}/${FILENAMELIST[0]}"
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-cmd="python ${basedir}/tile_atl08.py \
+cmd="python ${basedir}/../../lib/tile_atl08.py \
 --updated_filters \
 --extract_covars \
 --do_dps \

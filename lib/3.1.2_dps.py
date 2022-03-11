@@ -242,12 +242,13 @@ def get_pixel_coords(arr, transform):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--in_tile_fn", type=str, help="The filename of the stack's set of vector tiles")
+    parser.add_argument("-i", "--in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg", help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
     parser.add_argument("-o", "--output_dir", type=str, help="The path for the JSON files to be written")
     parser.add_argument("-b", "--tile_buffer_m", type=float, default=0, help="The buffer size (m) applied to the extent of the specified stack tile")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
     parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
+    parser.add_argument("-in_tile_id_col", type=str, default="tile_num", help="The column of the tile layer name of the stack tiles dataset that holds the tile num")
     parser.add_argument("-a", "--sat_api", type=str, default="https://landsatlook.usgs.gov/sat-api", help="URL of USGS query endpoint")
     parser.add_argument("-j", "--json_file", type=str, default=None, help="The S3 path to the query response json")
     parser.add_argument("-l", "--local", type=bool, default=False, help="Dictate whether it is a run using local paths")
@@ -271,7 +272,7 @@ def main():
     print("output resolution = ", res)
     
     # Get tile by number form GPKG. Store box and out crs
-    tile_id = get_index_tile(geojson_path_albers, tile_n, args.tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
+    tile_id = get_index_tile(vector_path=geojson_path_albers, id_col=args.in_tile_id_col, tile_id=tile_n, buffer=args.tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
     #in_bbox = tile_id['bbox_4326']
     in_bbox = tile_id['geom_orig_buffered'].bounds.iloc[0].to_list()
     out_crs = tile_id['tile_crs']

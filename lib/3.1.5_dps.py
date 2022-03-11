@@ -32,15 +32,16 @@ def get_shape(bbox, res=30):
 
 def main():
     '''Command line script to create topo stacks by vector tile id.
-    python 3.1.5_dps.py --in_tile_fn /projects/shared-buckets/nathanmthomas/grid_boreal_albers100k_gpkg.gpkg --in_tile_num 1793 --tile_buffer_m 150 --in_tile_layer "grid_boreal_albers100k_gpkg" -o /projects/my-private-bucket/3.1.5_test/ --topo_tile_fn /projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson
+    python 3.1.5_dps.py --in_tile_fn /projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg --in_tile_num 1793 --tile_buffer_m 150 --in_tile_layer "boreal_tiles_v003" -o /projects/my-private-bucket/3.1.5_test/ --topo_tile_fn /projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson
 
-    example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_albers" -o '/projects/tmp/Topo/'
+    example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_v003" -o '/projects/tmp/Topo/'
 
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for stack creation")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for stack creation")
     parser.add_argument("-b", "--tile_buffer_m", type=int, default=None, help="The buffer size (m) applied to the extent of the specified stack tile")
+    parser.add_argument("--in_tile_id_col", type=str, default="tile_num", help="The column of the tile layer name of the stack tiles dataset that holds the tile num")
     parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
@@ -80,7 +81,7 @@ def main():
     topo_src_name = args.topo_src_name
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
-    tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m, layer = stack_tile_layer)
+    tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=args.in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer = stack_tile_layer)
     #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
     geom_4326_buffered = tile_parts["geom_4326_buffered"]
     

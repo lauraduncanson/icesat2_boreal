@@ -29,23 +29,23 @@
 #----------------------------------------------#
 ############# functions ########################
 #----------------------------------------------#
-GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_MASK=FALSE){
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE){
   
   # rds_models
   names(rds_models)<-models_id
   # read table
-  xtable<-read.table(ice2_30_atl08_path, sep=",", head=T)
-  print('names of xtable cols: ')
-  print(names(xtable))
+  xtable<-in_data
+  #print('names of xtable cols: ')
+  #print(names(xtable))
 
   if(DO_MASK){
-      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1 & nightmask == 1)
+      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   }
     
   xtable_i<-na.omit(as.data.frame(xtable))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
-  print('names (new) of xtable cols: ')
-  print(names(xtable_i))
+  #print('names (new) of xtable cols: ')
+  #print(names(xtable_i))
     
   #
   xtable_sqrt<-xtable_i[3:11]+offset
@@ -107,6 +107,12 @@ GEDI2AT08AGB<-function(rds_models,models_id,ice2_30_atl08_path, offset=100, DO_M
     #define C
     C <- mean(model_i$fitted.values)/mean(model_i$model$`sqrt(AGBD)`)
     
+    #set negatives to zero
+    negs <- which(xtable_sqrt$AGB<0)
+    if(length(negs)>0){
+        xtable_sqrt$AGB[negs] == 0.0
+    }
+      
     #we multiply by C in case there is a systematic over or under estimation in the model (bias correction)
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-C*(xtable_sqrt$AGB[xtable_sqrt$model_id==i]^2)
     #print(head(xtable_sqrt$AGB[xtable_sqrt$model_id==i]))
@@ -200,7 +206,11 @@ agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,out
   i.s=0
   #j=1
   model_list <- list()
-  for (j in 1:rep){
+    
+    # create one single rf using all the data; the first in model_list will be used for prediction
+    fit.rf <- randomForest(y=y, x=x, ntree=500)
+    model_list <- list.append(model_list, fit.rf)
+  for (j in 2:rep){
     i.s<-i.s+1
     #setTxtProgressBar(pb, i.s)
     set.seed(j)
@@ -285,14 +295,16 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     map_pred<-NULL
 
     #loop over predicting for tile with each model in list
-    for (i in 1:length(model_list)){
+    for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
         map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
         map_pred<-rbind(map_pred,map_i)
     }
     
     #take the average and sd per pixel
-    mean_map <-tapply(map_pred$agb,map_pred$grid_id,mean)
+    #mean_map <-tapply(map_pred$agb,map_pred$grid_id,median)
+    #set predictions to preds from the single rf model
+    mean_map <- predict(model_list[[1]], newdata=stack_df)
     sd_map <-tapply(map_pred$agb,map_pred$grid_id,sd)
     p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
     p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
@@ -329,24 +341,80 @@ mapBoreal<-function(rds_models,
     
     #combine tables
     tile_data <- read.csv(ice2_30_atl08_path)
-    broad_data <- read.csv(ice2_30_sample_path)
-    all_train_data <- rbind(tile_data, broad_data)
     
+    #sub-sample tile data to n_tile
+    n_tile <- 3000
+    
+    #optional filter for only night data
+    #night_data <- which(tile_data$night_flg==1)
+    #n_avail <- length(night_data)
+
+    #if(n_avail > n_tile){
+    #    tile_data <- tile_data[night_data,]
+    #    samp_ids <- seq(1,n_avail)
+    #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+    #    tile_data <- tile_data[tile_sample_ids,]
+    #}
+    
+    #optional filter for solar elevation <5
+    sol_e_data <- which(tile_data$sol_el < 5)
+    n_avail <- length(sol_e_data)
+
+    if(n_avail > n_tile){
+        tile_data <- tile_data[sol_e_data,]
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
+    
+    #combine for fitting
+    broad_data <- read.csv(ice2_30_sample_path)
+    
+    #can combine with broad_data or not
+    all_train_data <- tile_data
+    #all_train_data <- rbind(tile_data, broad_data)
+    
+    #set boreal only models for specific weird tiles
+    #weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
+    
+    #if(tile_num %in% weird_tiles){
+    #    all_train_data <- broad_data
+    #}
+    
+    str(tile_data)
+    str(broad_data)
+    str(all_train_data)
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
-                       ice2_30_atl08_path=ice2_30_atl08_path, 
+                       in_data=all_train_data, 
                        offset=offset,
                        DO_MASK=DO_MASK)
-    hist(xtable$AGB)
+    #hist(xtable$AGB)
     print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi',                      'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }else{
-        pred_vars <- c('elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
+    
+    #predict with single rf model
+    #stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
+    #stack_df$grid_id<-1:nrow(stack_df)
+
+    #preds <-cbind(stack_df[,1:2],agb=predict(rf_single, newdata=stack_df), grid_id=stack_df$grid_id)
+    
+    #apply zero biomass to mask data
+    
+    #convert back to raster
+    #agb.preds <- rasterFromXYZ(cbind(stack_df[,1:2],
+     #                               agb_mean=preds
+     #                             )
+     #                         )
+     
+    #crs(agb.preds) <- crs(stack)
     models<-agbModeling(x=xtable[pred_vars],
                                y=xtable$AGB,
                                se=xtable$SE,
@@ -354,44 +422,44 @@ mapBoreal<-function(rds_models,
                                rep=rep,
                                strat_random=strat_random)
     
-    #create one single model for prediction
-    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
-    agb_preds <- predict(rf_single, stack)
-    
     print(length(models))
     print(models[[1]])
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
     print(pred_vars)
-    
+        
     #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
     
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    #out_agb <- list()
+    out_agb <- list()
     out_sd <- list()
     out_p5 <- list()
     out_p95 <- list()
     
-    for (tile in 1:length(tile_list)){
+     for (tile in 1:length(tile_list)){
         tile_stack <- tile_list[[tile]]
-        #pb <- txtProgressBar(min = 0, max = length(tile_list), style = 3)
-        print(tile)
-        maps<-agbMapping(x=xtable[pred_vars],
+        #check if data in tile stack
+        length_valid <- length(unique(tile_stack@data@values[,1]))
+        if(length_valid > 2){
+            print(tile)
+            maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
                      stack=tile_stack)
         
-        #out_agb <- list.append(out_agb, as.list(maps)[[1]])
-        out_sd <- list.append(out_sd, as.list(maps)[[2]])
-        out_p5 <- list.append(out_p5, as.list(maps)[[3]])
-        out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+            out_agb <- list.append(out_agb, as.list(maps)[[1]])
+            out_sd <- list.append(out_sd, as.list(maps)[[2]])
+            out_p5 <- list.append(out_p5, as.list(maps)[[3]])
+            out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+            }
         }
+    
     print('AGB successfully predicted!')
     #recombine tiles
-    #out_agb$fun   <- max
-    #agb.mosaic <- do.call(mosaic,out_agb)
+    out_agb$fun   <- max
+    agb.mosaic <- do.call(mosaic,out_agb)
 
     out_sd$fun   <- max
     sd.mosaic <- do.call(mosaic,out_sd)
@@ -407,20 +475,33 @@ mapBoreal<-function(rds_models,
     
     # Make a 4-band stack as a COG
     
-    out_stack = stack(agb.preds, sd.mosaic, p5.mosaic, p95.mosaic)
+    out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
     crs(out_stack) <- crs(tile_stack)
-    out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
-    
+    #out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
+    out_fn_stem = paste("/projects/testing/output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
+
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
     out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
+    out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
     
     print(paste0("Write tmp tif: ", out_tif_fn))
+    #Change suggested from A Mandel to visualize cogs faster
+    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
     writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
+
+    #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
+    system2(command = "rio", 
+        args    = c("cogeo", "create", "--overview-level=5", out_tif_fn, out_cog_fn), 
+        stdout  = TRUE,
+        stderr  = TRUE,
+        wait    = TRUE
+        )
     print(paste0("Write COG tif: ", out_cog_fn))
-    gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    file.remove(out_tif_fn)
+    
+    #gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
+    #file.remove(out_tif_fn)
     
     #writeRaster(maps,output,overwrite=T)
       
@@ -430,7 +511,17 @@ mapBoreal<-function(rds_models,
     
      #Write out_table of ATL08 AGB as a csv
     out_table = xtable[,c('lon','lat','AGB','SE')]    
-    write.csv(out_table, file=out_csv_fn)
+    write.csv(out_table, file=out_stats_fn)
+    
+    #write output for model accuracy and importance variables for single model
+    #create one single model for stats
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
+    
+    rsq <- max(rf_single$rsq, na.rm=T)
+    rmse <- sqrt(min(rf_single$mse, na.rm=T))
+    imp_vars <- rf_single$importance
+    out_accuracy <- list(rsq, rmse, imp_vars)
+    capture.output(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
     return(list(out_cog_fn, out_csv_fn))
@@ -488,7 +579,10 @@ if(DO_MASK_WITH_STACK_VARS){
         brick <- mask(brick, m == 0, maskvalue=TRUE)
     }
     rm(m)
+    rm(stack)
 }
+
+print("modelling begins")
 
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
@@ -496,9 +590,9 @@ maps<-mapBoreal(rds_models=rds_models,
                 ice2_30_sample=data_sample_file,
                 offset=100.0,
                 s_train=70, 
-                rep=30,
+                rep=2,
                 ppside=2,
-                stack=stack,
+                stack=brick,
                 strat_random=FALSE,
                 output=out_fn,
                 DO_MASK=DO_MASK_WITH_STACK_VARS)

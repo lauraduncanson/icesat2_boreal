@@ -15,7 +15,7 @@ from maap.maap import MAAP
 maap = MAAP(maap_host='api.ops.maap-project.org')
 
 
-def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str = None):
+def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
     Given a vector tile index, select by id the polygon and return
     GPKG is the recommended vector format - single file, includes projection, can contain multiple variants and additional information.
@@ -26,6 +26,8 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
         Path to GPKG file
     buffer: float
         Distance to buffer geometry in units of layer
+    id_col: str
+        Column name of the tile_id
     tile_id: int
         Tile ID to extract/build info for
         
@@ -48,7 +50,7 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
             Buffered Bounds in 4326
     Usage:
     get_index_tile(
-        vector_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg',
+        vector_path = '/projects/maap-users/alexdevseed/boreal_tiles.gpkg',
         tile_id = 30542,
         buffer = 120
         )
@@ -60,9 +62,8 @@ def get_index_tile(vector_path: str, tile_id: int, buffer: float = 0, layer: str
     if layer is None:
         layer = os.path.splitext(os.path.basename(vector_path))[0]
     tile_index = geopandas.read_file(vector_path, layer=layer)
-    # In this case tile_id is the row, and since row numbering starts at 0 but tiles at 1, subtract 1
-    # TODO: attribute match the value
-    tile_parts["geom_orig"] = tile_index.iloc[(tile_id-1):tile_id]
+
+    tile_parts["geom_orig"] = tile_index[tile_index[id_col]==tile_id]
     tile_parts["geom_orig_buffered"] = tile_parts["geom_orig"]["geometry"].buffer(buffer)
     tile_parts["bbox_orig"] = tile_parts["geom_orig"].bounds.iloc[0].to_list()
     tile_parts["tile_crs"] = CRS.from_wkt(tile_index.crs.to_wkt()) #A rasterio CRS object

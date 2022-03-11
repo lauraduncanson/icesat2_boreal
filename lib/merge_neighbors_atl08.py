@@ -67,7 +67,7 @@ def main():
     
     # Get the vector tiles
     in_tile_gdf = geopandas.read_file(in_tile_fn)
-    #print(in_tile_gdf.head())
+    print(in_tile_gdf.head())
     in_tile_gdf[in_tile_field] = in_tile_gdf[in_tile_field].astype(int)
     
     # Get list of neighbor tiles for a given tile_num

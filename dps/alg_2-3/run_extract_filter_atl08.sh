@@ -21,8 +21,8 @@ OUTPUTDIR="${PWD}/output"
 #command line call to try for testing
 # python /projects/icesat2_boreal/lib/extract_filter_atl08.py --no-filter-qual --do_30m -i "/projects/test_data/test_data_30m/ATL08_30m_20181014001049_02350102_003_01.h5"
 
-cmd="python ${basedir}/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m -o output/"
-
+#cmd="python ${basedir}/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m -o output/"
+cmd="python ${basedir}/../../lib/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m -o output/"
 echo $cmd
 eval $cmd
 
