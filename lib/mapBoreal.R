@@ -6,15 +6,15 @@
 # 3.4 ICESat-2 biomass 30m ATL08
 
 #### i) Description
-#### This script was written by Carlos A Silva and Laura Duncanson to produce tiled boreal biomass 30-m maps
+#### Algorithm for tile-based AGBD mapping with ICESat-2, Copernicus DEM, and Landsat/HLS composites. This work was funded by NASA's ABoVE program, PI Duncanson, Co-Is Paul Montesano, Amy Neuenschwander, and NASA's ICESat-2 Science Team (PI Neuenschwader, Co-I Duncanson). Inputs and code from Nathan Thomas, Carlos Silva, Eric Guenther, Alex Mandel, and implementation assistance from NASA MAAP team George Change, Sujen Shah, Brian Satorius
 
 #### ii) How the algorithm works?
-#### Data tables of linked 30-m ATL08 RH metrics and covariate stack metrics are inported
-#### AGB models are loaded in R and applied over the ICESat-2 30m ATL08 data for a 90-km tile
+#### Data tables of linked 30-m ATL08 RH metrics and covariate stack metrics are imported (outputs from tile_atl08.py)
+#### AGBD models (externally developed) are loaded in R and applied over the ICESat-2 30m ATL08 data to data tables
 #### A set of random forest models are fit to predict 30m ICESat-2 biomass as a function of covariates per tile
-#### Raster stacks of covariates are tiled to reduce memory usage
+#### Raster stacks of covariates are sub-tiled to reduce memory usage
 #### The suite of rf models are applied to each tile, mean, SD, p5 and p95 of predicted biomass are output
-#### Subtiles are recombined and written to disc
+#### Subtiles are recombined and written to disc as cogs
 
 #### iii) Inputs
 ####  - rds_models: list of ICESat-2 simulation-derived AGB model paths
@@ -24,7 +24,7 @@
 ####  - offset: offset applied in the model
 
 #### iii) Outputs
-####  Geotiffs of predicted 30-m AGBD, SD AGBD, 5th and 95th percentile estimates
+####  COGs of predicted 30-m AGBD, SD AGBD, 5th and 95th percentile estimates
 
 #----------------------------------------------#
 ############# functions ########################

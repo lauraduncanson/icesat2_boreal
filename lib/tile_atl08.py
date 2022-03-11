@@ -128,6 +128,7 @@ def main():
     parser.add_argument("-maxmonth" , type=int, default=9, help="Max month of ATL08 shots for output to include")
     parser.add_argument("-thresh_sol_el", type=int, default=0, help="Threshold for sol elev for obs of interest")
     parser.add_argument('-atl08_cols_list', nargs='+', default=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp','h_te_best', 'seg_landcov','sol_el','y','m','doy'], help="A select list of strings matching ATL08 col names that will be returned in a pandas df after filtering and subsetting")
+    parser.add_argument("-list_lc_h_can_thresh", nargs="+", type=int, default=[0, 60, 60, 60, 60, 60, 60, 50, 50, 50, 50, 50, 50, 20, 10, 10, 5, 5, 0, 0, 0, 0, 0], help="A list of land-cover specific thresholds for h_can")
     parser.add_argument('-topo_cols_list', nargs='+',  default=["elevation","slope","tsri","tpi", "slopemask"], help='Topo vars to extract')
     parser.add_argument('-landsat_cols_list', nargs='+',  default=['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo'], help='Landsat composite vars to extract')
     parser.add_argument("-o", "--outdir", type=str, default=None, help="The output dir of the filtered and subset ATL08 csv")

@@ -296,10 +296,10 @@ def main():
             os._exit(1)
         elif args.composite_type == 'HLS':
             print("get HLS data")
-            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
         elif args.composite_type == 'LS8':
             print("get ls8 data")
-            master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
         else:
             print("specify the composite type (HLS, LS8)")
             os._exit(1)
@@ -438,7 +438,7 @@ def main():
               out_crs=out_crs, 
               resolution=(res, res)
              )
-    
+    print(f"Wrote out stack:\t{out_stack_fn}")
     return(out_stack_fn)
     
 if __name__ == "__main__":
