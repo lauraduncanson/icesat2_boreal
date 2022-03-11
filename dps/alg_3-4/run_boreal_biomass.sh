@@ -22,6 +22,8 @@ DO_SLOPE_VALID_MASK=${4}
 ATL08_SAMPLE_CSV=${5}
 in_tile_num=${6}
 in_tile_fn=${7}
+iters=${8}
+ppside=${9}
 
 TAR_FILE=${basedir}/bio_models.tar
 
@@ -48,7 +50,7 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 conda activate r-with-gdal
 
 # Run mapBoreal with merged CSV as input
-cmd="Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV}"
+cmd="Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside}"
 
 echo $cmd
 eval $cmd

@@ -108,7 +108,7 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     tile_n = int(in_tile_num)
 
     tile_id = get_index_tile(geojson_path_albers, in_tile_id_col, tile_n, buffer=0, layer = layer)
-    print(tile_id)
+    #print(tile_id)
     # Accessing imagery
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]

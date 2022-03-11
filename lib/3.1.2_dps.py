@@ -78,7 +78,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     # 0.0000275 + -0.2
     
     if comp_type=="HLS":
-        print("HLS")
+        #print("HLS")
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.001)
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
@@ -276,10 +276,10 @@ def main():
     #in_bbox = tile_id['bbox_4326']
     in_bbox = tile_id['geom_orig_buffered'].bounds.iloc[0].to_list()
     out_crs = tile_id['tile_crs']
-    print(out_crs)
+    #print(out_crs)
     
     print("in_bbox = ", in_bbox)
-    print("out_crs = ", out_crs)
+    #print("out_crs = ", out_crs)
 
     
     height, width = get_shape(in_bbox, res)
@@ -337,12 +337,12 @@ def main():
         print("specify the composite type (HLS, ls8)")
         os._exit(1)
     
-    print(aws_session)
+    #print(aws_session)
     
     # Start reading data: TO DO: nmt28 - edit so it can use comp_type
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
-        print(in_crs)
+        #print(in_crs)
         if args.composite_type=='HLS':
             NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
         elif args.composite_type=='LS8':
