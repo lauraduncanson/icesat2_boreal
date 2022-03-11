@@ -173,6 +173,7 @@ def main():
     in_tile_num = args.in_tile_num
     in_tile_fn = args.in_tile_fn
     in_tile_layer = args.in_tile_layer
+    in_tile_id_col = args.in_tile_id_col
     csv_list_fn = args.csv_list_fn
     topo_stack_list_fn = args.topo_stack_list_fn
     landsat_stack_list_fn = args.landsat_stack_list_fn
@@ -234,7 +235,7 @@ def main():
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
-        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, id_col=args.in_tile_id_col, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
+        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, id_col=in_tile_id_col, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
          
         if DEBUG:
             # Print ATL08 h5 granules for tile
@@ -274,6 +275,9 @@ def main():
             os._exit(1)
         # Merge all ATL08 CSV files for the current tile into a pandas df
         print("Creating pandas data frame...")
+        if DEBUG:
+            print('Concatenating all ATL08 CSVs found:\n')
+            print(all_atl08_csvs_FOUND)
         atl08 = pd.concat([pd.read_csv(f) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
         if DEBUG:
             atl08.to_csv(os.path.join(outdir, "atl08_all_" + str(cur_date) + "_" + str(f'{in_tile_num:04}.csv')))
@@ -282,7 +286,7 @@ def main():
 
         print("\nFiltering by tile: {}".format(in_tile_num))
         # Get tile bounds as xmin,xmax,ymin,ymax
-        tile = ExtractUtils.get_index_tile(vector_path=in_tile_fn, id_col=args.in_tile_id_col, tile_id=in_tile_num, buffer=0, layer=in_tile_layer)
+        tile = ExtractUtils.get_index_tile(vector_path=in_tile_fn, id_col=in_tile_id_col, tile_id=in_tile_num, buffer=0, layer=in_tile_layer)
         in_bounds = FilterUtils.reorder_4326_bounds(tile)
         print(in_bounds)
         
@@ -316,7 +320,7 @@ def main():
     else:  
         print('Quality filtering with aggressive land-cover based (v3) filters updated in Jan/Feb 2022 ...')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual_v3(atl08, SUBSET_COLS=True, DO_PREP=False,
-                                                          subset_cols_list = atl08_cols_list + ['seg_cover', 'granule_name'], 
+                                                          subset_cols_list = atl08_cols_list + ['seg_cover'], #, 'granule_name'
                                                    filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
                                                    list_lc_h_can_thresh=args.list_lc_h_can_thresh,
                                                    thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)
