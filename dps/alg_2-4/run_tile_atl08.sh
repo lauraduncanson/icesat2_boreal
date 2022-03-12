@@ -22,7 +22,6 @@ INPUT1="${PWD}/${FILENAMELIST[0]}"
 OUTPUTDIR="${PWD}/output"
 
 cmd="python ${basedir}/../../lib/tile_atl08.py \
---updated_filters \
 --extract_covars \
 --do_dps \
 --do_30m \
