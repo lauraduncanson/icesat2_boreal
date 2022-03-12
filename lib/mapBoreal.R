@@ -502,6 +502,8 @@ data_sample_file <- args[5]
 iters <- args[6]
 ppside <- args[7]
 
+ppside <- as.double(ppside)
+
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
 
 print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
