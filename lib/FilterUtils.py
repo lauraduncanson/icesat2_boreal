@@ -80,11 +80,24 @@ def prep_filter_atl08_qual(atl08):
         atl08['d'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.day
         atl08['doy'] = pd.to_datetime(atl08['dt'].str.strip("b\'\"")).dt.dayofyear
     except:
-        print('Attempt to decode datetime string of utf-8...')
+        #print('Attempt to decode datetime string of utf-8...')
         atl08['y'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.year
         atl08['m'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.month
         atl08['d'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.day
         atl08['doy'] = pd.to_datetime(atl08['dt'].str.decode('utf-8').str.strip("b\'\"")).dt.dayofyear
+        
+    if False:
+        # Static quality filter flags for ABoVE AGB
+        filt_params_static = [
+                                 ['msw_flg',0],
+                                 ['beam_type', 'Strong'],
+                                 ['seg_snow' , 1] #'snow free land'
+                            ]
+
+        
+        for flag, val in filt_params_static:
+            atl08 = atl08[atl08[flag] == val]
+            print(f"\tAfter {flag}={val}:\t\t{atl08.shape[0]} observations in the dataframe.")
           
     return(atl08)
 
@@ -178,9 +191,10 @@ def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_lay
     return(out_fn)
 
 def filter_atl08_bounds_clip(atl08_df, in_tile_geom_4326):
-    
+
     atl08_gdf = gpd.GeoDataFrame(atl08_df, geometry=gpd.points_from_xy(atl08_df.lon, atl08_df.lat), crs='epsg:4326')
     atl08_gdf = gpd.clip(atl08_gdf, in_tile_geom_4326)
+    print(f"Bounds clipped {atl08_df.shape[0]} obs. down to {atl08_gdf.shape[0]} obs.")
     
     return(atl08_gdf)
 
@@ -303,7 +317,7 @@ def filter_atl08_qual(input_fn=None, subset_cols_list=['rh25','rh50','rh60','rh7
     atl08_df_filt = atl08_df_prepd
     for flag, val in filt_params_static:
         atl08_df_filt = atl08_df_filt[atl08_df_filt[flag] == val]
-        print(f"\tAfter {flag}={val}: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+        print(f"\tAfter {flag}={val}:\t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
     
     atl08_df_filt =  atl08_df_filt[
                                 (atl08_df_filt.h_can < thresh_h_can) &

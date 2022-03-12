@@ -39,7 +39,8 @@ cmd="python ${basedir}/../../lib/tile_atl08.py \
 -thresh_sol_el ${9} \
 -v_ATL08 ${10} \
 -minmonth ${11} \
--maxmonth ${12}"
+-maxmonth ${12} \
+-LC_filter ${13}"
 
 # Print the command to stdout for debugging
 echo ${cmd}

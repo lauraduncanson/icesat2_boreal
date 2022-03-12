@@ -67,6 +67,15 @@ def update_atl08_version(atl08_h5_name, update_v_str, maap_v_str='003'):
     ''' A function to replace the version string in the ATL08 h5 filename returned from maap query '''
     return atl08_h5_name.replace('_'+maap_v_str+'_', '_'+update_v_str+'_')
 
+def t_or_f(arg):
+    ua = str(arg).upper()
+    if 'TRUE'.startswith(ua):
+       return True
+    elif 'FALSE'.startswith(ua):
+       return False
+    else:
+       pass  #error condition maybe?
+
 def main():
     '''
     tile_atl08.py: By tile, query, filter, and extract covariates for ATL08
@@ -151,8 +160,10 @@ def main():
     parser.set_defaults(TEST=False)
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
-    parser.add_argument('--updated_filters', dest='updated_filters', action='store_true', help='Use updated quality filtering applied to ATL08 from FilterUtils')
-    parser.set_defaults(updated_filters=False)
+    #parser.add_argument('--updated_filters', dest='updated_filters', action='store_true', help='Use updated quality filtering applied to ATL08 from FilterUtils')
+    #parser.set_defaults(updated_filters=False)
+    parser.add_argument('-LC_filter', type=str, default='True', help='LC specifies the land-cover specific filtering')
+    #parser.set_defaults(updated_filters=False)
 
     
     args = parser.parse_args()
@@ -204,10 +215,13 @@ def main():
     outdir = args.outdir
     do_30m = args.do_30m
     dps_dir_csv = args.dps_dir_csv
-    updated_filters = args.updated_filters
+    #updated_filters = args.updated_filters
+    LC_filter = args.LC_filter
     N_OBS_SAMPLE = args.N_OBS_SAMPLE
 
     DEBUG = args.DEBUG
+    print(f"\nLand cover filtering set to: {LC_filter}")
+    LC_filter = t_or_f(LC_filter)
     
     seg_str = '_100m'
     if do_30m:
@@ -273,25 +287,27 @@ def main():
         if len(all_atl08_csvs_FOUND) == 0:
             print('\tNo ATL08 extracted for this tile.')
             os._exit(1)
+            
+        #############
         # Merge all ATL08 CSV files for the current tile into a pandas df
+        # 
         print("Creating pandas data frame...")
+        
         if DEBUG:
             print('Concatenating all ATL08 CSVs found:\n')
             print(all_atl08_csvs_FOUND)
-        atl08 = pd.concat([pd.read_csv(f) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
-        if DEBUG:
-            atl08.to_csv(os.path.join(outdir, "atl08_all_" + str(cur_date) + "_" + str(f'{in_tile_num:04}.csv')))
-            print(atl08.info())
-        atl08 = FilterUtils.prep_filter_atl08_qual(atl08)
 
-        print("\nFiltering by tile: {}".format(in_tile_num))
+        print(f"\nFiltering by tile: {in_tile_num}")
         # Get tile bounds as xmin,xmax,ymin,ymax
         tile = ExtractUtils.get_index_tile(vector_path=in_tile_fn, id_col=in_tile_id_col, tile_id=in_tile_num, buffer=0, layer=in_tile_layer)
         in_bounds = FilterUtils.reorder_4326_bounds(tile)
         print(in_bounds)
         
-        # Now filter ATL08 obs by tile bounds (changed to a geopandas clip instead of simple bounds approach)
-        atl08 = FilterUtils.filter_atl08_bounds_clip(atl08, tile['geom_4326'])
+        # ** Optimization ** Combined granule read with bounds filtering
+
+        atl08 = pd.concat([  FilterUtils.filter_atl08_bounds_clip(pd.read_csv(f), tile['geom_4326']) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
+        atl08 = FilterUtils.prep_filter_atl08_qual(atl08)
+
 
     else:
         print("\nNo CSV fn of paths to all extracted ATL08 csvs dir specified.")
@@ -302,9 +318,9 @@ def main():
     # Filter by quality
     if v_ATL08 == 4:
         print(f'\nATL08 version is {v_ATL08}. Cannot apply aggressive land-cover filtering.')
-        updated_filters = False
+        LC_filter = False
         
-    if not updated_filters:
+    if not LC_filter:
         '''print('Original quality filtering')
         atl08_pdf_filt = FilterUtils.filter_atl08_qual(atl08, SUBSET_COLS=True, DO_PREP=False,
                                                            subset_cols_list=atl08_cols_list, #['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can','seg_landcov','night_flg'], 
