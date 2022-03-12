@@ -499,7 +499,7 @@ topo_stack_file <- args[2]
 l8_stack_file <- args[3]
 DO_MASK_WITH_STACK_VARS <- args[4]
 data_sample_file <- args[5]
-iters <- ags[6]
+iters <- args[6]
 ppside <- args[7]
 
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
