@@ -13,7 +13,7 @@ unset PROJ_LIB
 mkdir output
 
 # Note: the numbered args are fed in with the in_param_dict in the Run DPS chunk of 3.4_dps.ipynb
-ATL08_tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv'
+ATL08_tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/2022_map_iterations/ATL08_filt_tindex_master_combo_night_solar.csv'
 
 ATL08_CSV=${1}
 TOPO_TIF=${2}
@@ -25,8 +25,7 @@ in_tile_fn=${7}
 iters=${8}
 ppside=${9}
 
-TAR_FILE=${basedir}/bio_models.tar
-
+TAR_FILE=${basedir}/../../lib/bio_models.tar
 
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
