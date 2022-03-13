@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 import os
 os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
 import boto3
