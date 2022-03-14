@@ -1,16 +1,18 @@
 #!/bin/bash
 # this is intended for running DPS jobs; the input directory is where a single file has been pulled because download=TRUE in the algorithm_config.yaml file
-
+conda activate r-with-gdal
 # This installs the python libs needed to run the script at the bottom
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
 #pip install --user -U numpy==1.20.3 geopandas rio-cogeo rio-tiler==2.0.8 rasterio==1.2.6 importlib_resources
-#pip install --user -U /projects/requirements.txt
+
 unset PROJ_LIB
 
 mkdir output
 
 basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
+
+pip install --user -U ${basedir}/../requirements_main.txt
 
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order

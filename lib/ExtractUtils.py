@@ -17,11 +17,14 @@ import copy
 #import notebooks.general.CovariateUtils 
 #from CovariateUtils import get_index_tile
 
-# import the MAAP package
-from maap.maap import MAAP
-
-# create MAAP class
-maap = MAAP(maap_host='api.ops.maap-project.org')
+try:
+    from maap.maap import MAAP
+    # create MAAP class
+    maap = MAAP(maap_host='api.ops.maap-project.org')
+    HAS_MAAP = True
+except ImportError:
+    print('NASA MAAP is unavailable')
+    HAS_MAAP = False
 
 def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
