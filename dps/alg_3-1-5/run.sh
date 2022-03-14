@@ -5,7 +5,7 @@ conda activate r-with-gdal
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
 #pip install --user -U numpy==1.20.3 geopandas rio-cogeo rio-tiler==2.0.8 rasterio==1.2.6 importlib_resources
-#pip install --user -U /projects/requirements.txt
+pip install --user -U /projects/icesat2_boreal/dps/requirements_main.txt
 unset PROJ_LIB
 
 mkdir output
