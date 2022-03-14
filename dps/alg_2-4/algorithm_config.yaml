@@ -12,7 +12,7 @@ queue: maap-dps-worker-8gb
 # explain what this algorithm does
 description: 
 # path to the build script for installing and building the algorithm in the docker image
-build_command: icesat2_boreal/dps/build_command_main.sh
+#build_command: icesat2_boreal/dps/build_command_main.sh
 # path to the wrapper script for running the algorithm
 run_command: icesat2_boreal/dps/alg_2-4/run_tile_atl08.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
