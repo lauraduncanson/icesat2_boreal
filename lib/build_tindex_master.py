@@ -7,6 +7,13 @@ import subprocess
 import argparse
 import s3fs
 
+try:
+    from maap.maap import MAAP
+    HAS_MAAP = True
+except ImportError:
+    print('NASA MAAP is unavailable')
+    HAS_MAAP = False
+
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
     if type == 'public':
@@ -60,6 +67,9 @@ def main():
     parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
+    parser.add_argument("-s", "--ends_with_str", type=str, default=".tif", help="String indicating ending pattern of files of interest.")
+    parser.add_argument("-b","--bucket_name", type=str, default=None, help="s3 bucket name for file searching.")
+    parser.add_argument("-r", "--root_key", type=str, default=None, help="Root dir for data search")
     parser.add_argument("--col_name", type=str, default="s3_path", help="Column name for the local path of the found files")
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
@@ -67,7 +77,15 @@ def main():
     
     
     s3 = s3fs.S3FileSystem()
-    bucket = "s3://maap-ops-workspace"
+    
+    if HAS_MAAP:
+        bucket = "s3://maap-ops-workspace"
+    else:
+        if args.bucket_name is None:
+            print("MUST SPECIFY a s3 BUCKET DIR (-b) if not on MAAP")
+            os._exit(1)
+        else:
+            bucket = "s3://" + args.bucket_name
     
     col_name = args.col_name
     DEBUG = args.DEBUG
@@ -91,31 +109,41 @@ def main():
         
         str_exclude_list = ['SAMPLE', 'checkpoint']
         
-        if "HLS" in TYPE:
-            user = 'nathanmthomas'
-            dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = "_dps.tif"
-        if "Landsat" in TYPE:
-            user = 'nathanmthomas'
-            dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = "_dps.tif"
-        if "Topo" in TYPE:
-            user = 'nathanmthomas'
-            dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = "_stack.tif"
-        if "ATL08" in TYPE:
+        if HAS_MAAP:
+        
+            if "HLS" in TYPE:
+                user = 'nathanmthomas'
+                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = "_dps.tif"
+            if "Landsat" in TYPE:
+                user = 'nathanmthomas'
+                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = "_dps.tif"
+            if "Topo" in TYPE:
+                user = 'nathanmthomas'
+                dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = "_stack.tif"
+            if "ATL08" in TYPE:
 
-            user = 'lduncanson'
-            dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = args.seg_str_atl08+".csv"
-        if "filt" in TYPE:
-            user = 'lduncanson'
-            dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = ".csv"
-        if "AGB" in TYPE:
-            user = 'lduncanson'
-            dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
-            ends_with_str = ".tif"
+                user = 'lduncanson'
+                dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = args.seg_str_atl08+".csv"
+            if "filt" in TYPE:
+                user = 'lduncanson'
+                dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = ".csv"
+            if "AGB" in TYPE:
+                user = 'lduncanson'
+                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                ends_with_str = ".tif"
+                
+        else:
+            if args.root_key is None:
+                print("MUST SPECIFY ROOT DIR (-r) if not on MAAP")
+                os._exit(1)
+            else:
+                dps_out_searchkey_list = [f"{args.root_key}/**/*{args.ends_with_str}"]
+                [print(f"bucket, searchkey: {os.path.join(bucket, searchkey)}") for searchkey in dps_out_searchkey_list]
         
         df = pd.concat([pd.DataFrame(s3.glob(os.path.join(bucket, searchkey)), columns=[col_name]) for searchkey in dps_out_searchkey_list])
         #print(df.head())
