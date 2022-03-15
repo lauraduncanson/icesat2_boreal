@@ -459,7 +459,7 @@ if __name__ == "__main__":
     
     python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t LS8
     
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles_v002.gpkg -n 3013 -lyr boreal_tiles_v002 -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t HLS
+    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg -n 131 -lyr boreal_tiles_v003 -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t HLS
     '''
     main()
     

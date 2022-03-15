@@ -47,6 +47,8 @@ def main():
     parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
     parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped topo cog before topo calcs")
     parser.add_argument("-tsrc", "--topo_src_name", type=str, default="Copernicus", help="Name to identify the general source of the topography")
+    parser.add_argument('--topo_off', dest='topo_off', action='store_true', help='Turn off topo stack covar extraction')
+    parser.set_defaults(topo_off=False)
 
     args = parser.parse_args()
     
@@ -108,6 +110,7 @@ def main():
     mosaic = (img[0].as_masked())
     out_trans =  rasterio.transform.from_bounds(*bbox, width, height)
     
+    
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
     #
@@ -115,21 +118,24 @@ def main():
     tileid = '_'.join([topo_src_name, str(stack_tile_id)])
     ext = "covars_cog.tif" 
 
-    dem_cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
-    write_cog(mosaic, dem_cog_fn, tile_parts['tile_crs'], out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
+    cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
+    write_cog(mosaic, cog_fn, tile_parts['tile_crs'], out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
 
     mosaic=None
     
-    #
-    # Call function to make all the topo covars for the output stk and write topo covars COG
-    #     
-    topo_stack_cog_fn = os.path.join(os.path.splitext(dem_cog_fn)[0] + '_topo_stack.tif')
-    if args.output_dir is not None:
-        topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(dem_cog_fn)[0])[1] + '_topo_stack.tif')
-    topo_stack, topo_stack_names = make_topo_stack_cog(dem_cog_fn, topo_stack_cog_fn, tile_parts, res)
-    print("Output topo covariate stack COG: ", topo_stack_cog_fn)
+    if not args.topo_off:
+        #
+        # Call function to make all the topo covars for the output stk and write topo covars COG
+        #     
+        topo_stack_cog_fn = os.path.join(os.path.splitext(cog_fn)[0] + '_topo_stack.tif')
+        if args.output_dir is not None:
+            topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(cog_fn)[0])[1] + '_topo_stack.tif')
+        topo_stack, topo_stack_names = make_topo_stack_cog(cog_fn, topo_stack_cog_fn, tile_parts, res)
+        print("Output topo covariate stack COG: ", topo_stack_cog_fn)
 
-    return(topo_stack_cog_fn)
+        return(topo_stack_cog_fn)
+    else:
+        return(cog_fn)
 
 if __name__ == "__main__":
     main()
