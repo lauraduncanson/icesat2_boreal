@@ -1,6 +1,7 @@
-#!/bin/bash --login
-
+#!/bin/bash
+set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 #install requirements packages
-/opt/conda/envs/r-with-gdal/bin/pip install --user -U -r ${basedir}/requirements_main.txt
-echo "conda activate r-with-gdal" >> ~/.bashrc
+mamba env create -f  ${basedir}/env_main.yaml
+pushd ${HOME}
+/opt/conda/envs/icesat2_boreal/bin/pip install --user -e git+https://github.com/MAAP-Project/maap-py.git#egg=maappy

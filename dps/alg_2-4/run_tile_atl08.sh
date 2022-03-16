@@ -4,13 +4,15 @@
 # This installs the python libs needed to run the script at the bottom
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
+source activate icesat2_boreal
+set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
 unset PROJ_LIB
 
 #install requirements packages
 
-pip install --user -r ${basedir}/../requirements_main.txt
+#pip install --user -r ${basedir}/../requirements_main.txt
 
 mkdir output
 
@@ -21,7 +23,7 @@ INPUT1="${PWD}/${FILENAMELIST[0]}"
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-cmd="python ${basedir}/../../lib/tile_atl08.py \
+python ${basedir}/../../lib/tile_atl08.py \
 --extract_covars \
 --do_dps \
 --do_30m \
@@ -39,9 +41,4 @@ cmd="python ${basedir}/../../lib/tile_atl08.py \
 -v_ATL08 ${10} \
 -minmonth ${11} \
 -maxmonth ${12} \
--LC_filter ${13}"
-
-# Print the command to stdout for debugging
-echo ${cmd}
-# Run the command
-eval ${cmd}
+-LC_filter ${13}
