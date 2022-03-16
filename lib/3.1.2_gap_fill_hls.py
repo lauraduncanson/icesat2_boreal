@@ -150,9 +150,9 @@ def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
 
 def year_band(file, height, width, comp_type):
     if comp_type == "HLS":
-        year = file.split('/')[-1].split('.')[3][0:5]
+        year = file.split('/')[-1].split('.')[3][0:4]
     elif comp_type == "LS8":
-        year = file.split('/')[-1].split('_')[3][0:5]
+        year = file.split('/')[-1].split('_')[3][0:4]
         
     year_arr = np.full((height, width),year,dtype=np.float32)
     
