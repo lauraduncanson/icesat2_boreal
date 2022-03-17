@@ -147,7 +147,22 @@ def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
     
     return JulianComposite
+
+def year_band(file, height, width, comp_type):
+    if comp_type == "HLS":
+        year = file.split('/')[-1].split('.')[3][0:4]
+    elif comp_type == "LS8":
+        year = file.split('/')[-1].split('_')[3][0:4]
+        
+    year_arr = np.full((height, width),year,dtype=np.float32)
     
+    return year_arr
+
+def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
+    year_imgs = [year_band(file_list[i], height, width, comp_type) for i in range(len(file_list))]
+    year_composite = CollapseBands(year_imgs, NDVItmp, BoolMask)
+    
+    return year_composite
 
 # Co-var functions
 # Reads in bands on the fly, as needed
@@ -239,6 +254,7 @@ def get_pixel_coords(arr, transform):
     Xgeo = np.tile(Xarr, (np.shape(arr)[0],1)).astype(np.float32())
     
     return Xgeo, Ygeo
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -393,6 +409,8 @@ def main():
             JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
         elif args.composite == 'LS8':
             JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
+        print('Creating Year Date Comp')
+        YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     
     # calculate covars
     print("Generating covariates")
@@ -415,10 +433,10 @@ def main():
     
     # Stack bands together
     print("Create raster stack")
-    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp], [0, 1, 2]) 
+    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARComp], [0, 1, 2]) 
     print("Assign band names")
     #assign band names
-    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate']
+    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'
     outdir = args.output_dir
@@ -428,7 +446,11 @@ def main():
     end_year = args.end_year
     comp_type = args.composite_type
     out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '.tif')
-    
+    '''INSERT
+    from 3.1.2_gap_fill_dps import *
+    fill_stack = build_backfill_composite_HLS(in_tile_fn, in_tile_num, resolution, tile_buffer_m, in_tile_layer, out_dir, comp_type, sat_api, start_year-1, start_year-1, start_month_day, end_month_day, max_cloud, local_json=None)
+    stack = np.where(stack==-9999, fill_stack, stack)
+    '''
     # write COG to disk
     write_cog(stack, 
               out_stack_fn, 

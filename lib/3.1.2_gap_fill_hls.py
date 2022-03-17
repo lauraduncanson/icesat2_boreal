@@ -147,7 +147,22 @@ def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
     
     return JulianComposite
+
+def year_band(file, height, width, comp_type):
+    if comp_type == "HLS":
+        year = file.split('/')[-1].split('.')[3][0:4]
+    elif comp_type == "LS8":
+        year = file.split('/')[-1].split('_')[3][0:4]
+        
+    year_arr = np.full((height, width),year,dtype=np.float32)
     
+    return year_arr
+
+def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
+    year_imgs = [year_band(file_list[i], height, width, comp_type) for i in range(len(file_list))]
+    year_composite = CollapseBands(year_imgs, NDVItmp, BoolMask)
+    
+    return year_composite
 
 # Co-var functions
 # Reads in bands on the fly, as needed
@@ -374,7 +389,8 @@ def build_backfill_composite_HLS(in_tile_fn, in_tile_num, resolution, tile_buffe
             JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
         elif comp_type == 'LS8':
             JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
-    
+        YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, comp_type)
+        
     # calculate covars
     print("Generating covariates")
     SAVI = calcSAVI(RedComp, NIRComp)
