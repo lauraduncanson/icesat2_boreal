@@ -1,9 +1,9 @@
-#!/bin/bash --login
+#!/bin/bash
 # this is intended for running DPS jobs; the input directory is where four files have been pulled because download=TRUE in the algorithm_config.yaml file
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
-
-
+source activate icesat2_boreal
+set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
 unset PROJ_LIB
@@ -49,9 +49,6 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 conda activate r-with-gdal
 
 # Run mapBoreal with merged CSV as input
-cmd="Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside}"
-
-echo $cmd
-eval $cmd
+Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside}
 
 

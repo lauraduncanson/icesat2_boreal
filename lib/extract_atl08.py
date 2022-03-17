@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+
 
 ''' Author: Nathan Thomas, Paul Montesano
     Date: 02/003/2020

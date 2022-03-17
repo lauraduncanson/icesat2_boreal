@@ -4,9 +4,11 @@
 # This installs the python libs needed to run the script at the bottom
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
+source activate icesat2_boreal
+set -x
 unset PROJ_LIB
-conda list
-pip install --user -U numpy==1.20.3 geopandas==0.9.0 rio-cogeo==2.3.1 rio-tiler==2.1.4 rasterio==1.2.6 morecantile==2.1.4 pystac-client importlib_resources 
+#conda list
+#pip install --user -U numpy==1.20.3 geopandas==0.9.0 rio-cogeo==2.3.1 rio-tiler==2.1.4 rasterio==1.2.6 morecantile==2.1.4 pystac-client importlib_resources 
 
 mkdir output
 
@@ -42,7 +44,7 @@ OUTPUTDIR="${PWD}/output"
 # Cmd line call that worked
 #python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 --json_path /projects/maap-users/alexdevseed/landsat8/sample2/
 
-cmd="python ${basedir}/../../lib/3.1.2_dps.py \
+python ${basedir}/../../lib/3.1.2_dps.py \
 --in_tile_fn ${INPUT1} \
 --in_tile_num ${1} \
 --in_tile_layer ${2} \
@@ -54,7 +56,4 @@ cmd="python ${basedir}/../../lib/3.1.2_dps.py \
 --end_month_day ${8} \
 --max_cloud ${9} \
 --composite_type ${10} \
---output_dir ${OUTPUTDIR}"
-
-echo ${cmd}
-eval ${cmd}
+--output_dir ${OUTPUTDIR}
