@@ -12,7 +12,7 @@ from rasterio.crs import CRS
 from rio_tiler.io import COGReader
 import numpy as np
 from rasterio.session import AWSSession
-from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC
+from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC, common_mask
 from fetch_HLS import get_HLS_data
 from fetch_from_api import get_ls8_data
 import json
@@ -295,6 +295,7 @@ def main():
     #print(out_crs)
     
     print("in_bbox = ", in_bbox)
+    print('bbox 4326 =', tile_id['bbox_4326'])
     #print("out_crs = ", out_crs)
 
     
@@ -451,6 +452,23 @@ def main():
     fill_stack = build_backfill_composite_HLS(in_tile_fn, in_tile_num, resolution, tile_buffer_m, in_tile_layer, out_dir, comp_type, sat_api, start_year-1, start_year-1, start_month_day, end_month_day, max_cloud, local_json=None)
     stack = np.where(stack==-9999, fill_stack, stack)
     '''
+    
+    if False:
+        print('\nAttempt to apply a common mask across all layers of stack...')
+        print(f"Stack shape: {stack.shape}")
+        #stack = common_mask([np.ma.masked_where(b == -9999, b) for b in stack], apply=True)
+        c_mask = common_mask([np.ma.masked_where(b == -9999, b) for b in stack], apply=False)
+        print(c_mask)
+        stack = np.ma.array(stack, mask=c_mask)
+        print(f"Stack shape: {stack.shape}")
+        ''' 
+        The following technique worked in another notebook...
+        # Mask negative values in input
+        warp_valid_ma_list = [ np.ma.masked_where(ma < 0, ma) for ma in stack]
+        common_mask = malib.common_mask(warp_valid_ma_list)
+        warp_ma_masked_list = [np.ma.array(ccdc_warp_ma, mask=common_mask), np.ma.array(evhr_warp_ma, mask=common_mask)]
+        '''
+    
     # write COG to disk
     write_cog(stack, 
               out_stack_fn, 
