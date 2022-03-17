@@ -116,7 +116,7 @@ def main():
     #
     if (not os.path.isdir(tmp_out_path)): os.mkdir(tmp_out_path)
     tileid = '_'.join([topo_src_name, str(stack_tile_id)])
-    ext = "covars_cog.tif" 
+    ext = "cog.tif" 
 
     cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
     write_cog(mosaic, cog_fn, tile_parts['tile_crs'], out_trans, ["elevation"], out_crs=tile_parts['tile_crs'], resolution=(res, res))
@@ -131,7 +131,10 @@ def main():
         if args.output_dir is not None:
             topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(cog_fn)[0])[1] + '_topo_stack.tif')
         topo_stack, topo_stack_names = make_topo_stack_cog(cog_fn, topo_stack_cog_fn, tile_parts, res)
-        print("Output topo covariate stack COG: ", topo_stack_cog_fn)
+        print(f"Output topo covariate stack COG: {topo_stack_cog_fn}")
+        print(f"Removing tmp file: {cog_fn}")
+        os.remove(cog_fn)
+        os.remove(cog_fn + '.msk')
 
         return(topo_stack_cog_fn)
     else:
