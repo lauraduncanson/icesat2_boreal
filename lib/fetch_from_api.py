@@ -85,9 +85,9 @@ def query_year(year, bbox, max_cloud, api, start_month_day, end_month_day):
     start = start_date.strftime("%Y-%m-%dT00:00:00Z")
     end = end_date.strftime("%Y-%m-%dT23:59:59Z")
     
-    print('start date, end date = ', start, end)
+    print('start date, end date:\t\t', start, end)
     
-    print('conducting search now')
+    print('\nConducting Landsat 8 search now...')
     
     query = {
     "time": f"{start}/{end}",
@@ -101,8 +101,10 @@ def query_year(year, bbox, max_cloud, api, start_month_day, end_month_day):
     "limit": 20 # We limit to 500 items per Page (requests) to make sure sat-api doesn't fail to return big features collection
     }
     
-    data = query_satapi(query, api)
+    print(f"Search query parameters:\n{query}\n")
     
+    data = query_satapi(query, api)
+    print('\nSearch complete.\n')
     return data
 
 def read_json(json_file):
@@ -117,7 +119,7 @@ def get_ls8_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     tile_n = int(in_tile_num)
 
     tile_id = get_index_tile(geojson_path_albers, in_tile_id_col, tile_n, buffer=0, layer = layer)
-    print(tile_id)
+    print(f"\nPrinting tile parts:\n\t{tile_id}")
     # Accessing imagery
     # Select an area of interest
     bbox_list = [tile_id['bbox_4326']]

@@ -133,7 +133,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         vrt_params["src_crs"] = in_crs
         vrt_params["dtype"] = str(stack.dtype)
         vrt_params["nodata"] = numpy.nan
-        vrt_params["resampling"] = enums.Resampling.bilinear
+        vrt_params["resampling"] = enums.Resampling.nearest
         
         #TODO: Add  transform with resolution specification
         if out_crs != in_crs:
@@ -165,8 +165,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 resolution = resolution
                 )
             
-    print('Orig stack shape: ',stack.shape)
-    print('Output resolution: ',resolution)
+    print('Orig stack shape:\t\t',stack.shape)
+    print('Output resolution:\t\t',resolution)
         
     # Get the rio-cogeo profile for deflate compression, modify some of the options
     dst_profile = cog_profiles.get("deflate")
@@ -204,7 +204,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                     in_memory=True,
                     quiet=False)
 
-    print('Image written to disk: ', out_fn)
+    print('Image written to disk:\t\t', out_fn)
     # TODO: return something useful
     return True
 

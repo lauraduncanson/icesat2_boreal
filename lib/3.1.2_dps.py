@@ -110,13 +110,13 @@ def CollapseBands(inArr, NDVItmp, BoolMask):
     inArr = np.ma.masked_equal(inArr, 0)
     inArr[np.logical_not(NDVItmp)]=0 
     compImg = np.ma.masked_array(inArr.sum(0), BoolMask)
-    print(compImg)
+    #print(compImg)
     return compImg
 
 def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, dst_crs, comp_type):
-    print("MaskedFile")
+    print("\t\tMaskedFile")
     MaskedFile = [MaskArrays(file_list[i], in_bbox, height, width, comp_type, epsg, dst_crs) for i in range(len(file_list))]
-    print("Composite")
+    print("\t\tComposite")
     Composite=CollapseBands(MaskedFile, NDVItmp, BoolMask)
     return Composite
 
@@ -170,37 +170,37 @@ def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
 # SAVI
 def calcSAVI(red, nir):
     savi = ((nir - red)/(nir + red + 0.5))*(1.5)
-    print('SAVI Created')
+    print('\tSAVI Created')
     return savi
 
 # MASAVI
 def calcMSAVI(red, nir):
     msavi = (2 * nir + 1 - np.sqrt((2 * nir + 1)**2 - 8 * (nir - red))) / 2
-    print('MSAVI Created')
+    print('\tMSAVI Created')
     return msavi
 
 # NDMI
 def calcNDMI(nir, swir):
     ndmi = (nir - swir)/(nir + swir)
-    print('NDMI Created')
+    print('\tNDMI Created')
     return ndmi
 
 # EVI
 def calcEVI(blue, red, nir):
     evi = 2.5 * ((nir - red) / (nir + 6 * red - 7.5 * blue + 1))
-    print('EVI Created')
+    print('\tEVI Created')
     return evi
 
 # NBR
 def calcNBR(nir, swir2):
     nbr = (nir - swir2)/(nir + swir2)
-    print('NBR Created')
+    print('\tNBR Created')
     return nbr
 
 # NBR2
 def calcNBR2(swir, swir2):    
     nbr2 = (swir - swir2)/(swir + swir2)
-    print('NBR2 Created')
+    print('\tNBR2 Created')
     return nbr2
 
 def tasseled_cap(bands):
@@ -230,7 +230,7 @@ def tasseled_cap(bands):
         for b in range(5): # should be 6
             tc[i] += (bands[b] * t[b]).astype(np.float32())
            
-    print('TassCap Created')
+    print('\tTassCap Created')
     return tc[0], tc[1], tc[2] 
 
     # TC Code adapted from: https://github.com/bendv/waffls/blob/master/waffls/indices.py
@@ -242,7 +242,7 @@ def tasseled_cap(bands):
 def VegMask(NDVI):
     mask = np.zeros_like(NDVI)
     mask = np.where(NDVI > 0.1, 1, mask)
-    print("Veg Mask Created")
+    print("\tVeg Mask Created")
     return mask
 
 def get_pixel_coords(arr, transform):
@@ -276,16 +276,16 @@ def main():
     parser.add_argument("-t", "--composite_type", type=str, default='HLS', help="specify the composite type (e.g., HLS, ls8, sen2)")
     args = parser.parse_args()    
     
-    print(args.start_month_day)
+    #print(args.start_month_day)
 
     # EXAMPLE CALL
     # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
     geojson_path_albers = args.in_tile_fn
-    print('geopkg path = ', geojson_path_albers)
+    print('Tiles path:\t\t', geojson_path_albers)
     tile_n = args.in_tile_num
-    print("tile number = ", tile_n)
+    print("Tile number:\t\t", tile_n)
     res = args.res
-    print("output resolution = ", res)
+    print("Output res (m):\t\t", res)
     
     # Get tile by number form GPKG. Store box and out crs
     tile_id = get_index_tile(vector_path=geojson_path_albers, id_col=args.in_tile_id_col, tile_id=tile_n, buffer=args.tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
@@ -294,8 +294,8 @@ def main():
     out_crs = tile_id['tile_crs']
     #print(out_crs)
     
-    print("in_bbox = ", in_bbox)
-    print('bbox 4326 =', tile_id['bbox_4326'])
+    print("in_bbox:\t\t", in_bbox)
+    print('bbox 4326:\t\t', tile_id['bbox_4326'])
     #print("out_crs = ", out_crs)
 
     
@@ -325,8 +325,8 @@ def main():
     
     
     blue_bands = GetBandLists(master_json, 2, args.composite_type)
-    print("Number of files per band =", len(blue_bands))
-    print(blue_bands[0])
+    print("# of files per band:\t\t", len(blue_bands))
+    print(f"Example path to a band:\t\t {blue_bands[0]}")
     
     green_bands = GetBandLists(master_json, 3, args.composite_type)
     red_bands = GetBandLists(master_json, 4, args.composite_type)
@@ -336,7 +336,7 @@ def main():
     if args.composite_type=='HLS':
         fmask_bands = GetBandLists(master_json, 8, args.composite_type)
     
-    print("Number of files per band =", len(blue_bands))
+    #print("# of files per band:\t\t", len(blue_bands))
     #print(blue_bands[0])
     
     
@@ -370,7 +370,7 @@ def main():
     
     # Create Bool mask where there is no value in any of the NDVI layers
     print("Make NDVI valid mask")
-    print("shape = ", np.ma.array(NDVIstack).shape)
+    print("shape:\t\t", np.ma.array(NDVIstack).shape)
     MaxNDVI = np.ma.max(np.ma.array(NDVIstack),axis=0)
     BoolMask = np.ma.getmask(MaxNDVI)
     del MaxNDVI
@@ -416,28 +416,29 @@ def main():
     # calculate covars
     print("Generating covariates")
     SAVI = calcSAVI(RedComp, NIRComp)
-    print("MSAVI")
+    #print("MSAVI")
     MSAVI = calcMSAVI(RedComp, NIRComp)
-    print("NDMI")
+    #print("NDMI")
     NDMI = calcNDMI(NIRComp, SWIRComp)
-    print("EVI")
+    #print("EVI")
     EVI = calcEVI(BlueComp, RedComp, NIRComp)
-    print("NBR")
+    #print("NBR")
     NBR = calcNBR(NIRComp, SWIR2Comp)
-    print("NBR2")
+    #print("NBR2")
     NBR2 = calcNBR2(SWIRComp, SWIR2Comp)
-    print("TCB")
+    #print("TCB")
     TCB, TCG, TCW = tasseled_cap(np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp], [0, 1, 2]))
-    print("calculate X and Y picel center coords")
+    print("Calculating X and Y pixel center coords...")
     ValidMask = VegMask(NDVIComp)
     Xgeo, Ygeo = get_pixel_coords(ValidMask, crs_transform)
     
     # Stack bands together
-    print("Create raster stack")
+    print("\nCreating raster stack...\n")
     stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARComp], [0, 1, 2]) 
-    print("Assign band names")
+    
     #assign band names
     bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'
     outdir = args.output_dir
@@ -447,28 +448,20 @@ def main():
     end_year = args.end_year
     comp_type = args.composite_type
     out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '.tif')
-    '''INSERT
-    from 3.1.2_gap_fill_dps import *
-    fill_stack = build_backfill_composite_HLS(in_tile_fn, in_tile_num, resolution, tile_buffer_m, in_tile_layer, out_dir, comp_type, sat_api, start_year-1, start_year-1, start_month_day, end_month_day, max_cloud, local_json=None)
-    stack = np.where(stack==-9999, fill_stack, stack)
-    '''
     
     if False:
-        print('\nAttempt to apply a common mask across all layers of stack...')
-        print(f"Stack shape: {stack.shape}")
-        #stack = common_mask([np.ma.masked_where(b == -9999, b) for b in stack], apply=True)
-        c_mask = common_mask([np.ma.masked_where(b == -9999, b) for b in stack], apply=False)
-        print(c_mask)
-        stack = np.ma.array(stack, mask=c_mask)
-        print(f"Stack shape: {stack.shape}")
-        ''' 
-        The following technique worked in another notebook...
-        # Mask negative values in input
-        warp_valid_ma_list = [ np.ma.masked_where(ma < 0, ma) for ma in stack]
-        common_mask = malib.common_mask(warp_valid_ma_list)
-        warp_ma_masked_list = [np.ma.array(ccdc_warp_ma, mask=common_mask), np.ma.array(evhr_warp_ma, mask=common_mask)]
-        '''
+        #'''Backfilling needs testing...'''
+        #from 3.1.2_gap_fill_dps import *
+        fill_stack = build_backfill_composite_HLS(in_tile_fn, in_tile_num, resolution, tile_buffer_m, in_tile_layer, out_dir, comp_type, sat_api, \
+                                                  start_year-1, start_year-1, start_month_day, end_month_day, \
+                                                  max_cloud, local_json=None)
+        stack = np.where(stack==-9999, fill_stack, stack)
     
+    print('\nApply a common mask across all layers of stack...')
+    print(f"Stack shape pre-mask:\t\t{stack.shape}")
+    stack[:, np.any(stack == -9999, axis=0)] = -9999 
+    print(f"Stack shape post-mask:\t\t{stack.shape}")
+
     # write COG to disk
     write_cog(stack, 
               out_stack_fn, 
@@ -478,7 +471,7 @@ def main():
               out_crs=out_crs, 
               resolution=(res, res)
              )
-    print(f"Wrote out stack:\t{out_stack_fn}")
+    print(f"Wrote out stack:\t\t{out_stack_fn}")
     return(out_stack_fn)
     
 if __name__ == "__main__":
