@@ -281,7 +281,7 @@ def main():
     # EXAMPLE CALL
     # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
     geojson_path_albers = args.in_tile_fn
-    print('Tiles path:\t\t', geojson_path_albers)
+    print('\nTiles path:\t\t', geojson_path_albers)
     tile_n = args.in_tile_num
     print("Tile number:\t\t", tile_n)
     res = args.res
@@ -471,7 +471,7 @@ def main():
               out_crs=out_crs, 
               resolution=(res, res)
              )
-    print(f"Wrote out stack:\t\t{out_stack_fn}")
+    print(f"Wrote out stack:\t\t{out_stack_fn}\n")
     return(out_stack_fn)
     
 if __name__ == "__main__":
