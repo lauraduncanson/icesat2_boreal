@@ -118,7 +118,7 @@ def main():
         
             if "HLS" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 user = 'nathanmthomas'
@@ -175,7 +175,7 @@ def main():
         if 'Landsat' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[6]
         if 'HLS'in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[-1] 
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1] 
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:

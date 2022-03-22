@@ -15,7 +15,10 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
                                     },
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
-                    max_AGB_display = 150
+                    max_AGB_display = 150,
+                    MS_BANDNUM = 8,
+                    MS_BANDMAX = 1,
+                    MS_BANDCOLORBAR = 'viridis'
                    ):
     
     # Set colormaps
@@ -154,7 +157,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     )
 
     mscomp_tiles_layer = TileLayer(
-        tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,1&bidx=8&colormap_name=viridis",
+        tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
         opacity=1,
         name="MS Composite",
         attr="MAAP",
