@@ -11,7 +11,7 @@ from folium import plugins
 def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_matches, tile_index_missing, 
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
-                                        'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_mosaic.json',
+                                        'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
                                     },
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
