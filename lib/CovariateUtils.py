@@ -133,7 +133,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         vrt_params["src_crs"] = in_crs
         vrt_params["dtype"] = str(stack.dtype)
         vrt_params["nodata"] = numpy.nan
-        vrt_params["resampling"] = enums.Resampling.bilinear
+        vrt_params["resampling"] = enums.Resampling.nearest
         
         #TODO: Add  transform with resolution specification
         if out_crs != in_crs:
@@ -165,8 +165,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 resolution = resolution
                 )
             
-    print('Orig stack shape: ',stack.shape)
-    print('Output resolution: ',resolution)
+    print('Orig stack shape:\t\t',stack.shape)
+    print('Output resolution:\t\t',resolution)
         
     # Get the rio-cogeo profile for deflate compression, modify some of the options
     dst_profile = cog_profiles.get("deflate")
@@ -204,7 +204,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                     in_memory=True,
                     quiet=False)
 
-    print('Image written to disk: ', out_fn)
+    print('Image written to disk:\t\t', out_fn)
     # TODO: return something useful
     return True
 
@@ -238,3 +238,24 @@ def get_aws_session_DAAC():
         region_name='us-west-2'
     )
     return AWSSession(boto3_session)
+
+#Return a common mask for a set of input ma
+def common_mask(ma_list, apply=False):
+    if type(ma_list) is not list:
+        print("Input must be list of masked arrays")
+        return None
+    #Note: a.mask will return single False if all elements are False
+    #numpy.ma.getmaskarray(a) will return full array of False
+    #ma_list = [numpy.ma.array(a, mask=numpy.ma.getmaskarray(a), shrink=False) for a in ma_list]
+    a = numpy.ma.array(ma_list, shrink=False)
+    #Check array dimensions
+    #Check dtype = bool
+    #Masked values are listed as true, so want to return any()
+    #a+b+c - OR (any)
+    mask = numpy.ma.getmaskarray(a).any(axis=0)
+    #a*b*c - AND (all)
+    #return a.all(axis=0)
+    if apply:
+        return [numpy.ma.array(b, mask=mask) for b in ma_list] 
+    else:
+        return mask

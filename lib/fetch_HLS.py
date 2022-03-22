@@ -67,16 +67,16 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     catalog = Client.open(api)
     
     date_min = str(year) + '-' + start_month_day
-    print('start_month_day', start_month_day)
+    print('start_month_day:\t\t', start_month_day)
     date_max = str(year) + '-' + end_month_day
     start_date = datetime.datetime.strptime(date_min, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(date_max, "%Y-%m-%d") 
     start = start_date.strftime("%Y-%m-%dT00:00:00Z")
     end = end_date.strftime("%Y-%m-%dT23:59:59Z")
     
-    print('start date, end date = ', start, end)
+    print('start date, end date:\t\t', start, end)
     
-    print('conducting search')
+    print('\nConducting HLS search now...')
     
     search = catalog.search(
         collections=["HLSL30.v2.0"],
@@ -85,9 +85,10 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
         max_items=500, # for testing, and keep it from hanging
         # query={"eo:cloud_cover":{"lt":20}} #doesn't work
     )
+    print(f"Search query parameters:\n{search}\n")
     results = search.get_all_items_as_dict()
     
-    print("initial results = ", len(results['features']))
+    print("initial results:\t\t", len(results['features']))
     
     filtered_results = []
     for i in results['features']:
@@ -96,8 +97,8 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     
     results['features'] = filtered_results
 
-    print("filtered results = ", len(results['features']))
-
+    print("filtered results:\t\t", len(results['features']))
+    print('\nSearch complete.\n')
     return results
 
 

@@ -102,7 +102,12 @@ def main():
     
     for TYPE in TYPE_LIST:
         
-        print("\nBuilding a list of tiles: ",TYPE)
+        print("\nBuilding a list of tiles:")
+        print(f"MAAP version:\t\t{args.maap_version}")
+        print(f"Type:\t\t{TYPE}")
+        print(f"Year:\t\t{args.dps_year}")
+        print(f"Month:\t\t{args.dps_month}")
+        print(f"Days:\t\t{args.dps_day_min}-{args.dps_day_max}")
         print("\nOutput dir: ", args.outdir)
         
         out_name = TYPE + "_tindex_master.csv"
@@ -113,7 +118,7 @@ def main():
         
             if "HLS" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 user = 'nathanmthomas'
@@ -148,6 +153,10 @@ def main():
         df = pd.concat([pd.DataFrame(s3.glob(os.path.join(bucket, searchkey)), columns=[col_name]) for searchkey in dps_out_searchkey_list])
         #print(df.head())
         
+        if len(df) == 0:
+            print('Nothing found. Check year and month. Exiting.')
+            os._exit(1)
+        
         # Remove rows of files that shouldnt be here
         #df = pd.concat([df[~df[col_name].str.contains(string_exclude)] for string_exclude in str_exclude_list])
         
@@ -162,11 +171,11 @@ def main():
         if 'AGB' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[7]
         if 'Topo' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[6]
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1]
         if 'Landsat' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[6]
         if 'HLS'in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[-1] 
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1] 
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
