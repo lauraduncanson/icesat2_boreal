@@ -299,7 +299,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
   return(agb_maps)
 }
 
-                                            
+
 mapBoreal<-function(rds_models,
                     models_id,
                     ice2_30_atl08_path, 
@@ -311,6 +311,12 @@ mapBoreal<-function(rds_models,
                     stack=stack,
                     strat_random=TRUE,
                     output,
+                    minDOY=1,
+                    maxDOY=365,
+                    max_sol_el=0,
+                    expand_training=TRUE,
+                    local_train_perc=100,
+                    min_n=3000,
                     DO_MASK=FALSE){
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
@@ -322,54 +328,121 @@ mapBoreal<-function(rds_models,
     tile_data <- read.csv(ice2_30_atl08_path)
     
     #sub-sample tile data to n_tile
-    n_tile <- 3000
+    n_tile <- as.double(min_n)
     
-    #optional filter for only night data
-    #night_data <- which(tile_data$night_flg==1)
-    #n_avail <- length(night_data)
+    #expand_training=TRUE when looking to expand to fulfill n_tile
+    #expand_training=FALSE when looking to be explicity
+    #default minDOY May 1 (121) maxDOY Sept 30 (273)
+    default_minDOY <- 121
+    default_maxDOY <- 273
 
-    #if(n_avail > n_tile){
-    #    tile_data <- tile_data[night_data,]
-    #    samp_ids <- seq(1,n_avail)
-    #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
-    #    tile_data <- tile_data[tile_sample_ids,]
-    #}
-    
-    #optional filter for solar elevation <5
-    sol_e_data <- which(tile_data$sol_el < 5)
-    n_avail <- length(sol_e_data)
+    if(expand_training==TRUE){
+        #first hard filtering
+        filter1 <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$sol_el < 0)
+        n_filter1 <- length(filter1)
 
+        #check if sufficient data, if not expand to max solar elevation allowed
+        if(n_filter1 < n_tile){
+            filter2 <- which(tile_data$doy >= minDOY & tile_data$doy <=maxDOY & tile_data$sol_el < max_sol_el)
+            n_filter2 <- length(filter2)
+            
+            #check if n met, if not expand 1 month later in growing season, iteratively
+            if(n_filter2 < n_tile){
+                #check maxDOY
+                temp_maxDOY <- default_maxDOY
+                n_late <- 0
+                for(late_months in 1:4){
+                    if(n_late < n_tile){
+                        temp_maxDOY <- default_maxDOY+(30*(late_months-1))
+                        
+                        if(temp_maxDOY < maxDOY){
+                            filter_lateseason <- which(tile_data$doy > minDOY & tile_data$doy < temp_maxDOY & tile_data$sol_el < max_sol_el)
+                            n_late <- length(filter_lateseason) 
+                        }
+                    }
+                }
+                print('n_late2:')
+                print(n_late)
+
+                if(n_late > n_tile){
+                        tile_data <- tile_data[filter_lateseason,]
+                } else{
+                    #shift to iterative searching through early season
+                    temp_minDOY <- default_minDOY
+                    n_early <- 0
+                    early_months <- 0
+                    for(early_months in 1:4){
+                        if(n_early < n_tile){
+                            temp_minDOY <- default_minDOY-(30*(early_months-1))
+                            
+                            if(temp_minDOY > minDOY){
+                                filter_earlyseason <- which(tile_data$doy >= temp_minDOY & tile_data$doy <=temp_maxDOY & tile_data$sol_el < max_sol_el)
+                                n_early <- length(filter_earlyseason)
+                            }
+                        }
+
+                    }
+                    if(n_early > n_tile){
+                        tile_data <- tile_data[filter_earlyseason,]
+                    }
+                         
+                } 
+            
+            } else{
+                tile_data <- tile_data[filter2,]
+            }
+        } else {
+            tile_data <- tile_data[filter1,]
+            }
+    } else {
+            #expand training = FALSE take defaults
+            filter <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$sol_el < 0)
+            tile_data <- tile_data[filter,]
+    }
+        
+    # Get rid of extra data
+    n_avail <- nrow(tile_data)
     if(n_avail > n_tile){
-        tile_data <- tile_data[sol_e_data,]
         samp_ids <- seq(1,n_avail)
         tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
     
+        
+        
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
     
-    #can combine with broad_data or not
-    all_train_data <- tile_data
-    #all_train_data <- rbind(tile_data, broad_data)
-    
-    #set boreal only models for specific weird tiles
-    #weird_tiles <- c(4304, 4305, 4221, 4220, 1785, 1718, 1720, 1661, 1257, 1318, 1317, 1316, 1255, 1196, 949, 1062, 1063, 1005, 950, 1004)
-    
-    #if(tile_num %in% weird_tiles){
-    #    all_train_data <- broad_data
-    #}
-    
+    #take propertion of broad data we want based on local_train_perc
+    sample_local <- n_tile * (local_train_perc/100)
+    sample_broad <- n_tile - sample_local
+        
+    if(sample_local < n_tile){
+        samp_ids <- seq(1,sample_local)
+        tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
+        
+    if(sample_broad>0){
+        samp_ids <- seq(1,sample_broad)
+        broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
+        broad_data <- broad_data[broad_sample_ids,]
+        all_train_data <- rbind(tile_data, broad_data)
+    } else{
+        all_train_data <- tile_data
+    }
+        
     str(tile_data)
     str(broad_data)
     str(all_train_data)
+    
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=all_train_data, 
                        offset=offset,
                        DO_MASK=DO_MASK)
-    #hist(xtable$AGB)
+
     print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
 
     # run 
@@ -444,7 +517,7 @@ mapBoreal<-function(rds_models,
 
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
-    out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
+    out_cog_fn <- paste(out_fn_stem, '.tif', sep="_" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
     
@@ -464,11 +537,8 @@ mapBoreal<-function(rds_models,
     print(paste0("Write COG tif: ", out_cog_fn))
     
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    file.remove(out_tif_fn)
+    #file.remove(out_tif_fn)
           
-    # LD's original return : a list of 2 things (both rasters)
-    # Now, we can return a list of 3 things : the 2 maps, and the xtable (this has lat,lons, and AGB, SE for each ATL08 obs)
-    #maps = append(agb.mosaic, list(xtable[,c('lon','lat','AGB','SE')]))
     
      #Write out_table of ATL08 AGB as a csv
     out_table = xtable[,c('lon','lat','AGB','SE')]    
@@ -501,8 +571,18 @@ DO_MASK_WITH_STACK_VARS <- args[4]
 data_sample_file <- args[5]
 iters <- args[6]
 ppside <- args[7]
+minDOY <- args[8]
+maxDOY <- args[9]
+max_sol_el <- args[10]
+expand_training <- args[11]
+local_train_perc <- args[12]
+min_n <- args[13]
 
 ppside <- as.double(ppside)
+minDOY <- as.double(minDOY)
+maxDOY <- as.double(maxDOY)
+max_sol_el <- as.double(max_sol_el)
+local_train_perc <- as.double(local_train_perc)
 
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
 
@@ -559,4 +639,10 @@ maps<-mapBoreal(rds_models=rds_models,
                 stack=brick,
                 strat_random=FALSE,
                 output=out_fn,
+                minDOY=minDOY,
+                maxDOY=maxDOY,
+                max_sol_el=max_sol_el,
+                expand_training=expand_training,
+                local_train_perc=local_train_perc,
+                min_n=min_n,
                 DO_MASK=DO_MASK_WITH_STACK_VARS)
