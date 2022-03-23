@@ -73,6 +73,9 @@ def main():
     parser.add_argument("--col_name", type=str, default="s3_path", help="Column name for the local path of the found files")
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
+    parser.add_argument('-local_dir', type=str, default=None, help='Local testing dir')
+    parser.add_argument('--LOCAL_TEST', dest='LOCAL_TEST', action='store_true', help='Do local testing')
+    parser.set_defaults(LOCAL_TEST=False)
     args = parser.parse_args()
     
     
@@ -149,6 +152,10 @@ def main():
             else:
                 dps_out_searchkey_list = [f"{args.root_key}/**/*{args.ends_with_str}"]
                 [print(f"bucket, searchkey: {os.path.join(bucket, searchkey)}") for searchkey in dps_out_searchkey_list]
+                
+        if args.LOCAL_TEST:
+            print('LOCAL TEST')
+            dps_out_searchkey_list = [f"{args.local_dir}/*{args.ends_with_str}"]
         
         df = pd.concat([pd.DataFrame(s3.glob(os.path.join(bucket, searchkey)), columns=[col_name]) for searchkey in dps_out_searchkey_list])
         #print(df.head())
