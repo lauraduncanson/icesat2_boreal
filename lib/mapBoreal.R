@@ -464,7 +464,7 @@ mapBoreal<-function(rds_models,
     print(paste0("Write COG tif: ", out_cog_fn))
     
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    file.remove(out_tif_fn)
+    #file.remove(out_tif_fn)
           
     # LD's original return : a list of 2 things (both rasters)
     # Now, we can return a list of 3 things : the 2 maps, and the xtable (this has lat,lons, and AGB, SE for each ATL08 obs)
