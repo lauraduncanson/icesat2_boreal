@@ -139,7 +139,7 @@ def main():
                 ends_with_str = ".csv"
             if "AGB" in TYPE:
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_v2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
                 ends_with_str = ".tif"
                 
         else:

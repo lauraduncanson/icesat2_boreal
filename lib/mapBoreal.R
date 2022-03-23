@@ -444,7 +444,7 @@ mapBoreal<-function(rds_models,
 
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
-    out_cog_fn <- paste(out_fn_stem, 'cog.tif', sep="_" )
+    out_cog_fn <- paste(out_fn_stem, '.tif', sep="_" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
     
