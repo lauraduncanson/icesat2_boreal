@@ -176,7 +176,7 @@ def main():
         print(df.head()) 
         
         if 'AGB' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[7]
+            df['tile_num'] = df['file'].str.split('_', expand=True)[3]
         if 'Topo' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1]
         if 'Landsat' in TYPE:
