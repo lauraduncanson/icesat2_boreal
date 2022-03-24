@@ -8,6 +8,34 @@ import matplotlib.cm
 from folium import Map, TileLayer, GeoJson, LayerControl, Icon, Marker, features, Figure, CircleMarker
 from folium import plugins
 
+# Get a basemap
+tiler_basemap_googleterrain = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'
+tiler_basemap_gray = "http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+tiler_basemap_image = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+basemaps = {
+   'Google Terrain' : TileLayer(
+    tiles = tiler_basemap_googleterrain,
+    attr = 'Google',
+    name = 'Google Terrain',
+    overlay = False,
+    control = True
+   ),
+    'basemap_gray' : TileLayer(
+        tiles=tiler_basemap_gray,
+        opacity=1,
+        name="World gray basemap",
+        attr="MAAP",
+        overlay=False
+    ),
+    'Imagery' : TileLayer(
+        tiles=tiler_basemap_image,
+        opacity=1,
+        name="Imagery",
+        attr="MAAP",
+        overlay=False
+    )
+}
+
 def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_matches, tile_index_missing, 
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
@@ -18,33 +46,27 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
                     max_AGB_display = 150,
                     MS_BANDNUM = 8,
                     MS_BANDMAX = 1,
-                    MS_BANDCOLORBAR = 'viridis'
+                    MS_BANDCOLORBAR = 'viridis',
+                    tiles_remove = [41995, 41807, 41619] # geo abyss
                    ):
     
     # Set colormaps
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
+        agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
+        agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
 
-    # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
-    agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
-    agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
+        agb_se_colormap = 'magma'
+        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,20&bidx=2&colormap_name={agb_se_colormap}"
 
-    agb_se_colormap = 'magma'
-    agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,20&bidx=2&colormap_name={agb_se_colormap}"
+        colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
+        colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
+        colormap_AGB
 
-    colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
-    colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
-    colormap_AGB
-
-    #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
-    #colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
-    #colormap = cm.linear.nipy_spectral.scale(0, 125).to_step(25)
-    #colormap
-
-    # Get a basemap
-    tiler_basemap_gray = "http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-    tiler_basemap_image = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-
-
-    tiles_geo_abyss = [41995, 41807, 41619]
+        #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
+        #colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
+        #colormap = cm.linear.nipy_spectral.scale(0, 125).to_step(25)
+        #colormap
 
     # Get Vector layers
     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
@@ -89,7 +111,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     #       ).add_to(m)
 
     boreal_tile_index_layer = GeoJson(
-            data=boreal_tile_index[~boreal_tile_index.tile_num.isin(tiles_geo_abyss)].to_crs("EPSG:4326").to_json(),
+            data=boreal_tile_index[~boreal_tile_index.tile_num.isin(tiles_remove)].to_crs("EPSG:4326").to_json(),
             style_function=lambda x:boreal_tiles_style,
             name="Boreal tiles",
             tooltip=features.GeoJsonTooltip(
@@ -115,61 +137,44 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
                 name=f"{DPS_DATA_TYPE} tiles needed"
             )
 
-    if True:
-        basemaps = {
-           'Google Terrain' : TileLayer(
-            tiles = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-            attr = 'Google',
-            name = 'Google Terrain',
-            overlay = False,
-            control = True
-           ),
-            'basemap_gray' : TileLayer(
-                tiles=tiler_basemap_gray,
-                opacity=1,
-                name="World gray basemap",
-                attr="MAAP",
-                overlay=False
-            ),
-            'Imagery' : TileLayer(
-                tiles=tiler_basemap_image,
-                opacity=1,
-                name="Imagery",
-                attr="MAAP",
-                overlay=False
-            )
-        }
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        agb_tiles_layer = TileLayer(
+            tiles=agb_tiles,
+            opacity=1,
+            name="Boreal AGB",
+            attr="MAAP",
+            overlay=True
+        )
+        agb_tiles_layer.add_to(m1)
 
-    agb_tiles_layer = TileLayer(
-        tiles=agb_tiles,
-        opacity=1,
-        name="Boreal AGB",
-        attr="MAAP",
-        overlay=True
-    )
-
-    agb_se_tiles_layer = TileLayer(
-        tiles=agb_se_tiles,
-        opacity=1,
-        name="Boreal AGB SE",
-        attr="MAAP",
-        overlay=True
-    )
-
-    mscomp_tiles_layer = TileLayer(
-        tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
-        opacity=1,
-        name="MS Composite",
-        attr="MAAP",
-        overlay=True
-    )
-    topo_tiles_layer = TileLayer(
-        tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=bone",
-        opacity=1,
-        name="Topography",
-        attr="MAAP",
-        overlay=True
-    )
+        agb_se_tiles_layer = TileLayer(
+            tiles=agb_se_tiles,
+            opacity=1,
+            name="Boreal AGB SE",
+            attr="MAAP",
+            overlay=True
+        )
+        agb_se_tiles_layer.add_to(m1)
+        
+    if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
+        mscomp_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
+            opacity=1,
+            name="MS Composite",
+            attr="MAAP",
+            overlay=True
+        )
+        mscomp_tiles_layer.add_to(m1)
+        
+    if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
+        topo_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray",
+            opacity=0.25,
+            name="Topography",
+            attr="MAAP",
+            overlay=True
+        )
+        topo_tiles_layer.add_to(m1)
 
 
     # Add custom basemaps
@@ -179,11 +184,6 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
 
     ecoboreal_layer.add_to(m1)
 
-    agb_tiles_layer.add_to(m1)
-    agb_se_tiles_layer.add_to(m1)
-    mscomp_tiles_layer.add_to(m1)
-    topo_tiles_layer.add_to(m1)
-
     # Layers are added on top. Last layer is top layer
     boreal_tile_index_layer.add_to(m1)
     tile_matches_layer.add_to(m1)
@@ -191,18 +191,15 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     if len(tile_index_missing) > 0:
         tile_matches_missing_layer.add_to(m1)
     #tile_matches_n_obs.add_to(m1)    
-
-    m1.add_child(colormap_AGB)
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        m1.add_child(colormap_AGB)
+    
     plugins.Geocoder().add_to(m1)
-
     LayerControl().add_to(m1)
     plugins.Fullscreen().add_to(m1)
-
     plugins.MousePosition().add_to(m1)
     minimap = plugins.MiniMap()
     m1.add_child(minimap)
-
-
     #m1.add_child(colormap_AGBSE)
 
     return m1
