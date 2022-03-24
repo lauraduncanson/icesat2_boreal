@@ -94,9 +94,9 @@ def main():
     DEBUG = args.DEBUG
     dps_month = args.dps_month
 
-    
-    if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
+    if not 's3://' in args.outdir:
+        if not os.path.exists(args.outdir):
+            os.makedirs(args.outdir)
     
     if args.type == 'all':
         TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HLS']
