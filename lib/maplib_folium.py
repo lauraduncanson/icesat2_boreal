@@ -23,16 +23,23 @@ basemaps = {
     'basemap_gray' : TileLayer(
         tiles=tiler_basemap_gray,
         opacity=1,
-        name="World gray basemap",
+        name="ESRI gray",
         attr="MAAP",
         overlay=False
     ),
     'Imagery' : TileLayer(
         tiles=tiler_basemap_image,
         opacity=1,
-        name="Imagery",
+        name="ESRI imagery",
         attr="MAAP",
         overlay=False
+    ),
+    'ESRINatGeo' : TileLayer(
+    tiles='https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
+    opacity=1,
+    name='ESRI Nat. Geo.',
+    attr='ESRI',
+    overlay=False
     )
 }
 
@@ -42,6 +49,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
                                     },
+                    mscomp_rgb_dict = None,
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
                     max_AGB_display = 150,
                     MS_BANDNUM = 8,
@@ -99,7 +107,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     m1 = Map(
         #tiles="Stamen Toner",
         location=(60, 5),
-        zoom_start=3, tiles=''
+        zoom_start=3, tiles='',
+        control_scale = True
     )
     Map_Figure.add_child(m1)
 
@@ -156,7 +165,34 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
         )
         agb_se_tiles_layer.add_to(m1)
         
-    if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
+    if mscomp_rgb_dict is not None:
+        
+        mscomp_tiles_layer_red = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['red_bandmax']}&bidx={mscomp_rgb_dict['red_bandnum']}&colormap_name=reds",
+            opacity=0.33,
+            name=f"MS Composite: {mscomp_rgb_dict['red_bandnum']}",
+            attr="MAAP",
+            overlay=True
+        )
+        mscomp_tiles_layer_red.add_to(m1)
+        mscomp_tiles_layer_green = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['green_bandmax']}&bidx={mscomp_rgb_dict['green_bandnum']}&colormap_name=greens",
+            opacity=0.33,
+            name=f"MS Composite: {mscomp_rgb_dict['green_bandnum']}",
+            attr="MAAP",
+            overlay=True
+        )
+        mscomp_tiles_layer_green.add_to(m1)
+        mscomp_tiles_layer_blue = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['blue_bandmax']}&bidx={mscomp_rgb_dict['blue_bandnum']}&colormap_name=blues",
+            opacity=0.33,
+            name=f"MS Composite: {mscomp_rgb_dict['blue_bandnum']}",
+            attr="MAAP",
+            overlay=True
+        )
+        mscomp_tiles_layer_blue.add_to(m1)
+        
+    elif mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         mscomp_tiles_layer = TileLayer(
             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
             opacity=1,
@@ -181,6 +217,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     basemaps['basemap_gray'].add_to(m1)
     basemaps['Google Terrain'].add_to(m1)
     basemaps['Imagery'].add_to(m1)
+    basemaps['ESRINatGeo'].add_to(m1)
 
     ecoboreal_layer.add_to(m1)
 
