@@ -50,5 +50,16 @@ inputs:
     download: False
   - name: ppside
     download: False
-
+  - name: minDOY
+    download: False
+  - name: maxDOY
+    download: False
+  - name: max_sol_el
+    download: False
+  - name: expand_training
+    download: False
+  - name: local_train_perc
+    download: False
+  - name: min_n
+    download: False
 

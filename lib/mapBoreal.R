@@ -524,7 +524,7 @@ mapBoreal<-function(rds_models,
     print(paste0("Write tmp tif: ", out_tif_fn))
 
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
-    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE)
+    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE, options=tiftoptions)
     
     #Change suggested from A Mandel to visualize cogs faster
     #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
