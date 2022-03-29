@@ -33,6 +33,8 @@ inputs:
     download: False
   - name: landsat_stack_list_fn
     download: False
+  - name: landsat_cols_list
+    download: False
   - name: years_list
     download: False
   - name: user_stacks

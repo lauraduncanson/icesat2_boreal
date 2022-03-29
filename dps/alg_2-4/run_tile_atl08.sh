@@ -34,11 +34,12 @@ python ${basedir}/../../lib/tile_atl08.py \
 -csv_list_fn ${3} \
 -topo_stack_list_fn ${4} \
 -landsat_stack_list_fn ${5} \
--years_list ${6} \
--user_stacks ${7} \
--user_atl08 ${8} \
--thresh_sol_el ${9} \
--v_ATL08 ${10} \
--minmonth ${11} \
--maxmonth ${12} \
--LC_filter ${13}
+-landsat_cols_list ${6} \
+-years_list ${7} \
+-user_stacks ${8} \
+-user_atl08 ${9} \
+-thresh_sol_el ${10} \
+-v_ATL08 ${11} \
+-minmonth ${12} \
+-maxmonth ${13} \
+-LC_filter ${14}
