@@ -43,6 +43,14 @@ basemaps = {
     )
 }
 
+def local_to_s3(url, user = 'nathanmthomas', type='public'):
+    ''' A Function to convert local paths to s3 urls'''
+    if type == 'public':
+        replacement_str = f's3://maap-ops-workspace/shared/{user}'
+    else:
+        replacement_str = f's3://maap-ops-workspace/{user}'
+    return url.replace(f'/projects/my-{type}-bucket', replacement_str)
+
 def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_matches, tile_index_missing, 
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
@@ -53,6 +61,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
                     max_AGB_display = 150,
                     MS_BANDNUM = 8,
+                    MS_BANDMIN = 0,
                     MS_BANDMAX = 1,
                     MS_BANDCOLORBAR = 'viridis',
                     tiles_remove = [41995, 41807, 41619] # geo abyss
@@ -194,7 +203,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
         
     elif mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         mscomp_tiles_layer = TileLayer(
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale={MS_BANDMIN},{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
             opacity=1,
             name="MS Composite",
             attr="MAAP",
