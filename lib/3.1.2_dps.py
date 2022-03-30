@@ -255,6 +255,12 @@ def get_pixel_coords(arr, transform):
     
     return Xgeo, Ygeo
 
+def renew_session(comp_type):
+    if comp_type == 'HLS':
+        aws_session = get_aws_session_DAAC()
+    elif comp_type == 'LS8':
+        aws_session = get_aws_session()
+    return aws_session   
 
 def main():
     parser = argparse.ArgumentParser()
@@ -387,31 +393,70 @@ def main():
     print("Create LUT of max NDVI positions")
     for i in range(np.shape(NDVIstack)[0]):
         NDVItmp[i,:,:]=NDVImax==i
-    
-    
+      
     # create band-by-band composites
+    aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Blue Composite')
         BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating Green Composite')
         GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating Red Composite')
         RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating NIR Composite')
         NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating SWIR Composite')
         SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating SWIR2 Composite')
         SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating NDVI Composite')
         NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):        
         if args.composite_type == 'HLS':
             print('Creating Julian Date Comp')
             JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
         elif args.composite == 'LS8':
             JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
         print('Creating Year Date Comp')
         YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
+          
+    # with rio.Env(aws_session):
+    #     print('Creating Blue Composite')
+    #     BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating Green Composite')
+    #     GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating Red Composite')
+    #     RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating NIR Composite')
+    #     NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating SWIR Composite')
+    #     SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating SWIR2 Composite')
+    #     SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+    #     print('Creating NDVI Composite')
+    #     NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
+    #     if args.composite_type == 'HLS':
+    #         print('Creating Julian Date Comp')
+    #         JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
+    #     elif args.composite == 'LS8':
+    #         JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
+    #     print('Creating Year Date Comp')
+    #     YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     
     # calculate covars
     print("Generating covariates")
