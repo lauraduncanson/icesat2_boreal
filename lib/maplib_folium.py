@@ -311,11 +311,31 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
 
     return m3
 
-def map_tile_atl08(TILE_OF_INTEREST, DO_NIGHT=True):
-    DPS_DATA_TYPE = 'ATL08_filt' #"Topo" "Landsat" "ATL08" "AGB"
-    DPS_DATA_USER = 'lduncanson' 
+def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic,
+                  DPS_DATA_USER = 'lduncanson', ATL08_filt_tindex_master_fn = f'/projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv', DO_NIGHT=True,
+                  mosaic_json_dict = {
+                                        'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
+                                        'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
+                                        'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
+                                    }
+                  ):
+    
+    import branca.colormap as cm
+    pal_height_cmap = cm.LinearColormap(colors = ['black','#636363','#fc8d59','#fee08b','#ffffbf','#d9ef8b','#91cf60','#1a9850'], vmin=0, vmax=10)
+    pal_height_cmap.caption = 'Vegetation height from  ATL08 @ 30 m (h_can; rh98)'
+    pal_height_cmap
+    
+    # Set colormaps
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
+        agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
+        max_AGB_display = 150
+        agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
+    
+    #DPS_DATA_TYPE = 'ATL08_filt' #"Topo" "Landsat" "ATL08" "AGB"
+     
     #AGB_tindex_master_fn = f's3://maap-ops-workspace/shared/{DPS_DATA_USER}/DPS_tile_lists/AGB_tindex_master.csv'
-    ATL08_filt_tindex_master_fn = f'/projects/shared-buckets/{DPS_DATA_USER}/DPS_tile_lists/ATL08_filt_tindex_master.csv'
+    
     print(ATL08_filt_tindex_master_fn)
 
     # Build up a dataframe from the list of dps output files
@@ -323,8 +343,14 @@ def map_tile_atl08(TILE_OF_INTEREST, DO_NIGHT=True):
     #AGB_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in AGB_tindex_master['local_path']]
 
     ATL08_filt_tindex_master = pd.read_csv(ATL08_filt_tindex_master_fn)
-    ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
+    if 's3_path' in ATL08_filt_tindex_master.columns:
+        ATL08_filt_tindex_master['s3'] = ATL08_filt_tindex_master['s3_path']
+    else:
+        ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
 
+    if TILE_OF_INTEREST not in ATL08_filt_tindex_master.tile_num.to_list():
+        print(f'Tile {TILE_OF_INTEREST} has not yet been added to this list.')
+        return None
     
     # Get the CSV fn for tile
     ATL08_filt_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == TILE_OF_INTEREST].tolist()[0]
@@ -334,7 +360,8 @@ def map_tile_atl08(TILE_OF_INTEREST, DO_NIGHT=True):
     atl08_df = pd.read_csv(ATL08_filt_csv_fn)
     atl08_gdf = geopandas.GeoDataFrame(atl08_df, crs="EPSG:4326", geometry = geopandas.points_from_xy(atl08_df.lon, atl08_df.lat) )
     print(f'\nNum. of ATL08 obs. in tile {TILE_OF_INTEREST}: \t{len(atl08_gdf)}')
-    print(f'Percentage of night (night_flg=1) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.night_flg == 1]) / len(atl08_gdf),3) *100}%')
+    if DO_NIGHT:
+        print(f'Percentage of night (night_flg=1) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.night_flg == 1]) / len(atl08_gdf),3) *100}%')
     print(f'Percentage of water (ValidMask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.ValidMask == 0]) / len(atl08_gdf),3) *100}%')
     print(f'Percentage of water (slopemask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.slopemask == 0]) / len(atl08_gdf),3) *100}%')
 
@@ -344,9 +371,10 @@ def map_tile_atl08(TILE_OF_INTEREST, DO_NIGHT=True):
     Map_Figure=Figure(width=1000,height=600)
     #------------------
     m2 = Map(
-        tiles="Stamen Terrain",
+        tiles='',
         location=(atl08_gdf.lat.mean(), atl08_gdf.lon.mean()),
-        zoom_start=9
+        zoom_start=9,
+        control_scale = True
     )
     Map_Figure.add_child(m2)
 
@@ -369,15 +397,33 @@ def map_tile_atl08(TILE_OF_INTEREST, DO_NIGHT=True):
         #Map_Figure.add_child(cm)
         ATL08_obs_night.add_to(m2)
 
+    # Add custom basemaps
+    basemaps['basemap_gray'].add_to(m2)
+    basemaps['Google Terrain'].add_to(m2)
     basemaps['Imagery'].add_to(m2)
-    agb_tiles_layer.add_to(m2)
+    basemaps['ESRINatGeo'].add_to(m2)
+    
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        agb_tiles_layer = TileLayer(
+            tiles=agb_tiles,
+            opacity=1,
+            name="Boreal AGB",
+            attr="MAAP",
+            overlay=True
+        )
+        agb_tiles_layer.add_to(m2)
 
     # Layera are added underneath. Last layer is bottom layer
     #boreal_tile_index_layer.add_to(m2)
     #tile_matches_missing_layer.add_to(m2)
     #tile_matches_layer.add_to(m2)
 
+    plugins.Geocoder().add_to(m2)
     LayerControl().add_to(m2)
+    plugins.Fullscreen().add_to(m2)
+    plugins.MousePosition().add_to(m2)
+    minimap = plugins.MiniMap()
+    m2.add_child(minimap)
     m2.add_child(pal_height_cmap)
     
     return m2
