@@ -311,7 +311,7 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
 
     return m3
 
-def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic,
+def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
                   DPS_DATA_USER = 'lduncanson', ATL08_filt_tindex_master_fn = f'/projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv', DO_NIGHT=True,
                   mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
@@ -370,9 +370,11 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic,
     # Map the Layers
     Map_Figure=Figure(width=1000,height=600)
     #------------------
+    tile_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
     m2 = Map(
         tiles='',
-        location=(atl08_gdf.lat.mean(), atl08_gdf.lon.mean()),
+        #location=(atl08_gdf.lat.mean(), atl08_gdf.lon.mean()),
+        location = (tile_gdf.geometry.centroid.y, tile_gdf.geometry.centroid.x),
         zoom_start=9,
         control_scale = True
     )
@@ -383,7 +385,7 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic,
     for lat, lon, ValidMask, slopemask, h_can in zip(atl08_gdf.lat, atl08_gdf.lon, atl08_gdf.ValidMask, atl08_gdf.slopemask, atl08_gdf.h_can):
         ATL08_obs_night = CircleMarker(location=[lat, lon],
                                 radius = 10,
-                                weight=0.25,
+                                weight=0.75,
                                 tooltip=str(round(h_can,2))+" m",
                                 fill=True,
                                 #fill_color=getfill(h_can),
