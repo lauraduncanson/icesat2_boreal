@@ -3,10 +3,9 @@
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
 source activate icesat2_boreal
-set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
-unset PROJ_LIB
+#unset PROJ_LIB
 
 #pip install --user -r ${basedir}/requirements.txt
 
@@ -64,4 +63,4 @@ source activate icesat2_boreal
 IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
 OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
 
-gdal_translate $IN_TIF_NAME $OUT_TIF_NAME of='COG'
+gdal_translate -of COG $IN_TIF_NAME $OUT_TIF_NAME
