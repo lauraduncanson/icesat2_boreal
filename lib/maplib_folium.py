@@ -51,7 +51,11 @@ def local_to_s3(url, user = 'nathanmthomas', type='public'):
         replacement_str = f's3://maap-ops-workspace/{user}'
     return url.replace(f'/projects/my-{type}-bucket', replacement_str)
 
-def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_matches, tile_index_missing, 
+def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index, 
+                    tile_index_matches,  
+                    tile_index_check, 
+                    MATCH_TILES_NAME='Match tiles', 
+                    CHECK_TILES_NAME='Check tiles', 
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
@@ -123,7 +127,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
 
     boreal_tiles_style = {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0}
     dps_subset_style = {'fillColor': '#377eb8', 'color': '#377eb8', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}
-    dps_missing_style = {'fillColor': 'red', 'color': 'red'}
+    dps_check_style = {'fillColor': 'red', 'color': 'red'}
 
     #GeoJson(atl08_gdf, name="ATL08"
     #       ).add_to(m)
@@ -141,18 +145,18 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     tile_matches_layer = GeoJson(
             data=tile_index_matches,
             style_function=lambda x:dps_subset_style,
-            name=f"{DPS_DATA_TYPE} tiles completed",
+            name=f"{MATCH_TILES_NAME} completed",
             tooltip=features.GeoJsonTooltip(
                 fields=['tile_num'],
                 aliases=['Tile num:'],
             )
         )
 
-    if len(tile_index_missing) > 0:
-        tile_matches_missing_layer = GeoJson(
-                data=tile_index_missing,
-                style_function=lambda x:dps_missing_style,
-                name=f"{DPS_DATA_TYPE} tiles needed"
+    if len(tile_index_check) > 0:
+        tile_index_check_layer = GeoJson(
+                data=tile_index_check,
+                style_function=lambda x:dps_check_style,
+                name=f"{CHECK_TILES_NAME} tiles"
             )
 
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
@@ -234,8 +238,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, DPS_DATA_TYPE, boreal_tile_index, tile_index_m
     boreal_tile_index_layer.add_to(m1)
     tile_matches_layer.add_to(m1)
 
-    if len(tile_index_missing) > 0:
-        tile_matches_missing_layer.add_to(m1)
+    if len(tile_index_check) > 0:
+        tile_index_check_layer.add_to(m1)
     #tile_matches_n_obs.add_to(m1)    
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
         m1.add_child(colormap_AGB)

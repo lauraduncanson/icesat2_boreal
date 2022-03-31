@@ -121,28 +121,28 @@ def main():
         
             if "HLS" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = "_dps.tif"
             if "Topo" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = "_stack.tif"
             if "ATL08" in TYPE:
 
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = ".csv"
             if "AGB" in TYPE:
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_v2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_v2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
                 ends_with_str = ".tif"
                 
         else:
