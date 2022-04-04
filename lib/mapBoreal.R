@@ -78,6 +78,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==14] <- 12
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==15] <- 12
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==16] <- 12
+    cog
     
     xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
@@ -447,9 +448,9 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }else{
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }
     
     #crs(agb.preds) <- crs(stack)
@@ -520,6 +521,9 @@ mapBoreal<-function(rds_models,
     out_cog_fn <- paste(out_fn_stem, '.tif', sep="_" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
+    
+    #set NA values
+    NAvalue(out_stack) <- -999
     
     print(paste0("Write tmp tif: ", out_tif_fn))
 
