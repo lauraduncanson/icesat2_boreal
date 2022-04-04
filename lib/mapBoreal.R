@@ -78,7 +78,6 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==14] <- 12
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==15] <- 12
     xtable_sqrt$model_id[xtable_sqrt$seg_landcov==16] <- 12
-    cog
     
     xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
