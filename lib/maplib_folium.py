@@ -51,6 +51,18 @@ def local_to_s3(url, user = 'nathanmthomas', type='public'):
         replacement_str = f's3://maap-ops-workspace/{user}'
     return url.replace(f'/projects/my-{type}-bucket', replacement_str)
 
+def GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style):
+    boreal_tile_index_layer = GeoJson(
+            data=boreal_tile_index[~boreal_tile_index.tile_num.isin(tiles_remove)].to_crs("EPSG:4326").to_json(),
+            style_function=lambda x:boreal_tiles_style,
+            name="Boreal tiles",
+            tooltip=features.GeoJsonTooltip(
+                fields=['tile_num'],
+                aliases=['Tile num:'],
+            )
+        )
+    return boreal_tile_index_layer
+
 def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index, 
                     tile_index_matches,  
                     tile_index_check, 
@@ -132,15 +144,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     #GeoJson(atl08_gdf, name="ATL08"
     #       ).add_to(m)
 
-    boreal_tile_index_layer = GeoJson(
-            data=boreal_tile_index[~boreal_tile_index.tile_num.isin(tiles_remove)].to_crs("EPSG:4326").to_json(),
-            style_function=lambda x:boreal_tiles_style,
-            name="Boreal tiles",
-            tooltip=features.GeoJsonTooltip(
-                fields=['tile_num'],
-                aliases=['Tile num:'],
-            )
-        )
+    boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style)
 
     tile_matches_layer = GeoJson(
             data=tile_index_matches,
@@ -374,15 +378,18 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     # Map the Layers
     Map_Figure=Figure(width=1000,height=600)
     #------------------
-    tile_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
+    boreal_tile_of_interest_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
     m2 = Map(
         tiles='',
         #location=(atl08_gdf.lat.mean(), atl08_gdf.lon.mean()),
-        location = (tile_gdf.geometry.centroid.y, tile_gdf.geometry.centroid.x),
-        zoom_start=9,
+        location = (boreal_tile_of_interest_gdf.geometry.centroid.y, boreal_tile_of_interest_gdf.geometry.centroid.x),
+        zoom_start=8,
         control_scale = True
     )
     Map_Figure.add_child(m2)
+    
+    boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_of_interest_gdf, [], {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0})
+    boreal_tile_index_layer.add_to(m2)
 
     if DO_NIGHT:
         atl08_gdf = atl08_gdf[atl08_gdf.night_flg == 1]
@@ -396,7 +403,8 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
                                 color = pal_height_cmap(h_can),
                                 #color = getcolor(ValidMask),
                                 opacity=1,
-                                       name="ATL08 night obs"
+                                    overlay=True,
+                                name="ATL08 night obs"
                                 
                    )
 
@@ -419,17 +427,21 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
         )
         agb_tiles_layer.add_to(m2)
 
-    # Layera are added underneath. Last layer is bottom layer
-    #boreal_tile_index_layer.add_to(m2)
+    # Layers are added underneath. Last layer is bottom layer
+
+
     #tile_matches_missing_layer.add_to(m2)
     #tile_matches_layer.add_to(m2)
 
-    plugins.Geocoder().add_to(m2)
-    LayerControl().add_to(m2)
-    plugins.Fullscreen().add_to(m2)
-    plugins.MousePosition().add_to(m2)
     minimap = plugins.MiniMap()
     m2.add_child(minimap)
     m2.add_child(pal_height_cmap)
+    
+    #plugins.Geocoder().add_to(m2)
+    LayerControl().add_to(m2)
+    plugins.Fullscreen().add_to(m2)
+    plugins.MousePosition().add_to(m2)
+    
+
     
     return m2
