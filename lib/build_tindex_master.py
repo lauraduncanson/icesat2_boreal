@@ -61,7 +61,8 @@ def main():
         
     parser.add_argument("-t", "--type", type=str, choices=['HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
-    parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the month of the DPS output as a zero-padded string")
+    parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
+    parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
     parser.add_argument("-d_min", "--dps_day_min", type=int, default=1, help = "Specify the first day of the DPS output")
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
     parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
@@ -93,6 +94,14 @@ def main():
     col_name = args.col_name
     DEBUG = args.DEBUG
     dps_month = args.dps_month
+    dps_month_list = args.dps_month_list
+    
+    if dps_month is None and dps_month_list is None:
+        print('You need to specify either a -dps_month or a -dps_month_list')
+        os._exit(1)
+    
+    if dps_month_list is None:
+        dps_month_list = [dps_month]
 
     if not 's3://' in args.outdir:
         if not os.path.exists(args.outdir):
@@ -109,7 +118,7 @@ def main():
         print(f"MAAP version:\t\t{args.maap_version}")
         print(f"Type:\t\t{TYPE}")
         print(f"Year:\t\t{args.dps_year}")
-        print(f"Month:\t\t{args.dps_month}")
+        print(f"Month:\t\t{dps_month_list}")
         print(f"Days:\t\t{args.dps_day_min}-{args.dps_day_max}")
         print("\nOutput dir: ", args.outdir)
         
@@ -121,28 +130,27 @@ def main():
         
             if "HLS" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_HLS_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_landsat_stack_3-1-2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_dps.tif"
             if "Topo" in TYPE:
                 user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/do_topo_stack_3-1-5_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_stack.tif"
             if "ATL08" in TYPE:
-
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_extract_filter_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_tile_atl08_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".csv"
             if "AGB" in TYPE:
                 user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_v2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1)]
+                dps_out_searchkey_list = [f"{user}/dps_output/run_boreal_biomass_v2_ubuntu/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
                 
         else:
@@ -193,8 +201,20 @@ def main():
                     
         num_with_duplicates = df.shape[0]
         
-        # Drop duplicates
-        df = df.drop_duplicates(subset=['file'], keep='last')
+        ######
+        # Handle duplicate tiles
+        
+        # Sort (descending; newest first)
+        df.sort_values(by=['local_path'], ascending=False, inplace=True)
+        
+        # Check
+        # dropped  = df[df.duplicated(subset=['file'], keep='first')]
+        # retained = df[df.duplicated(subset=['file'], keep='last')]
+        # dropped['local_path'].to_list()[0:10]
+        # retained['local_path'].to_list()[0:10]
+        
+        # Drop duplicates, keeping the latest version of the tile
+        df = df.drop_duplicates(subset=['file'], keep='first')
         
         num_without_duplicates = df.shape[0]
         print(f"# of duplicate tiles: {num_with_duplicates-num_without_duplicates}")
