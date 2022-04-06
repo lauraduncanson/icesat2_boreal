@@ -521,6 +521,9 @@ mapBoreal<-function(rds_models,
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
     
+    #set NA values
+    NAvalue(out_stack) <- 9999
+    
     print(paste0("Write tmp tif: ", out_tif_fn))
 
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")

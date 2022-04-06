@@ -3,10 +3,9 @@
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
 source activate icesat2_boreal
-set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
-unset PROJ_LIB
+#unset PROJ_LIB
 
 #pip install --user -r ${basedir}/requirements.txt
 
@@ -53,10 +52,15 @@ eval $cmd
 # Set the output merged CSV name to a var
 MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
 
-
-conda activate r-with-gdal
+source activate r-with-gdal
 
 # Run mapBoreal with merged CSV as input
 Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n}
 
+#convert output to cog
+source activate icesat2_boreal
 
+IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
+OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
+
+gdal_translate -of COG $IN_TIF_NAME $OUT_TIF_NAME
