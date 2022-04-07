@@ -58,7 +58,7 @@ source activate r-with-gdal
 Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
-#source activate icesat2_boreal
+source activate base
 
 IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
 OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
