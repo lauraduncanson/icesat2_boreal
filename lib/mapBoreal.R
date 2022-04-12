@@ -86,7 +86,18 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     
     # subset data for model id
     model_i<-readRDS(rds_models[names(rds_models)==i])
+      
+    # get variance covariance matrix
+    model_varcov <- vcov(model_i)
     
+    # get coefficients
+    coeffs <- model_i$coefficients
+    
+    # modify coeffients through sampling variance covariance matrix
+    mod.coeffs <- mvrnorm(n = n_iters, mu=coeffs, Sigma = model_varcov)
+    
+    model_i$coefficients <- mod.coeffs_DBT[1,]
+
     # SE
     xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma
     
@@ -181,7 +192,19 @@ stratRandomSample<-function(agb=y,breaks, p){
 }
 
 # modeling - fit a number of models and return as a list of models
-agbModeling<-function(x=x,y=y,se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
+agbModeling<-function(rds_models, models_id, in_data, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
+    
+    # apply GEDI models  
+    xtable<-GEDI2AT08AGB(rds_models=rds_models,
+                       models_id=models_id,
+                       in_data=all_train_data, 
+                       offset=offset,
+                       DO_MASK=DO_MASK) 
+    
+    x <- xtable[pred_vars]
+    y <- xtable$AGB
+    se <- xtable$se
+    
   stats_df<-NULL
   n<-nrow(x)
   ids<-1:n
@@ -435,30 +458,25 @@ mapBoreal<-function(rds_models,
     str(tile_data)
     str(broad_data)
     str(all_train_data)
-    
-    # apply GEDI models  
-    xtable<-GEDI2AT08AGB(rds_models=rds_models,
-                       models_id=models_id,
-                       in_data=all_train_data, 
-                       offset=offset,
-                       DO_MASK=DO_MASK)
 
     print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }else{
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }
     
     #crs(agb.preds) <- crs(stack)
-    models<-agbModeling(x=xtable[pred_vars],
-                               y=xtable$AGB,
-                               se=xtable$SE,
-                               s_train=s_train,
-                               rep=rep,
-                               strat_random=strat_random)
+    models<-agbModeling(rds_models=rds_models,
+                            models_id=models_id,
+                            in_data=in_data,
+                            offset=offset,
+                            DO_MASK=DO_MASK,
+                            s_train=s_train,
+                            rep=rep,
+                            strat_random=strat_random)
     
     print(models[[1]])
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
