@@ -2,6 +2,7 @@ import geopandas
 import pandas as pd
 import os
 
+import branca
 import branca.colormap as cm
 import matplotlib.cm
 
@@ -74,28 +75,30 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
                                     },
                     mscomp_rgb_dict = None,
-                    ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
+                    #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
+                    ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
                     max_AGB_display = 150,
+                    MS_BANDNAME = 'NDVI',
                     MS_BANDNUM = 8,
                     MS_BANDMIN = 0,
                     MS_BANDMAX = 1,
                     MS_BANDCOLORBAR = 'viridis',
-                    tiles_remove = [41995, 41807, 41619] # geo abyss
+                    tiles_remove = [41995, 41807, 41619], # geo abyss,
+                    SHOW_WIDGETS=False
                    ):
-    
-    # Set colormaps
+           
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
         # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
         agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
 
-        agb_se_colormap = 'magma'
-        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,20&bidx=2&colormap_name={agb_se_colormap}"
-
         colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
-        colormap_AGB
+        #colormap_AGB
 
+        agb_se_colormap = 'magma'
+        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,20&bidx=2&colormap_name={agb_se_colormap}"
+        
         #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
         #colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
         #colormap = cm.linear.nipy_spectral.scale(0, 125).to_step(25)
@@ -140,6 +143,16 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     boreal_tiles_style = {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0}
     dps_subset_style = {'fillColor': '#377eb8', 'color': '#377eb8', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}
     dps_check_style = {'fillColor': 'red', 'color': 'red'}
+    
+    # Set colormap for legend
+    if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
+        cmap = matplotlib.cm.get_cmap(MS_BANDCOLORBAR, 12)
+        colormap_doy = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BANDMIN, MS_BANDMAX)
+        colormap_doy.caption = MS_BANDNAME
+        m1.add_child(colormap_doy)
+        
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        m1.add_child(colormap_AGB)
 
     #GeoJson(atl08_gdf, name="ATL08"
     #       ).add_to(m)
@@ -245,16 +258,18 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     if len(tile_index_check) > 0:
         tile_index_check_layer.add_to(m1)
     #tile_matches_n_obs.add_to(m1)    
-    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
-        m1.add_child(colormap_AGB)
-    
-    plugins.Geocoder().add_to(m1)
+
+    if SHOW_WIDGETS:
+        plugins.Geocoder().add_to(m1)
+        
     LayerControl().add_to(m1)
     plugins.Fullscreen().add_to(m1)
     plugins.MousePosition().add_to(m1)
-    minimap = plugins.MiniMap()
-    m1.add_child(minimap)
-    #m1.add_child(colormap_AGBSE)
+    
+    if SHOW_WIDGETS:
+        minimap = plugins.MiniMap()
+        m1.add_child(minimap)
+        #m1.add_child(colormap_AGBSE)
 
     return m1
 

@@ -225,3 +225,104 @@ def get_neighbors(input_gdf, input_id_field, input_id):
 
     
     return neighbors
+
+def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
+    '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
+    import rasterstats
+    # Use join
+    out_gdf = in_gdf.reset_index(drop=True).join(
+                                                pd.DataFrame(
+                                                    rasterstats.zonal_stats(
+                                                        vectors=in_gdf['geometry'], 
+                                                        raster=vrt_fn, 
+                                                        stats=STATS_LIST
+                                                    )
+                                                )
+                                            )
+    return out_gdf
+
+def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
+                    boreal_tile_index_path = '/projects/my-public-bucket/boreal_tiles_v003.gpkg',
+                    GROUP_FIELD = 'tile_group',
+                    tindex_master_fn = '/projects/my-private-bucket/dps_output/do_HLS_stack_3-1-2_ubuntu/master/2022/03/HLS_tindex_master.csv',#'s3://maap-ops-workspace/nathanmthomas/dps_output/do_HLS_stack_3-1-2_ubuntu/master/2022/03/HLS_tindex_master.csv',
+                    topo_tindex_master_fn = '/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv',
+                    bad_tiles = [3540,3634,3728,3823,3916,4004], #Dropping the tiles near antimeridian that reproject poorly.
+                    REMOVE_BAD_TILES = False,
+                    REDO_TILES_LIST = None,
+                    FIND_TILE_GROUP = None
+                   ):
+
+    # Get all boreal tiles
+    #shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg
+    boreal_tile_index = geopandas.read_file(boreal_tile_index_path)
+    
+    if REMOVE_BAD_TILES:
+        # Remove bad tiles
+        boreal_tile_index = boreal_tile_index[~boreal_tile_index['tile_num'].isin(bad_tiles)]
+
+    hls_tindex_master = pd.read_csv(tindex_master_fn)
+    topo_tindex_master = pd.read_csv(topo_tindex_master_fn)
+    hls_tindex = boreal_tile_index.merge(hls_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
+    topo_tindex = boreal_tile_index.merge(topo_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
+    
+    if REDO_TILES_LIST is not None:
+        redo_hls_tindex = hls_tindex[hls_tindex['tile_num'].isin(REDO_TILES_LIST)]
+        return redo_hls_tindex
+    else:
+        print(boreal_tile_index.groupby(GROUP_FIELD)[GROUP_FIELD].agg(['count']))
+
+        import matplotlib.pyplot as plt
+        plt.rcParams['figure.figsize'] = [16, 16]
+
+        print(f"Tile status report for {DPS_DATA_TYPE} from {tindex_master_fn}:")
+        print(f'\t# of boreal tiles in boreal v003:\t\t\t{len(boreal_tile_index)}')
+
+        # Get water tiles
+        water_tiles = [] #list(set(boreal_tile_index.tile_num) - set(topo_tindex.tile_num) )
+        print(f'\t# of boreal tiles in water:\t\t\t\t{len(water_tiles)}')
+
+        NUM_STUDY_TILES = len(boreal_tile_index[~boreal_tile_index['tile_num'].isin(water_tiles)])
+        print(f'\t# of boreal tiles used study (from Topo coverage):\t{NUM_STUDY_TILES}')
+
+        ax = boreal_tile_index[~boreal_tile_index['tile_num'].isin(water_tiles)].plot(column=GROUP_FIELD, legend=True)
+        #ax = tiles_topo_index.plot(color='gray', ax=ax)
+        ax = hls_tindex.plot(color='black', ax = ax)
+        print(f'\t# of boreal tiles with {DPS_DATA_TYPE}:\t\t\t\t{len(hls_tindex)}')
+
+        needed_tindex = boreal_tile_index[~boreal_tile_index['tile_num'].isin(hls_tindex.tile_num.to_list() + water_tiles)]
+        
+        if FIND_TILE_GROUP is not None:
+            needed_tindex = needed_tindex[needed_tindex[GROUP_FIELD] == FIND_TILE_GROUP]
+        else:
+            FIND_TILE_GROUP = 'all'
+        LIST_TILES_NEEDED = needed_tindex.tile_num.to_list()
+        print(f'\t# of boreal tiles still needing {DPS_DATA_TYPE} from {FIND_TILE_GROUP}:\t{len(LIST_TILES_NEEDED)}')
+        # The next 100 tiles in line for processing
+        #needed_tindex.iloc[0:100].plot(color='#525252', ax = ax)
+        needed_tindex.plot(column=GROUP_FIELD, legend=True, ax=ax)
+        
+        return LIST_TILES_NEEDED
+    
+def BUILD_TABLE_JOBSTATUS(submit_results_df):
+    import xmltodict
+    job_status_df = pd.concat([pd.DataFrame(xmltodict.parse(maap.getJobStatus(job_id).content)).transpose() for job_id in submit_results_df.job_id.to_list()])
+    job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='wps:JobID')
+    
+    print(f'Count total jobs:\t{len(job_status_df)}')
+    print(f"Count pending jobs:\t{job_status_df[job_status_df['wps:Status'] =='Accepted'].shape[0]}")
+    print(f"Count running jobs:\t{job_status_df[job_status_df['wps:Status'] =='Running'].shape[0]}")
+    
+    NUM_FAILS = job_status_df[job_status_df['wps:Status'] =='Failed'].shape[0]
+    NUM_SUCCEEDS = job_status_df[job_status_df['wps:Status'] =='Succeeded'].shape[0]
+    print(f"Count succeeded jobs:\t{NUM_SUCCEEDS}")
+    print(f"Count failed jobs:\t{NUM_FAILS}")
+    if NUM_FAILS > 0:
+        print(f"% of failed jobs:\t{round(NUM_FAILS / ( NUM_FAILS + NUM_SUCCEEDS ), 4) * 100}\n")
+    else:
+        print(f"% of failed jobs:\tNothing has failed...yet\n")
+    
+    return job_status_df
+
+def func(elem):
+    '''key to sort a list based on a substring'''
+    return int(elem.split('_')[-1].split('.')[0])

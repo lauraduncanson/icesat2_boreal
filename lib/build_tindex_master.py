@@ -77,8 +77,11 @@ def main():
     parser.add_argument('-local_dir', type=str, default=None, help='Local testing dir')
     parser.add_argument('--LOCAL_TEST', dest='LOCAL_TEST', action='store_true', help='Do local testing')
     parser.set_defaults(LOCAL_TEST=False)
+    parser.add_argument('--RETURN_DUPS', dest='RETURN_DUPS', action='store_true', help='Return a df of dropped and a df of retained duplicate tiles')
+    parser.set_defaults(RETURN_DUPS=False)
+    parser.add_argument('--tindex_append', dest='tindex_append', action='store_true', help='Append data frame to existing tindex master csv')
+    parser.set_defaults(tindex_append=False)
     args = parser.parse_args()
-    
     
     s3 = s3fs.S3FileSystem()
     
@@ -123,6 +126,7 @@ def main():
         print("\nOutput dir: ", args.outdir)
         
         out_name = TYPE + "_tindex_master.csv"
+        out_tindex_fn = os.path.join(args.outdir, out_name)
         
         str_exclude_list = ['SAMPLE', 'checkpoint']
         
@@ -194,34 +198,53 @@ def main():
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
-                #print('help...')
+
                 df['tile_num'] = df['file'].str.split('_', expand = True)[7].str.split('.csv', expand = True)[0]
+                
+                # Get n_obs column for every tile, and join on tile_num
+                tile_num_list = [os.path.basename(f).split('_')[7].split('.csv')[0] for f in df[col_name].tolist()]
+                n_obs_list = [pd.read_csv(f).shape[0] for f in df[col_name].to_list()]
+                df_nobs = pd.DataFrame(data={'tile_num': tile_num_list, 'n_obs': n_obs_list})
+                df = df.join(df_nobs[['tile_num','n_obs']].set_index('tile_num'), how='left', on='tile_num')
             else:
                 df['tile_num'] =  'NA'
                     
         num_with_duplicates = df.shape[0]
+        
+        if args.tindex_append:
+            print(f'Appending to existing tindex...')
+            df_existing = pd.read_csv(out_tindex_fn)
+            df = df_existing.append(df)
         
         ######
         # Handle duplicate tiles
         
         # Sort (descending; newest first)
         df.sort_values(by=['local_path'], ascending=False, inplace=True)
-        
+                
         # Check
-        # dropped  = df[df.duplicated(subset=['file'], keep='first')]
-        # retained = df[df.duplicated(subset=['file'], keep='last')]
-        # dropped['local_path'].to_list()[0:10]
-        # retained['local_path'].to_list()[0:10]
+        dropped  = df[df.duplicated(subset=['tile_num'], keep='first')]
+        if len(dropped) > 0:
+            dropped.loc[:,'status'] = 'dropped'
+            # TODO: These arent handled correctly at the moment. 
+            retained = df[df.duplicated(subset=['tile_num'], keep='last')]
+            retained.loc[:,'status'] = 'retained'
+            if args.RETURN_DUPS:
+                #pd.concat([dropped, retained]).to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
+                dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
+                # dropped['local_path'].to_list()[0:10]
+                # retained['local_path'].to_list()[0:10]
+        else:
+            print('\nNo duplicates found.\n')
         
         # Drop duplicates, keeping the latest version of the tile
-        df = df.drop_duplicates(subset=['file'], keep='first')
+        df = df.drop_duplicates(subset=['tile_num'], keep='first')
         
         num_without_duplicates = df.shape[0]
-        print(f"# of duplicate tiles: {num_with_duplicates-num_without_duplicates}")
+        print(f"# of duplicate tiles: {dropped.shape[0]}")
         print(f"Final # of tiles: {num_without_duplicates}")
         print(f"df shape : {df.head()}")
         
-        out_tindex_fn = os.path.join(args.outdir, out_name)
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn)
         return df
