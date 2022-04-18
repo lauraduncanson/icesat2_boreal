@@ -72,7 +72,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
-                                        'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
+                                        'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json',
+                                        'worldcover_json_s3_fn': None
                                     },
                     mscomp_rgb_dict = None,
                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
@@ -86,7 +87,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     tiles_remove = [41995, 41807, 41619], # geo abyss,
                     SHOW_WIDGETS=False
                    ):
-           
+    
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
         # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
         agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
@@ -145,6 +146,13 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     dps_check_style = {'fillColor': 'red', 'color': 'red'}
     
     # Set colormap for legend
+    if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
+        cols_worldcover = ['#006400','#ffbb22','#ffff4c','#f096ff','#fa0000','#b4b4b4','#f0f0f0','#0064c8','#0096a0','#00cf75','#fae6a0']
+        names_worldcover = ['Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
+        values_worldcover = [10,20,30,40,50,60,70,80,90,95,100]
+        colormap_worldcover = cm.StepColormap(colors = cols_worldcover, vmin=min(values_worldcover), vmax=max(values_worldcover), index=values_worldcover, caption = 'ESA Worldcover v1')
+        m1.add_child(colormap_worldcover)
+        
     if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         cmap = matplotlib.cm.get_cmap(MS_BANDCOLORBAR, 12)
         colormap_doy = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BANDMIN, MS_BANDMAX)
@@ -241,7 +249,16 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             overlay=True
         )
         topo_tiles_layer.add_to(m1)
-
+        
+    if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
+        worldcover_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=3&colormap={cols_worldcover}", # <---- THIS IS NOT WORKING
+            opacity=0.25,
+            name="Worldcover",
+            attr="ESA",
+            overlay=True
+        )
+        worldcover_tiles_layer.add_to(m1)
 
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
