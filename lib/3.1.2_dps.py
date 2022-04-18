@@ -279,7 +279,7 @@ def main():
     parser.add_argument("-smd", "--start_month_day", type=str, default="06-01", help="specify the start month and day (e.g., 06-01)")
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
-    parser.add_argument("-t", "--composite_type", type=str, default='HLS', help="specify the composite type (e.g., HLS, ls8, sen2)")
+    parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], type=str, default='HLS', const='HLS', help="Specify the composite type (default: %(default)s)")
     args = parser.parse_args()    
     
     #print(args.start_month_day)
@@ -428,7 +428,7 @@ def main():
         if args.composite_type == 'HLS':
             print('Creating Julian Date Comp')
             JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
-        elif args.composite == 'LS8':
+        elif args.composite_type == 'LS8':
             JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):

@@ -98,7 +98,7 @@ def query_year(year, bbox, max_cloud, api, start_month_day, end_month_day):
         "eo:cloud_cover": {"gte": 0, "lt": max_cloud},
         "landsat:collection_category":{"in": ["T1"]}
         },
-    "limit": 20 # We limit to 500 items per Page (requests) to make sure sat-api doesn't fail to return big features collection
+    "limit": 500 # We limit to 500 items per Page (requests) to make sure sat-api doesn't fail to return big features collection
     }
     
     print(f"Search query parameters:\n{query}\n")
