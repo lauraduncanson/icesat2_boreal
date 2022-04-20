@@ -554,7 +554,7 @@ mapBoreal<-function(rds_models,
     print(paste0("Write COG tif: ", out_cog_fn))
     
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    file.remove(out_tif_fn)
+    #file.remove(out_tif_fn)
           
     
      #Write out_table of ATL08 AGB as a csv
