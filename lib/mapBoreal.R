@@ -93,7 +93,6 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     # modify coeffients through sampling variance covariance matrix
     mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
 
-    str(mod.coeffs)
       print(mod.coeffs[1,])
     model_i$coefficients <- mod.coeffs[1,]
 
@@ -296,15 +295,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     n<-nrow(x)
     ids<-1:n
     map_pred<-NULL
-    print('stack')
-    print(stack@data@names)
-    print('model 1')
-    str(model_list[[1]])
     #loop over predicting for tile with each model in list
     for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
-        print('model i')
-        str(fit.rf)
         map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
         map_pred<-rbind(map_pred,map_i)
     }
@@ -460,8 +453,6 @@ mapBoreal<-function(rds_models,
         all_train_data <- tile_data
     }
         
-    str(all_train_data)
-
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
@@ -504,8 +495,6 @@ mapBoreal<-function(rds_models,
         #check if data in tile stack
         length_valid <- length(unique(tile_stack@data@values[,1]))
         if(length_valid > 2){
-            print(tile)
-            str(xtable)
             maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
@@ -565,7 +554,7 @@ mapBoreal<-function(rds_models,
     print(paste0("Write COG tif: ", out_cog_fn))
     
     gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
-    #file.remove(out_tif_fn)
+    file.remove(out_tif_fn)
           
     
      #Write out_table of ATL08 AGB as a csv
@@ -632,7 +621,6 @@ library(rockchalk)
 # run code
 # adding model ids
 rds_models <- list.files(pattern='*.rds')
-print(rds_models)
 
 models_id<-names(rds_models)<-paste0("m",1:length(rds_models))
 print(topo_stack_file)

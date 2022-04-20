@@ -51,7 +51,7 @@ This is meant to serve as a joint code repository hosting jupyter and/or R noteb
 
 3.2 Develop gridded algorithm - CS, LD, EG, NT
 
-3.3 Apply gridded algorithm to full boreal - CS, NT (PM, LD)
+3.4 Apply gridded algorithm to full boreal - CS, NT (PM, LD)
 
 
 4) Validation
