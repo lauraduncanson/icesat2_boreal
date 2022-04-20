@@ -167,13 +167,16 @@ def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
 # Co-var functions
 # Reads in bands on the fly, as needed
 
+# Vegetation Indices Calculations
+# https://www.usgs.gov/landsat-missions/landsat-surface-reflectance-derived-spectral-indices
+
 # SAVI
 def calcSAVI(red, nir):
     savi = ((nir - red)/(nir + red + 0.5))*(1.5)
     print('\tSAVI Created')
     return savi
 
-# MASAVI
+# MSAVI
 def calcMSAVI(red, nir):
     msavi = (2 * nir + 1 - np.sqrt((2 * nir + 1)**2 - 8 * (nir - red))) / 2
     print('\tMSAVI Created')
@@ -279,7 +282,7 @@ def main():
     parser.add_argument("-smd", "--start_month_day", type=str, default="06-01", help="specify the start month and day (e.g., 06-01)")
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
-    parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], type=str, default='HLS', const='HLS', help="Specify the composite type (default: %(default)s)")
+    parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
     args = parser.parse_args()    
     
     #print(args.start_month_day)

@@ -285,8 +285,8 @@ def main():
         print("\t# of ATL08 CSV found for tile {}: {}".format(in_tile_num, len(all_atl08_csvs_FOUND)))
         print("\t# of ATL08 CSV NOT found for tile {}: {}".format(in_tile_num, len(all_atl08_csvs_NOT_FOUND)))
         if len(all_atl08_csvs_FOUND) == 0:
-            print('\tNo ATL08 extracted for this tile.')
-            os._exit(1)
+            print('\tNo ATL08 extracted for this tile.\n')
+            os._exit(0)
             
         #############
         # Merge all ATL08 CSV files for the current tile into a pandas df
@@ -306,15 +306,17 @@ def main():
         # ** Optimization ** Combined granule read with bounds filtering
 
         atl08 = pd.concat([  FilterUtils.filter_atl08_bounds_clip(pd.read_csv(f), tile['geom_4326']) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
-        atl08 = FilterUtils.prep_filter_atl08_qual(atl08)
-
-
+        
+        if len(atl08) > 0:
+            atl08 = FilterUtils.prep_filter_atl08_qual(atl08)
+        else:
+            print("\nNo ATL08 obs after clipping to tile bounds.\n")
+            os._exit(0)
     else:
         print("\nNo CSV fn of paths to all extracted ATL08 csvs dir specified.")
         print("Need to get ATL08 CSV list to match with tile bound results from MAAP query.")
         print("Exiting...\n")
 
-    
     # Filter by quality
     if v_ATL08 == 4:
         print(f'\nATL08 version is {v_ATL08}. Cannot apply aggressive land-cover filtering.')
@@ -343,7 +345,11 @@ def main():
         
     atl08=None
     
-    # Convert to geopandas data frame in lat/lon
+    if len(atl08_pdf_filt) == 0:
+        print("\nNo ATL08 obs after quality filtering.\n")
+        os._exit(0)
+    
+    print("\nConverting to geopandas data frame in lat/lon ...")
     atl08_gdf = geopandas.GeoDataFrame(atl08_pdf_filt, geometry=geopandas.points_from_xy(atl08_pdf_filt.lon, atl08_pdf_filt.lat), crs='epsg:4326')
     atl08_pdf_filt=None
     

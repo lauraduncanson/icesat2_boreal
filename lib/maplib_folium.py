@@ -147,11 +147,13 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     
     # Set colormap for legend
     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-        cols_worldcover = ['#006400','#ffbb22','#ffff4c','#f096ff','#fa0000','#b4b4b4','#f0f0f0','#0064c8','#0096a0','#00cf75','#fae6a0']
+        cols_worldcover = ["#006400","#ffbb22","#ffff4c","#f096ff","#fa0000","#b4b4b4","#f0f0f0","#0064c8","#0096a0","#00cf75","#fae6a0"]
         names_worldcover = ['Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
         values_worldcover = [10,20,30,40,50,60,70,80,90,95,100]
+        colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
         colormap_worldcover = cm.StepColormap(colors = cols_worldcover, vmin=min(values_worldcover), vmax=max(values_worldcover), index=values_worldcover, caption = 'ESA Worldcover v1')
         m1.add_child(colormap_worldcover)
+
         
     if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         cmap = matplotlib.cm.get_cmap(MS_BANDCOLORBAR, 12)
@@ -240,6 +242,17 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         )
         mscomp_tiles_layer.add_to(m1)
         
+    if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
+        worldcover_tiles_layer = TileLayer(
+            #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap={colormap_worldcover_dict}", # <---- THIS IS NOT WORKING
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            opacity=1,
+            name="Worldcover",
+            attr="ESA",
+            overlay=True
+        )
+        worldcover_tiles_layer.add_to(m1)
+        
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
         topo_tiles_layer = TileLayer(
             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray",
@@ -250,15 +263,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         )
         topo_tiles_layer.add_to(m1)
         
-    if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-        worldcover_tiles_layer = TileLayer(
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=3&colormap={cols_worldcover}", # <---- THIS IS NOT WORKING
-            opacity=0.25,
-            name="Worldcover",
-            attr="ESA",
-            overlay=True
-        )
-        worldcover_tiles_layer.add_to(m1)
+
 
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
