@@ -33,15 +33,12 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
   
   # rds_models
   names(rds_models)<-models_id
-    
-  # read table
-  xtable<-in_data
 
   if(DO_MASK){
-      xtable = xtable %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
+      in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   }
     
-  xtable_i<-na.omit(as.data.frame(xtable))
+  xtable_i<-na.omit(as.data.frame(in_data))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
 
     #adjust for offset in model fits (100)
@@ -94,9 +91,11 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     coeffs <- model_i$coefficients
     
     # modify coeffients through sampling variance covariance matrix
-    mod.coeffs <- mvrnorm(n = n_iters, mu=coeffs, Sigma = model_varcov)
-    
-    model_i$coefficients <- mod.coeffs_DBT[1,]
+    mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
+
+    str(mod.coeffs)
+      print(mod.coeffs[1,])
+    model_i$coefficients <- mod.coeffs[1,]
 
     # SE
     xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma
@@ -117,7 +116,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-C*(xtable_sqrt$AGB[xtable_sqrt$model_id==i]^2)
   }
     
-  xtable2<-cbind(xtable, xtable_sqrt$AGB, xtable_sqrt$SE)
+  xtable2<-cbind(in_data, xtable_sqrt$AGB, xtable_sqrt$SE)
     ncol <- ncol(xtable2)
   colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
   return(xtable2)
@@ -192,12 +191,12 @@ stratRandomSample<-function(agb=y,breaks, p){
 }
 
 # modeling - fit a number of models and return as a list of models
-agbModeling<-function(rds_models, models_id, in_data, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
+agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
     
     # apply GEDI models  
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
-                       in_data=all_train_data, 
+                       in_data=in_data, 
                        offset=offset,
                        DO_MASK=DO_MASK) 
     
@@ -210,6 +209,7 @@ agbModeling<-function(rds_models, models_id, in_data, offset=100, DO_MASK, se=NU
   ids<-1:n
   i.s=0
   model_list <- list()
+    model_list <- list.append(model_list, xtable)
     
     # create one single rf using all the data; the first in model_list will be used for prediction
     fit.rf <- randomForest(y=y, x=x, ntree=500)
@@ -296,10 +296,15 @@ agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
     n<-nrow(x)
     ids<-1:n
     map_pred<-NULL
-
+    print('stack')
+    print(stack@data@names)
+    print('model 1')
+    str(model_list[[1]])
     #loop over predicting for tile with each model in list
     for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
+        print('model i')
+        str(fit.rf)
         map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
         map_pred<-rbind(map_pred,map_i)
     }
@@ -455,50 +460,52 @@ mapBoreal<-function(rds_models,
         all_train_data <- tile_data
     }
         
-    str(tile_data)
-    str(broad_data)
     str(all_train_data)
 
-    print(paste0('table for model training generated with ', nrow(xtable), ' observations'))
+    print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }else{
-        pred_vars <- c('Ygeo', 'Xgeo','elevation', 'slope', 'tsri', 'tpi', 'slopemask', 'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }
     
     #crs(agb.preds) <- crs(stack)
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
-                            in_data=in_data,
+                            in_data=all_train_data,
+                            pred_vars=pred_vars,
                             offset=offset,
                             DO_MASK=DO_MASK,
                             s_train=s_train,
                             rep=rep,
                             strat_random=strat_random)
     
-    print(models[[1]])
+    #str(models)
+    xtable <- models[[1]]
+    models <- models[-1]
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
-    print(pred_vars)
         
     #split stack into list of iles
     tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
-    
+
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
     out_agb <- list()
     out_sd <- list()
     out_p5 <- list()
     out_p95 <- list()
-    
-     for (tile in 1:length(tile_list)){
+    n_subtiles <- length(tile_list)
+    print(paste0('nsubtiles:', n_subtiles))
+     for (tile in 1:n_subtiles){
         tile_stack <- tile_list[[tile]]
         #check if data in tile stack
         length_valid <- length(unique(tile_stack@data@values[,1]))
         if(length_valid > 2){
             print(tile)
+            str(xtable)
             maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
@@ -534,10 +541,10 @@ mapBoreal<-function(rds_models,
     #out_fn_stem = paste("/projects/testing/output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
 
     # Setup output filenames
-    out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="_" )
-    out_cog_fn <- paste(out_fn_stem, '.tif', sep="_" )
+    out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="" )
+    out_cog_fn <- paste(out_fn_stem, '.tif', sep="" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
-    out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="_")
+    out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="")
     
     #set NA values
     NAvalue(out_stack) <- 9999
@@ -620,6 +627,7 @@ library(rlist)
 library(fs)
 library(stringr)
 library(gdalUtils)
+library(rockchalk)
 
 # run code
 # adding model ids
