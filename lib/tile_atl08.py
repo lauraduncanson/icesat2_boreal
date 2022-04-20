@@ -349,7 +349,7 @@ def main():
         print("\nNo ATL08 obs after quality filtering.\n")
         os._exit(0)
     
-    print("\nConverting to geopandas data frame in lat/lon ...")"
+    print("\nConverting to geopandas data frame in lat/lon ...")
     atl08_gdf = geopandas.GeoDataFrame(atl08_pdf_filt, geometry=geopandas.points_from_xy(atl08_pdf_filt.lon, atl08_pdf_filt.lat), crs='epsg:4326')
     atl08_pdf_filt=None
     
