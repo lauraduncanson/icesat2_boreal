@@ -53,7 +53,7 @@ eval $cmd
 MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
 
 source activate r-with-gdal
-conda install r-rockchalk -y
+pip install --user r-rockchalk
 # Run mapBoreal with merged CSV as input
 Rscript ${basedir}/../../lib/mapBoreal.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n}
 
