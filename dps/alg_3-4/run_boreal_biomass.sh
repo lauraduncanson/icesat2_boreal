@@ -64,3 +64,4 @@ IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
 OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
 
 gdal_translate -of COG $IN_TIF_NAME $OUT_TIF_NAME
+rm $IN_TIF_NAME
