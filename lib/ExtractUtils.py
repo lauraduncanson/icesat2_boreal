@@ -338,7 +338,8 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
             'REGION_SEARCH_COL':'Region',
             'REGION_SEARCH_STR':'Region', #None
             'RASTER_DATASET_ID': 'biomass_prelim',
-            'RASTER_FN': vrt_fn
+            'RASTER_FN': vrt_fn,
+            'OUTPUT_DIR':
     },
     '''
     
@@ -398,7 +399,7 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
     
     nowtime = pd.Timestamp.now().strftime('%Y%m%d%H%M')
     print(f"Current time:\t{nowtime}")
-    out_csv_fn = f"/projects/my-public-bucket/analyze_agb/zonal.{ZONAL_STATS_DICT['RASTER_DATASET_ID']}.{ZONAL_STATS_DICT['ZONE_NAME']}.{ZONAL_STATS_DICT['REGION_NAME']}.{nowtime}.geojson"
+    out_csv_fn = f"{ZONAL_STATS_DICT['OUTPUT_DIR']}/zonal.{ZONAL_STATS_DICT['RASTER_DATASET_ID']}.{ZONAL_STATS_DICT['ZONE_NAME']}.{ZONAL_STATS_DICT['REGION_NAME']}.{nowtime}.geojson"
 
     print(f"Doing zonal stats:\nVRT:\t\t{ZONAL_STATS_DICT['RASTER_FN']}\nZONE TYPE:\t{ZONAL_STATS_DICT['ZONE_NAME']}\nREGION:\t\t{ZONAL_STATS_DICT['REGION_NAME']}\nSaving to:\t{out_csv_fn}")
    
