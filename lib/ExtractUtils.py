@@ -399,7 +399,7 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
     
     nowtime = pd.Timestamp.now().strftime('%Y%m%d%H%M')
     print(f"Current time:\t{nowtime}")
-    out_csv_fn = f"{ZONAL_STATS_DICT['OUTPUT_DIR']}/zonal.{ZONAL_STATS_DICT['RASTER_DATASET_ID']}.{ZONAL_STATS_DICT['ZONE_NAME']}.{ZONAL_STATS_DICT['REGION_NAME']}.{nowtime}.geojson"
+    out_csv_fn = f"{ZONAL_STATS_DICT['OUTPUT_DIR']}/zonal.{ZONAL_STATS_DICT['RASTER_DATASET_ID']}.{ZONAL_STATS_DICT['ZONE_NAME']}.{ZONAL_STATS_DICT['REGION_NAME']}.{nowtime}.gpkg"
 
     print(f"Doing zonal stats:\nVRT:\t\t{ZONAL_STATS_DICT['RASTER_FN']}\nZONE TYPE:\t{ZONAL_STATS_DICT['ZONE_NAME']}\nREGION:\t\t{ZONAL_STATS_DICT['REGION_NAME']}\nSaving to:\t{out_csv_fn}")
    
@@ -416,7 +416,7 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
     # Get the total tile AGB in Mg
     out_gdf['total_Mg'] =  out_gdf['sum']  / ( out_gdf['count'] * AREA_HA_PER_PIXEL)  # Mg_ha_sum / num_pixels * area_ha per pixel
 
-    out_gdf.to_file(out_csv_fn, driver='GeoJSON')
+    out_gdf.to_file(out_csv_fn, driver='GPKG')
     
     if DEBUG:
         ax = out_gdf.plot('median', cmap='viridis', legend=True, vmin=0, vmax=250, ax=ax)
