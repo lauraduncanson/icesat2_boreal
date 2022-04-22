@@ -326,3 +326,99 @@ def BUILD_TABLE_JOBSTATUS(submit_results_df):
 def func(elem):
     '''key to sort a list based on a substring'''
     return int(elem.split('_')[-1].split('.')[0])
+
+def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median','std','min','sum','count'], DEBUG=False, AREA_HA_PER_PIXEL = 0.09):
+    '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn
+    ZONAL_STATS_DICT:
+     {
+            'ZONE_NAME': 'boreal_tiles_v003',
+            'ZONE_FN': '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg',
+            'REGION_NAME': 'above',
+            'REGION_FN': '/projects/shared-buckets/lduncanson/data/above/ABoVE_Study_Domain.shp', # or a geodataframe
+            'REGION_SEARCH_COL':'Region',
+            'REGION_SEARCH_STR':'Region', #None
+            'RASTER_DATASET_ID': 'biomass_prelim',
+            'RASTER_FN': vrt_fn
+    },
+    '''
+    
+    import rasterstats
+    import geopandas as gpd
+    import pandas as pd
+    import rasterio
+    
+    # Get the raster crs
+    with rasterio.open(ZONAL_STATS_DICT['RASTER_FN'], mode='r') as src:
+        raster_crs = src.crs
+
+     # Reproject the zones and the regions to the raster crs
+    in_gdf = gpd.read_file(ZONAL_STATS_DICT['ZONE_FN']).to_crs(raster_crs)
+    
+    if isinstance(ZONAL_STATS_DICT['REGION_FN'], gpd.GeoDataFrame):
+        region_gdf = ZONAL_STATS_DICT['REGION_FN'].to_crs(raster_crs)
+    else:
+        region_gdf = gpd.read_file(ZONAL_STATS_DICT['REGION_FN']).to_crs(raster_crs)
+        
+    if DEBUG:
+        # Plot of zones with regions in the raster crs
+        ax = in_gdf.plot()
+        region_gdf.boundary.plot(linewidth=1, color='black', ax=ax)
+
+    if 'LAKE' in in_gdf.columns.to_list():
+        # Remove lakes
+        in_gdf = in_gdf[in_gdf.LAKE == 0]
+
+    if ZONAL_STATS_DICT['REGION_SEARCH_STR'] is not None:
+        # Select the zones based on the region string
+        region_gdf_subset = region_gdf[region_gdf[ ZONAL_STATS_DICT['REGION_SEARCH_COL'] ].str.contains(ZONAL_STATS_DICT['REGION_SEARCH_STR']) ]
+    else:
+        region_gdf_subset = region_gdf
+        
+    region_gdf_subset['dissolve_field'] = 'for intersect'
+
+    # Do a dissolve so that there is only 1 polygon to intersect; .iloc[0]
+    selector = in_gdf.intersects(region_gdf_subset.dissolve(by='dissolve_field').iloc[0].geometry)
+
+    in_gdf_subset = in_gdf[selector]
+        
+    print(f"# of {ZONAL_STATS_DICT['ZONE_NAME']} zones in {ZONAL_STATS_DICT['REGION_NAME']} for zonal stats:\t{len(in_gdf_subset)}")
+
+    # If units of in_gdf are meters
+    in_gdf_subset['area_sq_km'] = in_gdf_subset.area / 1e6
+
+    # Reproject the zones and the regions to the raster crs
+    in_gdf_subset_r_prj = in_gdf_subset.to_crs(raster_crs)
+    
+    if DEBUG:
+        region_gdf_subset_r_prj = region_gdf_subset.to_crs(raster_crs)
+        # Plot the zones across the region in the crs of the raster
+        ax = in_gdf_subset_r_prj.plot()
+        region_gdf_subset_r_prj.boundary.plot(ax=ax, linewidth=1, color='black')
+        #in_gdf_subset_r_prj.head().plot(ax=ax, linewidth=1, color='red')
+    
+    nowtime = pd.Timestamp.now().strftime('%Y%m%d%H%M')
+    print(f"Current time:\t{nowtime}")
+    out_csv_fn = f"/projects/my-public-bucket/analyze_agb/zonal.{ZONAL_STATS_DICT['RASTER_DATASET_ID']}.{ZONAL_STATS_DICT['ZONE_NAME']}.{ZONAL_STATS_DICT['REGION_NAME']}.{nowtime}.geojson"
+
+    print(f"Doing zonal stats:\nVRT:\t\t{ZONAL_STATS_DICT['RASTER_FN']}\nZONE TYPE:\t{ZONAL_STATS_DICT['ZONE_NAME']}\nREGION:\t\t{ZONAL_STATS_DICT['REGION_NAME']}\nSaving to:\t{out_csv_fn}")
+   
+    # Join zonal stats output back to original geodataframe
+    out_gdf = in_gdf_subset_r_prj.reset_index(drop=True).join(
+                                                pd.DataFrame(
+                                                    rasterstats.zonal_stats(
+                                                        vectors=in_gdf_subset_r_prj['geometry'], 
+                                                        raster=ZONAL_STATS_DICT['RASTER_FN'], 
+                                                        stats=STATS_LIST
+                                                    )
+                                                )
+                                            )
+    # Get the total tile AGB in Mg
+    out_gdf['total_Mg'] =  out_gdf['sum']  / ( out_gdf['count'] * AREA_HA_PER_PIXEL)  # Mg_ha_sum / num_pixels * area_ha per pixel
+
+    out_gdf.to_file(out_csv_fn, driver='GeoJSON')
+    
+    if DEBUG:
+        ax = out_gdf.plot('median', cmap='viridis', legend=True, vmin=0, vmax=250, ax=ax)
+        print(ax)
+        
+    return out_gdf
