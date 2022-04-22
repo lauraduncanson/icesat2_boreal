@@ -482,3 +482,41 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
 
     
     return m2
+
+def MAP_LAYER_FOLIUM(LAYER=None, LAYER_COL_NAME=None, fig_w=1000, fig_h=400, lat_start=60, lon_start=-120, zoom_start=8):      
+    
+    #Map the Layers
+    Map_Figure=Figure(width=fig_w,height=fig_h)
+    foliumMap = Map(
+        tiles=None,
+        location=(lat_start, lon_start),
+        zoom_start=zoom_start, 
+        control_scale=True
+    )
+    Map_Figure.add_child(foliumMap)
+    
+    if LAYER is not None:
+        GEOJSON_LAYER = GeoJson(
+            LAYER,
+            name='footprints',
+            style_function=lambda x:{'fillColor': 'gray', 'color': 'red', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5},
+            tooltip=features.GeoJsonTooltip(
+                fields=[LAYER_COL_NAME],
+                aliases=[f'{LAYER_COL_NAME}:'],
+            )
+        )
+        #GeoJson(LAYER, name='footprints', style_function=lambda x:{'fillColor': 'gray', 'color': 'red', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}).add_to(foliumMap)
+        GEOJSON_LAYER.add_to(foliumMap)
+        
+    basemaps['Imagery'].add_to(foliumMap)
+    basemaps['basemap_gray'].add_to(foliumMap)
+    basemaps['ESRINatGeo'].add_to(foliumMap)
+    
+    LayerControl().add_to(foliumMap)
+    plugins.Geocoder().add_to(foliumMap)
+    plugins.MousePosition().add_to(foliumMap)
+    minimap = plugins.MiniMap()
+    plugins.Fullscreen().add_to(foliumMap)
+    foliumMap.add_child(minimap)
+    
+    return 
