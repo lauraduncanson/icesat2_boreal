@@ -269,11 +269,11 @@ SplitRas <- function(raster,ppside,save){
   v        <- ceiling(nrow(raster)/ppside)
   agg      <- aggregate(raster,fact=c(h,v))
   agg[]    <- 1:ncell(agg)
-  agg_poly <- rasterToPolygons(agg)
+  agg_poly <- as.polygons(agg)
   names(agg_poly) <- "polis"
   r_list <- list()
   for(i in 1:ncell(agg)){
-    e1          <- extent(agg_poly[agg_poly$polis==i,])
+    e1          <- ext(agg_poly[agg_poly$polis==i,])
     r_list[[i]] <- crop(raster,e1)
   }
   if(save==T){
@@ -288,35 +288,48 @@ SplitRas <- function(raster,ppside,save){
 
 # mapping - apply the list of models to a set of sub-tiles, compute AGB, SD, 5th & 95th percentiles 
 
-agbMapping<-function(x=x,y=y,model_list=model_list, stack=stack,output){
-    stack_df <- na.omit(as.data.frame(stack, xy=TRUE))
-    stack_df$grid_id<-1:nrow(stack_df)
-    stats_df<-NULL
-    n<-nrow(x)
-    ids<-1:n
-    map_pred<-NULL
+agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stack,output){
+    #predict directly on raster using terra
+    pred_stack <- na.omit(stack)
+        
+    map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
+    str(map_pred)
+    
+    #convert to total map
+    total_convert <- function(x){x*0.09}
+    AGB_tot_map <- app(map_pred, total_convert)
+    AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
+    rm(AGB_tot_map)
+    
+    print('total AGB:')
+    print(AGB_total)
+    
     #loop over predicting for tile with each model in list
     for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
-        map_i<-cbind(stack_df[,1:2],agb=predict(fit.rf, newdata=stack_df), rep=i, grid_id=stack_df$grid_id)
-        map_pred<-rbind(map_pred,map_i)
+        #create raster
+        map_pred_temp <- predict(pred_stack, fit.rf, na.rm=TRUE)
+        AGB_total_temp <- global(map_pred_temp, 'sum', na.rm=TRUE)
+        map_pred <- c(map_pred, map_pred_temp)
+        AGB_total <- c(AGB_total, AGB_total_temp$sum)
+        print('i:')
+        print(i)
+        rm(map_pred_temp)
     }
     
     #take the average and sd per pixel
     #set predictions to preds from the single rf model
-    mean_map <- predict(model_list[[1]], newdata=stack_df)
-    sd_map <-tapply(map_pred$agb,map_pred$grid_id,sd)
-    p5 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.05)
-    p95 <- tapply(map_pred$agb, map_pred$grid_id, quantile, prob=0.95)
+    mean_map <- app(map_pred, mean)
+    sd_map <- app(map_pred, sd)
+   # p5_fun <- function(x){quantile(x, prob=0.05)}
+   # p95_fun <- function(x){quantile(x, prob=0.95)}
+   # p5 <- app(map_pred, p5_fun)
+   # p95 <- app(map_pred, p95_fun)
+    out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+    out_fn_total <- paste0(out_fn_stem, '_total.csv')
+    write.csv(file=out_fn_total, AGB_total)
+    agb_maps <- c(mean_map, sd_map)
     
-    #create output tile grid
-    agb_maps <- rasterFromXYZ(cbind(stack_df[,1:2],
-                                    agb_mean=mean_map,
-                                    agb_sd=sd_map,
-                                    p5=p5,
-                                    p95=p95
-                                  )
-                              )
   return(agb_maps)
 }
 
@@ -428,11 +441,11 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-    
-        
-        
+            
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
+    str(broad_data)
+    str(tile_data)
     
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
@@ -481,56 +494,97 @@ mapBoreal<-function(rds_models,
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
         
     #split stack into list of iles
-    tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
+    if(ppside > 1){
+        tile_list <- SplitRas(raster=stack,ppside=ppside,save=FALSE)
     
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
 
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    out_agb <- list()
-    out_sd <- list()
-    out_p5 <- list()
-    out_p95 <- list()
+    #out_agb <- list()
+    #out_sd <- list()
+    #out_p5 <- list()
+    #out_p95 <- list()
     n_subtiles <- length(tile_list)
     print(paste0('nsubtiles:', n_subtiles))
      for (tile in 1:n_subtiles){
         tile_stack <- tile_list[[tile]]
         #check if data in tile stack
-        length_valid <- length(unique(tile_stack@data@values[,1]))
-        if(length_valid > 2){
+        #length_valid <- length(unique(tile_stack@data@values[,1]))
+        #if(length_valid > 2){
             maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
+                     tile_num=tile_num,
                      stack=tile_stack)
-        
-            out_agb <- list.append(out_agb, as.list(maps)[[1]])
-            out_sd <- list.append(out_sd, as.list(maps)[[2]])
-            out_p5 <- list.append(out_p5, as.list(maps)[[3]])
-            out_p95 <- list.append(out_p95, as.list(maps)[[4]])
-            }
+             #out_agb <- list.append(out_agb, as.list(maps)[[1]])
+            #out_sd <- list.append(out_sd, as.list(maps)[[2]])
+            #out_p5 <- list.append(out_p5, as.list(maps)[[3]])
+            #out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+         if(tile == 1){out_map <- maps} 
+         if(tile>1){
+             out_map <- mosaic(maps, out_map, fun="max")
+             rm(maps)
+         }
+            #}
         }
+    
+    }
+    if (ppside == 1){
+        out_map<-agbMapping(x=xtable[pred_vars],
+                     y=xtable$AGB,
+                     model_list=models,
+                     tile_num=tile_num,
+                     stack=stack)
+    }
     
     print('AGB successfully predicted!')
     #recombine tiles
-    out_agb$fun   <- max
-    agb.mosaic <- do.call(mosaic,out_agb)
+    #out_agb$fun   <- max
+    #agb.mosaic <- do.call(mosaic,out_agb)
 
-    out_sd$fun   <- max
-    sd.mosaic <- do.call(mosaic,out_sd)
+    #out_sd$fun   <- max
+    #sd.mosaic <- do.call(mosaic,out_sd)
     
-    out_p5$fun   <- max
-    p5.mosaic <- do.call(mosaic,out_p5)
+    #out_p5$fun   <- max
+    #p5.mosaic <- do.call(mosaic,out_p5)
     
-    out_p95$fun   <- max
-    p95.mosaic <- do.call(mosaic,out_p95)
+    #out_p95$fun   <- max
+    #p95.mosaic <- do.call(mosaic,out_p95)
     
     print('mosaics completed!')
 
     # Make a 4-band stack as a COG
-    out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
-    crs(out_stack) <- crs(tile_stack)
+    #out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
+    #crs(out_map) <- crs(tile_stack)
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
     #out_fn_stem = paste("/projects/testing/output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
 
+    #read in all csv files from output, combine for tile totals
+    if(ppside > 1){
+        #read csv files
+        csv_files <- list.files(path='output/', pattern='*.csv', full.names=TRUE)
+        n_files <- length(csv_files)
+        for(h in 1:n_files){
+            if(h==1){
+                total_data <- read.csv(csv_files[h])$x
+                file.remove(csv_files[h])
+
+            }
+            if(h>1){
+                temp_data <- read.csv(csv_files[h])$x
+                total_data <- cbind(total_data, temp_data)
+                file.remove(csv_files[h])
+
+            }    
+        }
+        
+        #summarize accross subtiles
+        total_AGB <- apply(total_data, 1, sum)
+        
+        out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+        out_fn_total <- paste0(out_fn_stem, '_total.csv')
+        write.csv(file=out_fn_total, total_AGB)
+    }
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="" )
     out_cog_fn <- paste(out_fn_stem, '.tif', sep="" )
@@ -538,12 +592,13 @@ mapBoreal<-function(rds_models,
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="")
     
     #set NA values
-    NAvalue(out_stack) <- 9999
+    #NAvalue(out_stack) <- 9999
     
     print(paste0("Write tmp tif: ", out_tif_fn))
 
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
-    writeRaster(out_stack, filename=out_tif_fn, format="GTiff", datatype="FLT4S", overwrite=TRUE, options=tifoptions)
+    writeRaster(out_map, filename=out_cog_fn, overwrite=TRUE, gdal=c("COMPRESS=NONE", "TFW=YES","of=COG"))
+    
     
     #Change suggested from A Mandel to visualize cogs faster
     #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
@@ -555,7 +610,7 @@ mapBoreal<-function(rds_models,
     #    )
     print(paste0("Write COG tif: ", out_cog_fn))
     
-    gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
+    #gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
     #file.remove(out_tif_fn)
           
     
@@ -610,7 +665,6 @@ print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
 # loading packages and functions
 #----------------------------------------------#
 library(randomForest)
-library(raster)
 library(rgdal)
 library(data.table)
 library(ggplot2)
@@ -619,27 +673,30 @@ library(fs)
 library(stringr)
 library(gdalUtils)
 library(rockchalk)
+library(terra)
 
 # run code
 # adding model ids
 rds_models <- list.files(pattern='*.rds')
 
 models_id<-names(rds_models)<-paste0("m",1:length(rds_models))
-print(topo_stack_file)
 
-topo <- stack(topo_stack_file)
-l8 <- stack(l8_stack_file)
+#use terra
+topo <- rast(topo_stack_file)
+l8 <- rast(l8_stack_file)
 
 # make sure data are linked properly
-stack<-crop(l8,extent(topo)); stack<-stack(stack,topo)
+stack<-crop(l8,ext(topo))
+
+stack<-c(stack,topo)
 
 if(DO_MASK_WITH_STACK_VARS){
     print("Making brick from stack and masking...")
     # Bricking the stack will make the masking faster (i think)
-    brick = brick(stack)
+    #brick = rast(stack)
     for(LYR_NAME in MASK_LYR_NAMES){
-        m <- raster::subset(brick, grep(LYR_NAME, names(brick), value = T))
-        brick <- mask(brick, m == 0, maskvalue=TRUE)
+        m <- terra::subset(stack, grep(LYR_NAME, names(stack), value = T))
+        brick <- mask(stack, m == 0, maskvalue=TRUE)
     }
     rm(m)
     rm(stack)
