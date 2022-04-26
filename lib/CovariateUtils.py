@@ -83,7 +83,7 @@ def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 
     
     return tile_parts
 
-def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False):
+def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False, input_nodata_value:int=None):
     '''
     Write a cloud optimized geotiff with compression from a numpy stack of bands with labels
     Reproject if needed, Clip to bounding box if needed.
@@ -108,12 +108,18 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     align: bool, optional
         True aligns the output raster with the top left corner of the clip_geom. clip_geom CRS must be the same as
         the out_crs.
+    input_nodata_value: int, optional
+        Setting to an int allows for reading in uint8 datatypes; otherwise assume np.nan
     '''
     
     #TODO: remove print statements, add debugging
     
     if out_crs is None:
         out_crs = in_crs
+        
+    if input_nodata_value is None:
+        print('Input nodata isnt provided; assuming NaN...')
+        input_nodata_value = numpy.nan
    
     # Set the profile for the in memory raster based on the ndarry stack
     src_profile = dict(
@@ -124,7 +130,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         dtype=stack.dtype,
         crs=in_crs,
         transform=src_transform,
-        nodata=numpy.nan)
+        nodata=input_nodata_value)
 
     # Set the reproject parameters for the WarpedVRT read
     vrt_params = {}
@@ -132,8 +138,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         vrt_params["crs"] = out_crs
         vrt_params["src_crs"] = in_crs
         vrt_params["dtype"] = str(stack.dtype)
-        vrt_params["nodata"] = numpy.nan
-        vrt_params["resampling"] = enums.Resampling.nearest
+        vrt_params["nodata"] = input_nodata_value
+        vrt_params["resampling"] = enums.Resampling.nearest # <---hard-coded nearest neighbor resampling prevents contamination from nan values and maintains numerical categories
         
         #TODO: Add  transform with resolution specification
         if out_crs != in_crs:
