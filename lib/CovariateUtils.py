@@ -178,7 +178,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     dst_profile = cog_profiles.get("deflate")
     dst_profile['blockxsize']=256
     dst_profile['blockysize']=256
-    dst_profile['predictor']=2
+    dst_profile['predictor']=1 # originally set to 2, which fails with 'int'; 1 tested successfully for 'int' and 'float64'
     dst_profile['zlevel']=7
     
     with MemoryFile() as memfile:
