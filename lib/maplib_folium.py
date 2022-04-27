@@ -519,4 +519,4 @@ def MAP_LAYER_FOLIUM(LAYER=None, LAYER_COL_NAME=None, fig_w=1000, fig_h=400, lat
     plugins.Fullscreen().add_to(foliumMap)
     foliumMap.add_child(minimap)
     
-    return 
+    return foliumMap

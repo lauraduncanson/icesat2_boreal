@@ -188,13 +188,13 @@ def main():
         print(df.head()) 
         
         if 'AGB' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[3]
+            df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         if 'Topo' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[1]
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
         if 'Landsat' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[6]
+            df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[1] 
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif') 
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
@@ -239,6 +239,9 @@ def main():
         
         # Drop duplicates, keeping the latest version of the tile
         df = df.drop_duplicates(subset=['tile_num'], keep='first')
+        
+        # Make sure the tile_num field is int (not object)
+        df['tile_num'] = df['tile_num'].astype(str).astype(int)
         
         num_without_duplicates = df.shape[0]
         print(f"# of duplicate tiles: {dropped.shape[0]}")
