@@ -8,3 +8,6 @@ pushd ${HOME}
 
 source activate base
 mamba install -y -c conda-forge gdal==3.3.3
+source activate r-with-gdal
+mamba install -y -c conda-forge r-terra
+
