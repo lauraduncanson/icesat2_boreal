@@ -34,9 +34,9 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
   # rds_models
   names(rds_models)<-models_id
 
-  if(DO_MASK){
-      in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
-  }
+  #if(DO_MASK){
+  #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
+  #}
     
   xtable_i<-na.omit(as.data.frame(in_data))
   names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
@@ -113,6 +113,16 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
       
     #we multiply by C in case there is a systematic over or under estimation in the model (bias correction)
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-C*(xtable_sqrt$AGB[xtable_sqrt$model_id==i]^2)
+      
+    #set predictions where slopemask & validmask are 0 to 0
+    xtable_sqrt$AGB[which(xtable_sqrt$slopemask==0)] <- 0.0
+      
+    xtable_sqrt$AGB[which(xtable_sqrt$ValidMask==0)] <- 0.0
+      
+    #set predictions where landcover is water, urban, snow, barren to 0
+    bad_lc <- c(0, 13, 15, 16)
+    xtable_sqrt$AGB[which(xtable_sqrt$seg_landcov %in% bad_lc)] <- 0.0
+
   }
     
   xtable2<-cbind(in_data, xtable_sqrt$AGB, xtable_sqrt$SE)
@@ -293,10 +303,14 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     pred_stack <- na.omit(stack)
         
     map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
-    str(map_pred)
     
-    #convert to total map
-    total_convert <- function(x){x*0.09}
+    #set slope and valid mask to zero
+    map_pred <- mask(map_pred, pred_stack$slopemask, maskvalues=0, updatevalue=0)
+    
+    map_pred <- mask(map_pred, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
+
+    #convert to total map (Pg, values per cell will be extremely small)
+    total_convert <- function(x){(x*0.09)/1000000000}
     AGB_tot_map <- app(map_pred, total_convert)
     AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
     rm(AGB_tot_map)
@@ -444,8 +458,6 @@ mapBoreal<-function(rds_models,
             
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
-    str(broad_data)
-    str(tile_data)
     
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
@@ -472,7 +484,7 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('slopemask', 'ValidMask', 'Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }else{
         pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }
@@ -488,7 +500,6 @@ mapBoreal<-function(rds_models,
                             rep=rep,
                             strat_random=strat_random)
     
-    #str(models)
     xtable <- models[[1]]
     models <- models[-1]
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
@@ -659,6 +670,8 @@ max_sol_el <- as.double(max_sol_el)
 local_train_perc <- as.double(local_train_perc)
 
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
+                          
+MASK_LANDCOVER_NAMES = c(0,13,15,16)
 
 print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
 
@@ -690,13 +703,16 @@ stack<-crop(l8,ext(topo))
 
 stack<-c(stack,topo)
 
+
 if(DO_MASK_WITH_STACK_VARS){
     print("Making brick from stack and masking...")
     # Bricking the stack will make the masking faster (i think)
     #brick = rast(stack)
     for(LYR_NAME in MASK_LYR_NAMES){
         m <- terra::subset(stack, grep(LYR_NAME, names(stack), value = T))
+        
         brick <- mask(stack, m == 0, maskvalue=TRUE)
+
     }
     rm(m)
     rm(stack)
