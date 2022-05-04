@@ -337,8 +337,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         #set slope and valid mask to zero
         map_pred_temp <- mask(map_pred_temp, pred_stack$slopemask, maskvalues=0, updatevalue=0)
         map_pred_temp <- mask(map_pred_temp, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
-        map_pred_temp <- app(map_pred_temp, total_convert)
-        AGB_total_temp <- global(map_pred_temp, 'sum', na.rm=TRUE)
+        
+        map_pred_tot_temp <- app(map_pred_temp, total_convert)
+        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)
         map_pred <- c(map_pred, map_pred_temp)
         AGB_total <- c(AGB_total, AGB_total_temp$sum)
         print('i:')
@@ -346,9 +347,10 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         
         #repeat for just boreal
         library(raster)
-        map_pred_temp <- raster(map_pred_temp)
-        boreal_map_temp <- mask(map_pred_temp, vect, updatevalue=NA)
+        map_pred_tot_temp <- raster(map_pred_tot_temp)
+        boreal_map_temp <- mask(map_pred_tot_temp, vect, updatevalue=NA)
         detach("package:raster") 
+        rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
         boreal_map_temp <- rast(boreal_map_temp)
