@@ -314,9 +314,6 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     AGB_tot_map <- app(map_pred, total_convert)
     AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
     
-    print('total AGB:')
-    print(AGB_total)
-    
     #calculate just the boreal total
     vect <- boreal_poly
     
@@ -364,16 +361,13 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     mean_map <- app(map_pred, mean)
     sd_map <- app(map_pred, sd)
     
-    print('individual')
-    print(AGB_total)
-    print(AGB_total_boreal)
-    
     AGB_total_out <- as.data.frame(cbind(AGB_total, AGB_total_boreal))
     names(AGB_total_out) <- c('Tile_Total', 'Boreal_Total')
 
-
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+
     out_fn_total <- paste0(out_fn_stem, '_total.csv')
+
     write.csv(file=out_fn_total, AGB_total_out)
     agb_maps <- c(mean_map, sd_map)
     
@@ -588,30 +582,35 @@ mapBoreal<-function(rds_models,
     #read in all csv files from output, combine for tile totals
     if(ppside > 1){
         #read csv files
-        csv_files <- list.files(path='output/', pattern='*.csv', full.names=TRUE)
+        csv_files <- list.files(path='output', pattern='_total.csv', full.names=TRUE)
         n_files <- length(csv_files)
         for(h in 1:n_files){
             if(h==1){
-                total_data <- read.csv(csv_files[h])
+                tile_data <- read.csv(csv_files[h])
+                total_data <- tile_data$Tile_Total
+                total_data_boreal <- tile_data$Boreal_Total
                 file.remove(csv_files[h])
-
             }
             if(h>1){
                 temp_data <- read.csv(csv_files[h])
-                total_data <- rbind(total_data, temp_data)
+                total_data <- cbind(total_data, temp_data$Tile_Total)
+                total_data_boreal <- cbind(total_data_boreal, temp_data$Boreal_Total)
                 file.remove(csv_files[h])
 
             }    
         }
         
         #summarize accross subtiles
-        total_AGB <- apply(total_data, 2, sum)
-        #total_AGB_out <- cbind(total_AGB, total_AGB_boreal)
-        #names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
+        total_AGB <- apply(total_data, 1, sum)
+        total_AGB_boreal <- apply(total_data_boreal, 1, sum)
+        
+        total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
+        str(total_AGB_out)
+        names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
         out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
         out_fn_total <- paste0(out_fn_stem, '_total.csv')
-        write.csv(file=out_fn_total, total_AGB)
+        write.csv(file=out_fn_total, total_AGB_out)
     }
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="" )

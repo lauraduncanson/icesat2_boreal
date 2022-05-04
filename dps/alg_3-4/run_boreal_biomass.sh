@@ -12,8 +12,6 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 mkdir output
 
 # Note: the numbered args are fed in with the in_param_dict in the Run DPS chunk of 3.4_dps.ipynb
-#ATL08_tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/2022_map_iterations/ATL08_filt_tindex_master_combo_night_solar.csv'
-
 ATL08_tindex_master_fn=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
@@ -30,8 +28,7 @@ max_sol_el=${13}
 expand_training=${14}
 local_train_perc=${15}
 min_n=${16}
-boreal_vect=${17}
-boreal_vect_fn=${18}
+boreal_vect_fn=${17}
 
 TAR_FILE=${basedir}/../../lib/bio_models.tar
 
@@ -40,8 +37,6 @@ TAR_FILE=${basedir}/../../lib/bio_models.tar
 
 # This will put the *rds in the same dir as the R script
 tar -xf ${TAR_FILE}
-
-ls ${PWD}/input >& ${PWD}/output/log.txt
 
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
