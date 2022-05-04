@@ -125,7 +125,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
 
   }
     
-  xtable2<-cbind(in_data, xtable_sqrt$AGB, xtable_sqrt$SE)
+  xtable2<-cbind(xtable_i, xtable_sqrt$AGB, xtable_sqrt$SE)
     ncol <- ncol(xtable2)
   colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
   return(xtable2)
