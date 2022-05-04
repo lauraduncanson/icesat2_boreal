@@ -41,7 +41,7 @@ TAR_FILE=${basedir}/../../lib/bio_models.tar
 # This will put the *rds in the same dir as the R script
 tar -xf ${TAR_FILE}
 
-ls input/
+echo $(ls input/)
 
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
