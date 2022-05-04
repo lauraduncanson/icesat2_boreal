@@ -30,7 +30,8 @@ max_sol_el=${13}
 expand_training=${14}
 local_train_perc=${15}
 min_n=${16}
-
+boreal_vect=${17}
+boreal_vect_fn=${18}
 
 TAR_FILE=${basedir}/../../lib/bio_models.tar
 
@@ -53,12 +54,12 @@ eval $cmd
 MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
 
 source activate r-with-gdal
-mamba install -y -c conda-forge r-rockchalk==1.8.151
+
 # Run mapBoreal with merged CSV as input
-Rscript ${basedir}/../../lib/mapBoreal_speedy.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n}
+Rscript ${basedir}/../../lib/mapBoreal_speedy.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
-source activate base
+#source activate base
 
 #IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
 #OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
