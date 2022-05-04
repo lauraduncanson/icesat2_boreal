@@ -601,8 +601,8 @@ mapBoreal<-function(rds_models,
         }
         
         #summarize accross subtiles
-        total_AGB <- apply(total_data, 1, sum)
-        total_AGB_boreal <- apply(total_data_boreal, 1, sum)
+        total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
+        total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
         
         total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
         str(total_AGB_out)
