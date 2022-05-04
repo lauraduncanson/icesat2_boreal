@@ -679,6 +679,8 @@ local_train_perc <- args[12]
 min_n <- args[13]
 boreal_vect <- args[14]
 
+print(boreal_vect)
+
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
 maxDOY <- as.double(maxDOY)
