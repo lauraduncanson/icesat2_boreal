@@ -706,7 +706,6 @@ library(stringr)
 library(gdalUtils)
 library(rockchalk)
 library(terra)
-
 # run code
 # adding model ids
 rds_models <- list.files(pattern='*.rds')
@@ -718,7 +717,8 @@ topo <- rast(topo_stack_file)
 l8 <- rast(l8_stack_file)
 
 # make sure data are linked properly
-stack<-crop(l8,ext(topo))
+ext(l8) <- ext(topo)
+stack<-crop(l8,topo)
 
 stack<-c(stack,topo)
 
