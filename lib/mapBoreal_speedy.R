@@ -717,10 +717,22 @@ topo <- rast(topo_stack_file)
 l8 <- rast(l8_stack_file)
 
 # make sure data are linked properly
-ext(l8) <- ext(topo)
-stack<-crop(l8,topo)
+#check extents
+nrow_topo = nrow(topo)
+nrow_l8 = nrow(l8)
+nrow_diff <- abs(nrow_topo-nrow_l8)
 
-stack<-c(stack,topo)
+ncol_topo <- ncol(topo)
+ncol_l8 <- ncol(l8)
+ncol_diff <- abs(ncol_topo-ncol_l8)
+
+if(nrow_diff>0 || ncol_diff>0){
+   #resample l8
+    l8 <- resample(l8, topo, method='near')
+} 
+
+ext(l8) <- ext(topo)
+stack<-c(l8,topo)
 
 if(DO_MASK_WITH_STACK_VARS){
     print("Masking stack...")
