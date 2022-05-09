@@ -325,7 +325,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     
     library(terra)
     boreal_map <- rast(boreal_map)
-    AGB_tot_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
+    AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
     rm(AGB_tot_map)
     rm(boreal_map)
 
@@ -355,7 +355,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
 
         boreal_map_temp <- rast(boreal_map_temp)
         AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)
-        AGB_total_boreal <- c(AGB_tot_boreal, AGB_boreal_temp$sum)
+        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
         rm(boreal_map_temp)        
     }
     
