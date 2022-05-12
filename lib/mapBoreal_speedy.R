@@ -29,7 +29,7 @@
 #----------------------------------------------#
 ############# functions ########################
 #----------------------------------------------#
-GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE){
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE){
   
   # rds_models
   names(rds_models)<-models_id
@@ -79,6 +79,11 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
 
+    n_models <- length(ids)
+    
+    #one model for actual application - no resampling
+    
+    #iterate through re-sampling models
   for ( i in ids){
     
     # subset data for model id
@@ -91,10 +96,12 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     coeffs <- model_i$coefficients
     
     # modify coeffients through sampling variance covariance matrix
-    mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
-
-      print(mod.coeffs[1,])
-    model_i$coefficients <- mod.coeffs[1,]
+    #if one_model = TRUE do not resample
+    
+      if(one_model==FALSE){
+          mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
+          model_i$coefficients <- mod.coeffs[1,]
+      }
 
     # SE
     xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma
@@ -202,12 +209,20 @@ stratRandomSample<-function(agb=y,breaks, p){
 # modeling - fit a number of models and return as a list of models
 agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,boreal_poly=boreal_poly, output){
     
-    # apply GEDI models  
+    # apply GEDI models for prediction
+    xtable_predict<-GEDI2AT08AGB(rds_models=rds_models,
+                       models_id=models_id,
+                       in_data=in_data, 
+                       offset=offset,
+                       DO_MASK=DO_MASK, 
+                       one_model=TRUE) 
+    
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=in_data, 
                        offset=offset,
-                       DO_MASK=DO_MASK) 
+                       DO_MASK=DO_MASK, 
+                       one_model=FALSE) 
     
     x <- xtable[pred_vars]
     y <- xtable$AGB
@@ -218,10 +233,10 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   ids<-1:n
   i.s=0
   model_list <- list()
-    model_list <- list.append(model_list, xtable)
+    model_list <- list.append(model_list, xtable_predict)
     
     # create one single rf using all the data; the first in model_list will be used for prediction
-    fit.rf <- randomForest(y=y, x=x, ntree=500)
+    fit.rf <- randomForest(y=xtable_predict$AGB, x=xtable_predict[pred_vars], ntree=500)
     model_list <- list.append(model_list, fit.rf)
     
   for (j in 2:rep){
@@ -362,6 +377,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     #take the average and sd per pixel
     mean_map <- app(map_pred, mean)
     sd_map <- app(map_pred, sd)
+    
+    #model with all data for mapping
+    mean_map <- map_pred[[1]]
     
     AGB_total_out <- as.data.frame(cbind(AGB_total, AGB_total_boreal))
     names(AGB_total_out) <- c('Tile_Total', 'Boreal_Total')
