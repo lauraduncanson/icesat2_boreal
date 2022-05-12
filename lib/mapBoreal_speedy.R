@@ -491,6 +491,9 @@ mapBoreal<-function(rds_models,
     
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
+    
+    #if static broad, use all local train data
+    sample_local <- n_tile
     print(paste0('sample_local:', sample_local))
     sample_broad <- n_tile - sample_local
     print(paste0('sample_broad:', sample_broad))
