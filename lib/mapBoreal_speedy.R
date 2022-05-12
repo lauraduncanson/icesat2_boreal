@@ -500,15 +500,18 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-        
-    if(sample_broad>0){
-        samp_ids <- seq(1,sample_broad)
-        broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
-        broad_data <- broad_data[broad_sample_ids,]
-        all_train_data <- rbind(tile_data, broad_data)
-    } else{
-        all_train_data <- tile_data
-    }
+    
+    # if you want to use ALL the broad training data to minimize edge effects:
+    all_train_data <- rbind(tile_data, broad_data)
+
+   # if(sample_broad>0){
+   #     samp_ids <- seq(1,sample_broad)
+   #     broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
+   #     broad_data <- broad_data[broad_sample_ids,]
+   #     all_train_data <- rbind(tile_data, broad_data)
+   # } else{
+   #     all_train_data <- tile_data
+   # }
         
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
