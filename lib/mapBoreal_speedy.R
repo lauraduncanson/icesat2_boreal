@@ -413,6 +413,7 @@ mapBoreal<-function(rds_models,
                     min_n=3000,
                     DO_MASK=FALSE,
                     boreal_poly=boreal_poly){
+    
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
     print("Modelling and mapping boreal AGB")
@@ -558,8 +559,18 @@ mapBoreal<-function(rds_models,
     models <- models[-1]
     
     #create one single model for prediction
-    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
-    agb_preds <- predict(rf_single, stack, na.rm=TRUE)
+    y <- xtable$AGB
+    x <- xtable[pred_vars]
+    rf_single <- randomForest(y=y, x=x, ntree=500)
+    
+    pred_stack <- na.omit(stack)
+
+    agb_preds <- predict(pred_stack, rf_single, na.rm=TRUE)
+
+    #set slope and valid mask to zero
+    agb_preds <- mask(agb_preds, pred_stack$slopemask, maskvalues=0, updatevalue=0)
+    
+    agb_preds <- mask(agb_preds, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
     
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
         
@@ -600,6 +611,7 @@ mapBoreal<-function(rds_models,
                      stack=stack,
                      boreal_poly=boreal_poly)
     }
+    
     
     out_map[[1]] <- agb_preds
     
@@ -762,6 +774,10 @@ if(nrow_diff>0 || ncol_diff>0){
 
 ext(l8) <- ext(topo)
 stack<-c(l8,topo)
+
+str(stack)
+save(stack, file='/projects/testing/stack.Rdata')
+
 
 if(DO_MASK_WITH_STACK_VARS){
     print("Masking stack...")
