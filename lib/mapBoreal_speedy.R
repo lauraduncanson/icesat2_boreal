@@ -667,7 +667,7 @@ mapBoreal<-function(rds_models,
     
     print(paste0("Write tmp tif: ", out_tif_fn))
 
-    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
+    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "OVERVIEW_RESAMPLING=AVERAGE")
     writeRaster(out_map, filename=out_tif_fn, overwrite=TRUE, gdal=c("COMPRESS=NONE", "TFW=YES","of=COG"))
     
     #Change suggested from A Mandel to visualize cogs faster
