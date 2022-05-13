@@ -649,7 +649,7 @@ mapBoreal<-function(rds_models,
         total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
         
         total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
-        str(total_AGB_out)
+
         names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
         out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
@@ -774,9 +774,6 @@ if(nrow_diff>0 || ncol_diff>0){
 
 ext(l8) <- ext(topo)
 stack<-c(l8,topo)
-
-str(stack)
-save(stack, file='/projects/testing/stack.Rdata')
 
 
 if(DO_MASK_WITH_STACK_VARS){
