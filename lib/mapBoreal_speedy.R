@@ -232,7 +232,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   ids<-1:n
   i.s=0
   model_list <- list()
-    model_list <- list.append(model_list, xtable_predict)
+    model_list <- list.append(model_list, xtable)
     
     # create one single rf using all the data; the first in model_list will be used for prediction
     fit.rf <- randomForest(y=xtable_predict$AGB, x=xtable_predict[pred_vars], ntree=500)
@@ -556,6 +556,11 @@ mapBoreal<-function(rds_models,
     
     xtable <- models[[1]]
     models <- models[-1]
+    
+    #create one single model for prediction
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    agb_preds <- predict(rf_single, stack, na.rm=TRUE)
+    
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
         
     #split stack into list of iles
@@ -595,10 +600,6 @@ mapBoreal<-function(rds_models,
                      stack=stack,
                      boreal_poly=boreal_poly)
     }
-    
-    #create one single model for prediction
-    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
-    agb_preds <- predict(rf_single, stack)
     
     out_map[[1]] <- agb_preds
     
