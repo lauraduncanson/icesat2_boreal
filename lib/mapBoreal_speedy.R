@@ -30,7 +30,6 @@
 ############# functions ########################
 #----------------------------------------------#
 GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE){
-  
   # rds_models
   names(rds_models)<-models_id
 
@@ -597,6 +596,12 @@ mapBoreal<-function(rds_models,
                      boreal_poly=boreal_poly)
     }
     
+    #create one single model for prediction
+    rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    agb_preds <- predict(rf_single, stack)
+    
+    out_map[[1]] <- agb_preds
+    
     print('AGB successfully predicted!')
     
     print('mosaics completed!')
@@ -704,7 +709,6 @@ local_train_perc <- args[12]
 min_n <- args[13]
 boreal_vect <- args[14]
 
-print(boreal_vect)
 
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
@@ -772,7 +776,6 @@ if(DO_MASK_WITH_STACK_VARS){
 }
 
 #read boreal polygon for masking later
-print(boreal_vect)
 boreal_poly <- readOGR(boreal_vect)
 
 print("modelling begins")
