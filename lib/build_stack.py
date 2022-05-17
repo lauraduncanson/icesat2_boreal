@@ -97,9 +97,11 @@ def main():
     # intersect with the bbox tile
     covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
 
-
-    # Set up and aws permissions to public bucket
-    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+    #if args.credentials_fn is None:
+    #    # Set up and aws permissions to public bucket
+    #    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+    #else:
+    #    aws_session = get_rio_aws_session_from_creds(args.credential_fn)
 
     
     # Get the s3 urls to the granules
@@ -111,7 +113,7 @@ def main():
     bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
     print(f"bbox: {bbox}")
     height, width = get_shape(bbox, res)
-
+    
     img = mosaic_reader(file_s3, reader, bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
     mosaic = (img[0].as_masked())
     out_trans =  rasterio.transform.from_bounds(*bbox, width, height)

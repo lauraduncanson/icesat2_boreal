@@ -78,32 +78,35 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     mscomp_rgb_dict = None,
                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
-                    max_AGB_display = 150,
+                    max_AGB_display = 150, max_AGBSE_display = 20,
                     MS_BANDNAME = 'NDVI',
                     MS_BANDNUM = 8,
                     MS_BANDMIN = 0,
                     MS_BANDMAX = 1,
                     MS_BANDCOLORBAR = 'viridis',
                     tiles_remove = [41995, 41807, 41619], # geo abyss,
-                    SHOW_WIDGETS=False
+                    SHOW_WIDGETS=False,
+                    TOPO_OPACITY=0.15,
+                    map_width=1000, map_height=500
                    ):
     
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        
         # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
         agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
-
-        colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
+        #colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
+        cmap = matplotlib.cm.get_cmap(agb_colormap, 25)
+        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
-        #colormap_AGB
-
-        agb_se_colormap = 'magma'
-        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,20&bidx=2&colormap_name={agb_se_colormap}"
         
+        agb_se_colormap = 'magma'
+        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGBSE_display}&bidx=2&colormap_name={agb_se_colormap}"
         #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
-        #colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
-        #colormap = cm.linear.nipy_spectral.scale(0, 125).to_step(25)
-        #colormap
+        cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
+        colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
+        colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
+
 
     # Get Vector layers
     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
@@ -131,7 +134,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         #GeoJson(boreal, name="Boreal extent", style_function=lambda x:boreal_style).add_to(m1)
 
     # Map the Layers
-    Map_Figure=Figure(width=1200,height=500)
+    Map_Figure=Figure(width=map_width,height=map_height)
     #------------------
     m1 = Map(
         #tiles="Stamen Toner",
@@ -163,6 +166,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
         m1.add_child(colormap_AGB)
+        m1.add_child(colormap_AGBSE)
 
     #GeoJson(atl08_gdf, name="ATL08"
     #       ).add_to(m)
@@ -255,8 +259,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
         topo_tiles_layer = TileLayer(
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray",
-            opacity=0.25,
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray", #tsri
+            #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,2&bidx=5&colormap_name=tab10", #slopemask
+            opacity=TOPO_OPACITY,
             name="Topography",
             attr="MAAP",
             overlay=True
@@ -326,7 +331,7 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
     Map_Figure3=Figure(width=map_width,height=map_height)
     
     m3 = Map(
-        tiles="Stamen Toner",
+        #tiles="Stamen Toner",
         location=(60, 5),
         zoom_start=2
     )
@@ -347,6 +352,14 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
                 aliases=['Tile:','# obs.:','path:'],
             )
         )
+    
+        # Add custom basemaps
+    basemaps['basemap_gray'].add_to(m3)
+    basemaps['Google Terrain'].add_to(m3)
+    basemaps['Imagery'].add_to(m3)
+    basemaps['ESRINatGeo'].add_to(m3)
+
+   
     tile_matches_n_obs.add_to(m3)
     colormap_nobs= nobs_cmap.to_step(15)
     colormap_nobs.caption = map_name
@@ -362,7 +375,9 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
-                                    }
+                                    },
+                   map_width = 100, map_height=600, OVERVIEW_MAP= True,
+                   max_AGB_display = 150, max_AGBSE_display = 20
                   ):
     
     import branca.colormap as cm
@@ -372,10 +387,21 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     
     # Set colormaps
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        
         # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
         agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
-        max_AGB_display = 150
         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
+        #colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
+        cmap = matplotlib.cm.get_cmap(agb_colormap, 25)
+        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
+        colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
+        
+        agb_se_colormap = 'magma'
+        agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGBSE_display}&bidx=2&colormap_name={agb_se_colormap}"
+        #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
+        cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
+        colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
+        colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
     
     #DPS_DATA_TYPE = 'ATL08_filt' #"Topo" "Landsat" "ATL08" "AGB"
      
@@ -413,7 +439,7 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     print(round(atl08_gdf.lat.mean(),4), round(atl08_gdf.lon.mean(),4))
 
     # Map the Layers
-    Map_Figure=Figure(width=1000,height=600)
+    Map_Figure=Figure(width=map_width,height=map_height)
     #------------------
     boreal_tile_of_interest_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
     m2 = Map(
@@ -445,7 +471,6 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
                                 
                    )
 
-        #Map_Figure.add_child(cm)
         ATL08_obs_night.add_to(m2)
 
     # Add custom basemaps
@@ -463,16 +488,29 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
             overlay=True
         )
         agb_tiles_layer.add_to(m2)
+        agb_se_tiles_layer = TileLayer(
+            tiles=agb_se_tiles,
+            opacity=1,
+            name="Boreal AGB SE",
+            attr="MAAP",
+            overlay=True
+        )
+        agb_se_tiles_layer.add_to(m2)
 
     # Layers are added underneath. Last layer is bottom layer
 
 
     #tile_matches_missing_layer.add_to(m2)
     #tile_matches_layer.add_to(m2)
-
-    minimap = plugins.MiniMap()
-    m2.add_child(minimap)
+    if OVERVIEW_MAP:
+        minimap = plugins.MiniMap()
+        m2.add_child(minimap)
+        
     m2.add_child(pal_height_cmap)
+    
+    if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
+        m2.add_child(colormap_AGB)
+        m2.add_child(colormap_AGBSE)
     
     #plugins.Geocoder().add_to(m2)
     LayerControl().add_to(m2)
