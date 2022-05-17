@@ -13,7 +13,7 @@
 #### AGBD models (externally developed) are loaded in R and applied over the ICESat-2 30m ATL08 data to data tables
 #### A set of random forest models are fit to predict 30m ICESat-2 biomass as a function of covariates per tile
 #### Raster stacks of covariates are sub-tiled to reduce memory usage
-#### The suite of rf models are applied to each tile, mean, SD, p5 and p95 of predicted biomass are output
+#### The suite of rf models are applied to each tile, mean and SD are output
 #### Subtiles are recombined and written to disc as cogs
 
 #### iii) Inputs
@@ -24,13 +24,12 @@
 ####  - offset: offset applied in the model
 
 #### iii) Outputs
-####  COGs of predicted 30-m AGBD, SD AGBD, 5th and 95th percentile estimates
+####  COGs of predicted 30-m AGBD, SD AGBD
 
 #----------------------------------------------#
 ############# functions ########################
 #----------------------------------------------#
-GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE){
-  
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE){
   # rds_models
   names(rds_models)<-models_id
 
@@ -79,6 +78,11 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
 
+    n_models <- length(ids)
+    
+    #one model for actual application - no resampling
+    
+    #iterate through re-sampling models
   for ( i in ids){
     
     # subset data for model id
@@ -91,10 +95,12 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
     coeffs <- model_i$coefficients
     
     # modify coeffients through sampling variance covariance matrix
-    mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
-
-      print(mod.coeffs[1,])
-    model_i$coefficients <- mod.coeffs[1,]
+    #if one_model = TRUE do not resample
+    
+      if(one_model==FALSE){
+          mod.coeffs <- mvrnorm(n = 50, mu=coeffs, Sigma = model_varcov)
+          model_i$coefficients <- mod.coeffs[1,]
+      }
 
     # SE
     xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma
@@ -125,7 +131,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE)
 
   }
     
-  xtable2<-cbind(in_data, xtable_sqrt$AGB, xtable_sqrt$SE)
+  xtable2<-cbind(xtable_i, xtable_sqrt$AGB, xtable_sqrt$SE)
     ncol <- ncol(xtable2)
   colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
   return(xtable2)
@@ -200,14 +206,22 @@ stratRandomSample<-function(agb=y,breaks, p){
 }
 
 # modeling - fit a number of models and return as a list of models
-agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,output){
+agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,boreal_poly=boreal_poly, output){
     
-    # apply GEDI models  
+    # apply GEDI models for prediction
+    xtable_predict<-GEDI2AT08AGB(rds_models=rds_models,
+                       models_id=models_id,
+                       in_data=in_data, 
+                       offset=offset,
+                       DO_MASK=DO_MASK, 
+                       one_model=TRUE) 
+    
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=in_data, 
                        offset=offset,
-                       DO_MASK=DO_MASK) 
+                       DO_MASK=DO_MASK, 
+                       one_model=FALSE) 
     
     x <- xtable[pred_vars]
     y <- xtable$AGB
@@ -221,7 +235,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
     model_list <- list.append(model_list, xtable)
     
     # create one single rf using all the data; the first in model_list will be used for prediction
-    fit.rf <- randomForest(y=y, x=x, ntree=500)
+    fit.rf <- randomForest(y=xtable_predict$AGB, x=xtable_predict[pred_vars], ntree=500)
     model_list <- list.append(model_list, fit.rf)
     
   for (j in 2:rep){
@@ -298,7 +312,7 @@ SplitRas <- function(raster,ppside,save){
 
 # mapping - apply the list of models to a set of sub-tiles, compute AGB, SD, 5th & 95th percentiles 
 
-agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stack,output){
+agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stack, boreal_poly=boreal_poly, output){
     #predict directly on raster using terra
     pred_stack <- na.omit(stack)
         
@@ -313,35 +327,67 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     total_convert <- function(x){(x*0.09)/1000000000}
     AGB_tot_map <- app(map_pred, total_convert)
     AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
+    
+    #calculate just the boreal total
+    vect <- boreal_poly
+    
+    #for some reason can't figure this out with terra, reverting to raster
+    library(raster)
+    AGB_tot_map <- raster(AGB_tot_map)
+    boreal_map <- mask(AGB_tot_map, vect, updatevalue=NA)
+    detach("package:raster")  
+    
+    library(terra)
+    boreal_map <- rast(boreal_map)
+    AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
     rm(AGB_tot_map)
-    
-    print('total AGB:')
-    print(AGB_total)
-    
+    rm(boreal_map)
+
     #loop over predicting for tile with each model in list
     for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
         #create raster
         map_pred_temp <- predict(pred_stack, fit.rf, na.rm=TRUE)
-        AGB_total_temp <- global(map_pred_temp, 'sum', na.rm=TRUE)
+        #set slope and valid mask to zero
+        map_pred_temp <- mask(map_pred_temp, pred_stack$slopemask, maskvalues=0, updatevalue=0)
+        map_pred_temp <- mask(map_pred_temp, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
+        
+        map_pred_tot_temp <- app(map_pred_temp, total_convert)
+        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)
         map_pred <- c(map_pred, map_pred_temp)
         AGB_total <- c(AGB_total, AGB_total_temp$sum)
         print('i:')
         print(i)
+        
+        #repeat for just boreal
+        library(raster)
+        map_pred_tot_temp <- raster(map_pred_tot_temp)
+        boreal_map_temp <- mask(map_pred_tot_temp, vect, updatevalue=NA)
+        detach("package:raster") 
+        rm(map_pred_tot_temp)
         rm(map_pred_temp)
+
+        boreal_map_temp <- rast(boreal_map_temp)
+        AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)
+        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
+        rm(boreal_map_temp)        
     }
     
     #take the average and sd per pixel
-    #set predictions to preds from the single rf model
     mean_map <- app(map_pred, mean)
     sd_map <- app(map_pred, sd)
-   # p5_fun <- function(x){quantile(x, prob=0.05)}
-   # p95_fun <- function(x){quantile(x, prob=0.95)}
-   # p5 <- app(map_pred, p5_fun)
-   # p95 <- app(map_pred, p95_fun)
+    
+    #model with all data for mapping
+    mean_map <- map_pred[[1]]
+    
+    AGB_total_out <- as.data.frame(cbind(AGB_total, AGB_total_boreal))
+    names(AGB_total_out) <- c('Tile_Total', 'Boreal_Total')
+
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+
     out_fn_total <- paste0(out_fn_stem, '_total.csv')
-    write.csv(file=out_fn_total, AGB_total)
+
+    write.csv(file=out_fn_total, AGB_total_out)
     agb_maps <- c(mean_map, sd_map)
     
   return(agb_maps)
@@ -365,7 +411,9 @@ mapBoreal<-function(rds_models,
                     expand_training=TRUE,
                     local_train_perc=100,
                     min_n=3000,
-                    DO_MASK=FALSE){
+                    DO_MASK=FALSE,
+                    boreal_poly=boreal_poly){
+    
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
     print("Modelling and mapping boreal AGB")
@@ -461,6 +509,9 @@ mapBoreal<-function(rds_models,
     
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
+    
+    #if static broad, use all local train data
+    sample_local <- n_tile
     print(paste0('sample_local:', sample_local))
     sample_broad <- n_tile - sample_local
     print(paste0('sample_broad:', sample_broad))
@@ -470,15 +521,18 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-        
-    if(sample_broad>0){
-        samp_ids <- seq(1,sample_broad)
-        broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
-        broad_data <- broad_data[broad_sample_ids,]
-        all_train_data <- rbind(tile_data, broad_data)
-    } else{
-        all_train_data <- tile_data
-    }
+    
+    # if you want to use ALL the broad training data to minimize edge effects:
+    all_train_data <- rbind(tile_data, broad_data)
+
+   # if(sample_broad>0){
+   #     samp_ids <- seq(1,sample_broad)
+   #     broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
+   #     broad_data <- broad_data[broad_sample_ids,]
+   #     all_train_data <- rbind(tile_data, broad_data)
+   # } else{
+   #     all_train_data <- tile_data
+   # }
         
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
@@ -498,10 +552,26 @@ mapBoreal<-function(rds_models,
                             DO_MASK=DO_MASK,
                             s_train=s_train,
                             rep=rep,
-                            strat_random=strat_random)
+                            strat_random=strat_random,
+                            boreal_poly=boreal_poly)
     
     xtable <- models[[1]]
     models <- models[-1]
+    
+    #create one single model for prediction
+    y <- xtable$AGB
+    x <- xtable[pred_vars]
+    rf_single <- randomForest(y=y, x=x, ntree=500)
+    
+    pred_stack <- na.omit(stack)
+
+    agb_preds <- predict(pred_stack, rf_single, na.rm=TRUE)
+
+    #set slope and valid mask to zero
+    agb_preds <- mask(agb_preds, pred_stack$slopemask, maskvalues=0, updatevalue=0)
+    
+    agb_preds <- mask(agb_preds, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
+    
     print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
         
     #split stack into list of iles
@@ -511,32 +581,25 @@ mapBoreal<-function(rds_models,
     print(paste0('tiles successfully split into ', length(tile_list), ' tiles'))
 
     #run mapping over each tile in a loop, create a list of tiled rasters for each layer
-    #out_agb <- list()
-    #out_sd <- list()
-    #out_p5 <- list()
-    #out_p95 <- list()
+
     n_subtiles <- length(tile_list)
     print(paste0('nsubtiles:', n_subtiles))
      for (tile in 1:n_subtiles){
         tile_stack <- tile_list[[tile]]
-        #check if data in tile stack
-        #length_valid <- length(unique(tile_stack@data@values[,1]))
-        #if(length_valid > 2){
+
             maps<-agbMapping(x=xtable[pred_vars],
                      y=xtable$AGB,
                      model_list=models,
                      tile_num=tile_num,
-                     stack=tile_stack)
-             #out_agb <- list.append(out_agb, as.list(maps)[[1]])
-            #out_sd <- list.append(out_sd, as.list(maps)[[2]])
-            #out_p5 <- list.append(out_p5, as.list(maps)[[3]])
-            #out_p95 <- list.append(out_p95, as.list(maps)[[4]])
+                     stack=tile_stack,
+                     boreal_poly=boreal_poly)
+            
          if(tile == 1){out_map <- maps} 
          if(tile>1){
              out_map <- mosaic(maps, out_map, fun="max")
              rm(maps)
          }
-            #}
+
         }
     
     }
@@ -545,56 +608,53 @@ mapBoreal<-function(rds_models,
                      y=xtable$AGB,
                      model_list=models,
                      tile_num=tile_num,
-                     stack=stack)
+                     stack=stack,
+                     boreal_poly=boreal_poly)
     }
     
+    
+    out_map[[1]] <- agb_preds
+    
     print('AGB successfully predicted!')
-    #recombine tiles
-    #out_agb$fun   <- max
-    #agb.mosaic <- do.call(mosaic,out_agb)
-
-    #out_sd$fun   <- max
-    #sd.mosaic <- do.call(mosaic,out_sd)
-    
-    #out_p5$fun   <- max
-    #p5.mosaic <- do.call(mosaic,out_p5)
-    
-    #out_p95$fun   <- max
-    #p95.mosaic <- do.call(mosaic,out_p95)
     
     print('mosaics completed!')
 
-    # Make a 4-band stack as a COG
-    #out_stack = stack(agb.mosaic, sd.mosaic, p5.mosaic, p95.mosaic)
-    #crs(out_map) <- crs(tile_stack)
+    # Make a 2-band stack as a COG
+
     out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
-    #out_fn_stem = paste("/projects/testing/output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
 
     #read in all csv files from output, combine for tile totals
     if(ppside > 1){
         #read csv files
-        csv_files <- list.files(path='output/', pattern='*.csv', full.names=TRUE)
+        csv_files <- list.files(path='output', pattern='_total.csv', full.names=TRUE)
         n_files <- length(csv_files)
         for(h in 1:n_files){
             if(h==1){
-                total_data <- read.csv(csv_files[h])$x
+                tile_data <- read.csv(csv_files[h])
+                total_data <- tile_data$Tile_Total
+                total_data_boreal <- tile_data$Boreal_Total
                 file.remove(csv_files[h])
-
             }
             if(h>1){
-                temp_data <- read.csv(csv_files[h])$x
-                total_data <- cbind(total_data, temp_data)
+                temp_data <- read.csv(csv_files[h])
+                total_data <- cbind(total_data, temp_data$Tile_Total)
+                total_data_boreal <- cbind(total_data_boreal, temp_data$Boreal_Total)
                 file.remove(csv_files[h])
 
             }    
         }
         
         #summarize accross subtiles
-        total_AGB <- apply(total_data, 1, sum)
+        total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
+        total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
+        
+        total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
+
+        names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
         out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
         out_fn_total <- paste0(out_fn_stem, '_total.csv')
-        write.csv(file=out_fn_total, total_AGB)
+        write.csv(file=out_fn_total, total_AGB_out)
     }
     # Setup output filenames
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="" )
@@ -607,9 +667,8 @@ mapBoreal<-function(rds_models,
     
     print(paste0("Write tmp tif: ", out_tif_fn))
 
-    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6")
-    writeRaster(out_map, filename=out_cog_fn, overwrite=TRUE, gdal=c("COMPRESS=NONE", "TFW=YES","of=COG"))
-    
+    tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "OVERVIEW_RESAMPLING=AVERAGE")
+    writeRaster(out_map, filename=out_tif_fn, overwrite=TRUE, gdal=c("COMPRESS=NONE", "TFW=YES","of=COG"))
     
     #Change suggested from A Mandel to visualize cogs faster
     #rio cogeo create --overview-level=5 {input} {output} <- this is the system command that the below should be implementing
@@ -624,7 +683,6 @@ mapBoreal<-function(rds_models,
     #gdalUtils::gdal_translate(out_tif_fn, out_cog_fn, of = "COG")
     #file.remove(out_tif_fn)
           
-    
      #Write out_table of ATL08 AGB as a csv
     out_table = xtable[,c('lon','lat','AGB','SE')]    
     write.csv(out_table, file=out_stats_fn)
@@ -662,6 +720,8 @@ max_sol_el <- args[10]
 expand_training <- args[11]
 local_train_perc <- args[12]
 min_n <- args[13]
+boreal_vect <- args[14]
+
 
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
@@ -687,7 +747,6 @@ library(stringr)
 library(gdalUtils)
 library(rockchalk)
 library(terra)
-
 # run code
 # adding model ids
 rds_models <- list.files(pattern='*.rds')
@@ -699,24 +758,39 @@ topo <- rast(topo_stack_file)
 l8 <- rast(l8_stack_file)
 
 # make sure data are linked properly
-stack<-crop(l8,ext(topo))
+#check extents
+nrow_topo = nrow(topo)
+nrow_l8 = nrow(l8)
+nrow_diff <- abs(nrow_topo-nrow_l8)
 
-stack<-c(stack,topo)
+ncol_topo <- ncol(topo)
+ncol_l8 <- ncol(l8)
+ncol_diff <- abs(ncol_topo-ncol_l8)
+
+if(nrow_diff>0 || ncol_diff>0){
+   #resample l8
+    l8 <- resample(l8, topo, method='near')
+} 
+
+ext(l8) <- ext(topo)
+stack<-c(l8,topo)
 
 
 if(DO_MASK_WITH_STACK_VARS){
-    print("Making brick from stack and masking...")
+    print("Masking stack...")
     # Bricking the stack will make the masking faster (i think)
     #brick = rast(stack)
     for(LYR_NAME in MASK_LYR_NAMES){
         m <- terra::subset(stack, grep(LYR_NAME, names(stack), value = T))
         
-        brick <- mask(stack, m == 0, maskvalue=TRUE)
+        stack <- mask(stack, m == 0, maskvalue=TRUE)
 
     }
     rm(m)
-    rm(stack)
 }
+
+#read boreal polygon for masking later
+boreal_poly <- readOGR(boreal_vect)
 
 print("modelling begins")
 
@@ -728,7 +802,7 @@ maps<-mapBoreal(rds_models=rds_models,
                 s_train=70, 
                 rep=iters,
                 ppside=ppside,
-                stack=brick,
+                stack=stack,
                 strat_random=FALSE,
                 output=out_fn,
                 minDOY=minDOY,
@@ -737,4 +811,5 @@ maps<-mapBoreal(rds_models=rds_models,
                 expand_training=expand_training,
                 local_train_perc=local_train_perc,
                 min_n=min_n,
-                DO_MASK=DO_MASK_WITH_STACK_VARS)
+                DO_MASK=DO_MASK_WITH_STACK_VARS,
+                boreal_poly=boreal_poly)
