@@ -265,3 +265,50 @@ def common_mask(ma_list, apply=False):
         return [numpy.ma.array(b, mask=mask) for b in ma_list] 
     else:
         return mask
+    
+def parse_aws_creds(credentials_fn):
+    
+    import configparser
+    
+    config = configparser.ConfigParser()
+    config.read(credentials_fn)
+    profile_name = config.sections()[0]
+    
+    aws_access_key_id = config['boreal_pub']['aws_access_key_id']
+    aws_secret_access_key = config['boreal_pub']['aws_secret_access_key']
+    
+    return profile_name, aws_access_key_id, aws_secret_access_key
+
+def get_s3_fs_from_creds(credentials_fn=None, anon=False):
+    
+    if anon:
+        s3_fs = s3fs.S3FileSystem(anon=anon)
+    else:
+        if credentials_fn is not None:
+            profile_name, aws_access_key_id, aws_secret_access_key = parse_aws_creds(credentials_fn)
+            s3_fs = s3fs.S3FileSystem(profile=profile_name, key=aws_access_key_id, secret=aws_secret_access_key)
+        else:
+            print("Must provide a credentials filename if anon=False")
+            os._exit(1)
+    return s3_fs
+
+def get_rio_aws_session_from_creds(credentials_fn):
+    
+    import s3fs
+    import rasterio as rio
+    from rasterio.session import AWSSession
+    import boto3
+    import pandas as pd
+    
+    profile_name, aws_access_key_id, aws_secret_access_key = parse_aws_creds(credentials_fn)
+
+    boto3_session = boto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            #aws_session_token=credentials['SessionToken'],
+            profile_name=profile_name
+        )
+
+    rio_aws_session = AWSSession(boto3_session)
+    
+    return rio_aws_session
