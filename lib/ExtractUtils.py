@@ -26,6 +26,14 @@ except ImportError:
     print('NASA MAAP is unavailable')
     HAS_MAAP = False
 
+def local_to_s3(url, user = 'nathanmthomas', type='public'):
+    ''' A Function to convert local paths to s3 urls'''
+    if type is 'public':
+        replacement_str = f's3://maap-ops-workspace/shared/{user}'
+    else:
+        replacement_str = f's3://maap-ops-workspace/{user}'
+    return url.replace(f'/projects/my-{type}-bucket', replacement_str)
+
 def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
     Given a vector tile index, select by id the polygon and return
