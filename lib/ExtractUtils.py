@@ -252,8 +252,11 @@ def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','
 def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
                     boreal_tile_index_path = '/projects/my-public-bucket/boreal_tiles_v003.gpkg',
                     GROUP_FIELD = 'tile_group',
+                     # The name of the USER sharing the *_tindex_master.csv; need to do this now b/c of pandas change in how s3 reads are done (anon=True)
+                    USER = 'nathanmthomas',
+                    TYPE = 'public',
                     tindex_master_fn = '/projects/my-private-bucket/dps_output/do_HLS_stack_3-1-2_ubuntu/master/2022/03/HLS_tindex_master.csv',#'s3://maap-ops-workspace/nathanmthomas/dps_output/do_HLS_stack_3-1-2_ubuntu/master/2022/03/HLS_tindex_master.csv',
-                    topo_tindex_master_fn = '/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv',
+                    #topo_tindex_master_fn = '/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv',
                     bad_tiles = [3540,3634,3728,3823,3916,4004], #Dropping the tiles near antimeridian that reproject poorly.
                     REMOVE_BAD_TILES = False,
                     REDO_TILES_LIST = None,
@@ -267,20 +270,22 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
     if REMOVE_BAD_TILES:
         # Remove bad tiles
         boreal_tile_index = boreal_tile_index[~boreal_tile_index['tile_num'].isin(bad_tiles)]
+        
+    tindex_master_fn_s3 = local_to_s3(tindex_master_fn, user=USER, type=TYPE)
 
-    hls_tindex_master = pd.read_csv(tindex_master_fn)
-    topo_tindex_master = pd.read_csv(topo_tindex_master_fn)
-    hls_tindex = boreal_tile_index.merge(hls_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
-    topo_tindex = boreal_tile_index.merge(topo_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
+    tindex_master = pd.read_csv(tindex_master_fn_s3, storage_options={'anon':True})
+    #topo_tindex_master = pd.read_csv(topo_tindex_master_fn, storage_options={'anon':True})
+    tindex = boreal_tile_index.merge(tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
+    #topo_tindex = boreal_tile_index.merge(topo_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
     
     if REDO_TILES_LIST is not None:
-        redo_hls_tindex = hls_tindex[hls_tindex['tile_num'].isin(REDO_TILES_LIST)]
-        return redo_hls_tindex
+        redo_tindex = tindex[tindex['tile_num'].isin(REDO_TILES_LIST)]
+        return redo_tindex
     else:
         print(boreal_tile_index.groupby(GROUP_FIELD)[GROUP_FIELD].agg(['count']))
 
         import matplotlib.pyplot as plt
-        plt.rcParams['figure.figsize'] = [16, 16]
+        plt.rcParams['figure.figsize'] = [8, 8]
 
         print(f"Tile status report for {DPS_DATA_TYPE} from {tindex_master_fn}:")
         print(f'\t# of boreal tiles in boreal v003:\t\t\t{len(boreal_tile_index)}')
@@ -294,10 +299,10 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
 
         ax = boreal_tile_index[~boreal_tile_index['tile_num'].isin(water_tiles)].plot(column=GROUP_FIELD, legend=True)
         #ax = tiles_topo_index.plot(color='gray', ax=ax)
-        ax = hls_tindex.plot(color='black', ax = ax)
-        print(f'\t# of boreal tiles with {DPS_DATA_TYPE}:\t\t\t\t{len(hls_tindex)}')
+        ax = tindex.plot(color='black', ax = ax)
+        print(f'\t# of boreal tiles with {DPS_DATA_TYPE}:\t\t\t\t{len(tindex)}')
 
-        needed_tindex = boreal_tile_index[~boreal_tile_index['tile_num'].isin(hls_tindex.tile_num.to_list() + water_tiles)]
+        needed_tindex = boreal_tile_index[~boreal_tile_index['tile_num'].isin(tindex.tile_num.to_list() + water_tiles)]
         
         if FIND_TILE_GROUP is not None:
             needed_tindex = needed_tindex[needed_tindex[GROUP_FIELD] == FIND_TILE_GROUP]

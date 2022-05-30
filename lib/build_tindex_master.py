@@ -87,7 +87,7 @@ def main():
     parser.set_defaults(tindex_append=False)
     args = parser.parse_args()
     
-    s3 = s3fs.S3FileSystem()
+    s3 = s3fs.S3FileSystem(anon=True)
     
     if HAS_MAAP:
         bucket = "s3://maap-ops-workspace"
