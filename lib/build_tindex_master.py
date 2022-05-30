@@ -173,6 +173,12 @@ def main():
         if args.LOCAL_TEST:
             print('LOCAL TEST')
             dps_out_searchkey_list = [f"{args.local_dir}/*{args.ends_with_str}"]
+            
+        if args.DEBUG:
+            print(f'bucket = {bucket}')
+            print(f'dps_out_searchkey_list = {dps_out_searchkey_list}')
+            print(f'col_name = {col_name}')
+            print('\nDF call with search:\ndf = pd.concat([pd.DataFrame(s3.glob(os.path.join(bucket, searchkey)), columns=[col_name]) for searchkey in dps_out_searchkey_list])')
         
         df = pd.concat([pd.DataFrame(s3.glob(os.path.join(bucket, searchkey)), columns=[col_name]) for searchkey in dps_out_searchkey_list])
         #print(df.head())
