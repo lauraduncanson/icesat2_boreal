@@ -272,7 +272,8 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
         boreal_tile_index = boreal_tile_index[~boreal_tile_index['tile_num'].isin(bad_tiles)]
         
     tindex_master_fn_s3 = local_to_s3(tindex_master_fn, user=USER, type=TYPE)
-
+    print(f"s3 index path for pandas read: {tindex_master_fn_s3}")
+    
     tindex_master = pd.read_csv(tindex_master_fn_s3, storage_options={'anon':True})
     #topo_tindex_master = pd.read_csv(topo_tindex_master_fn, storage_options={'anon':True})
     tindex = boreal_tile_index.merge(tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
