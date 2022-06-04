@@ -207,7 +207,6 @@ stratRandomSample<-function(agb=y,breaks, p){
 
 # modeling - fit a number of models and return as a list of models
 agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,boreal_poly=boreal_poly, output){
-    
     # apply GEDI models for prediction
     xtable_predict<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
@@ -222,7 +221,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
                        offset=offset,
                        DO_MASK=DO_MASK, 
                        one_model=FALSE) 
-    
+
     x <- xtable[pred_vars]
     y <- xtable$AGB
     se <- xtable$se
@@ -232,7 +231,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   ids<-1:n
   i.s=0
   model_list <- list()
-    model_list <- list.append(model_list, xtable)
+    model_list <- list.append(model_list, xtable_predict)
     
     # create one single rf using all the data; the first in model_list will be used for prediction
     fit.rf <- randomForest(y=xtable_predict$AGB, x=xtable_predict[pred_vars], ntree=500)
@@ -511,20 +510,23 @@ mapBoreal<-function(rds_models,
     sample_local <- n_tile * (local_train_perc/100)
     
     #if static broad, use all local train data
-    sample_local <- n_tile
-    print(paste0('sample_local:', sample_local))
-    sample_broad <- n_tile - sample_local
-    print(paste0('sample_broad:', sample_broad))
+    #sample_local <- n_tile
+    print(n_tile)
 
     if(sample_local < n_tile){
         samp_ids <- seq(1,sample_local)
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-    
-    # if you want to use ALL the broad training data to minimize edge effects:
-    all_train_data <- rbind(tile_data, broad_data)
+    #check for bad data
+    #bad_rows <- which(tile_data$ValidMask < 0)
 
+     #if(length(bad_rows)>0){
+     #   tile_data <- tile_data[-bad_rows,]
+    #}
+    
+    all_train_data <- rbind(tile_data, broad_data)
+    #all_train_data <- broad_data
    # if(sample_broad>0){
    #     samp_ids <- seq(1,sample_broad)
    #     broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
@@ -538,11 +540,13 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('slopemask', 'ValidMask', 'Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        #pred_vars <- c('slopemask', 'ValidMask', 'Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+
     }else{
         pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
     }
-    
+
     #crs(agb.preds) <- crs(stack)
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
@@ -557,7 +561,7 @@ mapBoreal<-function(rds_models,
     
     xtable <- models[[1]]
     models <- models[-1]
-    
+    print(max(models[[1]]$rsq))
     #create one single model for prediction
     y <- xtable$AGB
     x <- xtable[pred_vars]
@@ -565,7 +569,7 @@ mapBoreal<-function(rds_models,
     
     pred_stack <- na.omit(stack)
 
-    agb_preds <- predict(pred_stack, rf_single, na.rm=TRUE)
+    agb_preds <- predict(pred_stack, models[[1]], na.rm=TRUE)
 
     #set slope and valid mask to zero
     agb_preds <- mask(agb_preds, pred_stack$slopemask, maskvalues=0, updatevalue=0)
@@ -613,7 +617,7 @@ mapBoreal<-function(rds_models,
     }
     
     
-    out_map[[1]] <- agb_preds
+    #out_map[[1]] <- agb_preds
     
     print('AGB successfully predicted!')
     
@@ -692,6 +696,8 @@ mapBoreal<-function(rds_models,
     rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
     
     rsq <- max(rf_single$rsq, na.rm=T)
+    print('rsq:')
+    print(rsq)
     rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
     out_accuracy <- list(rsq, rmse, imp_vars)
