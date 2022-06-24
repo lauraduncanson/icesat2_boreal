@@ -97,6 +97,7 @@ def main():
             os._exit(1)
         else:
             bucket = "s3://" + args.bucket_name
+            #bucket = args.bucket_name
     
     col_name = args.col_name
     DEBUG = args.DEBUG
@@ -104,7 +105,7 @@ def main():
     dps_month_list = args.dps_month_list
     alg_name = args.alg_name
     
-    if dps_month is None and dps_month_list is None:
+    if HAS_MAAP and dps_month is None and dps_month_list is None:
         print('You need to specify either a -dps_month or a -dps_month_list')
         os._exit(1)
     
