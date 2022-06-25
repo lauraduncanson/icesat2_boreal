@@ -562,6 +562,7 @@ mapBoreal<-function(rds_models,
     xtable <- models[[1]]
     models <- models[-1]
     print(max(models[[1]]$rsq))
+    
     #create one single model for prediction
     y <- xtable$AGB
     x <- xtable[pred_vars]
@@ -667,10 +668,16 @@ mapBoreal<-function(rds_models,
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="")
     
     #set NA values
-    #NAvalue(out_stack) <- 9999
+    #NAvalue(out_map) <- 'NaN'
     
     print(paste0("Write tmp tif: ", out_tif_fn))
     library(terra)
+    
+    #change -9999 to NA
+    #out_map <- classify(out_map, cbind(-9999.000, NA))
+    out_map <- subst(out_map, -9999, NA)
+    NAflag(out_map)
+    
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "OVERVIEW_RESAMPLING=AVERAGE")
     writeRaster(out_map, filename=out_cog_fn, filetype="COG", gdal=c("COMPRESS=LZW", overwrite=TRUE, gdal=c("COMPRESS=LZW", "OVERVIEW_RESAMPLING=AVERAGE")))
     
@@ -696,11 +703,17 @@ mapBoreal<-function(rds_models,
     rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
     
     rsq <- max(rf_single$rsq, na.rm=T)
-    print('rsq:')
-    print(rsq)
+    
+    #calc rsq only over local data
+    nrow_tile <- nrow(tile_data)
+    local_model <- lm(rf_single$predicted[1:nrow_tile], rf_single$x[1:nrow_tile], na.rm=TRUE)
+    rsq_local <- summary(local_model)$r.squared
+    rmse_local <- sqrt(mean(abs(rf_single$predicted - rf_single$x)^2))
+    print('rsq_local:')
+    print(rsq_local)
     rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
-    out_accuracy <- list(rsq, rmse, imp_vars)
+    out_accuracy <- list(rsq_local, rmse_local, imp_vars)
     capture.output(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
