@@ -109,7 +109,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-predict(model_i, newdata=xtable_sqrt[xtable_sqrt$model_id==i,])
         
     #define C
-    C <- mean(model_i$fitted.values)/mean(model_i$model$`sqrt(AGBD)`)
+    C <- mean(model_i$fitted.values^2)/mean(model_i$model$`sqrt(AGBD)`^2)
     
     #set negatives to zero
     negs <- which(xtable_sqrt$AGB<0)
