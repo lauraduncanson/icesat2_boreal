@@ -176,7 +176,7 @@ def main():
     clip = args.clip
     
     print("\n---Running build_stack()---\n")
-    build_stack(stack_tile_fn, 
+    build_stack_(stack_tile_fn, 
                 in_tile_id_col, 
                 stack_tile_id, 
                 tile_buffer_m,
