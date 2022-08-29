@@ -6,7 +6,7 @@ environment: ubuntu
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
 docker_url: mas.maap-project.org:5000/root/ade-base-images/vanilla:latest
 # queue chosen when registering
-queue: 16GB
+queue: 8GB
 
 # fill out these fields
 # explain what this algorithm does
