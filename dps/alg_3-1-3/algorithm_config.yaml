@@ -6,11 +6,13 @@ environment: ubuntu
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
 docker_url: mas.maap-project.org:5000/root/ade-base-images/vanilla:latest
 # queue chosen when registering
-queue: 15GB
+queue: 16GB
 
 # fill out these fields
 # explain what this algorithm does
 description: 
+# path to the build script for installing and building the algorithm in the docker image
+build_command: icesat2_boreal/dps/build_command_main.sh
 # path to the wrapper script for running the algorithm
 run_command: /projects/Developer/icesat2_boreal/dps/alg_3-1-3/run.sh
 # set a storage value in GB or MB or KB, e.g. "100GB", "20MB", "10KB"
@@ -18,8 +20,27 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
-  - name: path-number
-    download: False
-  - name: file-to-copy-in
+  - name: in_tile_fn
     download: True
-
+  - name: in_tile_id_col
+    download: False
+  - name: in_tile_num
+    download: False
+  - name: tile_buffer_m
+    download: False
+  - name: in_tile_layer
+    download: False
+  - name: output_dir
+    download: False
+  - name: topo_off
+    download: False
+  - name: covar_src_name
+    download: False
+  - name: covar_tile_fn
+    download: True
+  - name: in_covar_s3_col
+    download: False
+  - name: input_nodata_value
+    download: False
+  - name: clip
+    download: False
