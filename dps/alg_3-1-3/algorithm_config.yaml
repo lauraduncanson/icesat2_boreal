@@ -20,10 +20,14 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
+  - name: covar_tile_url
+    download: True
+  - name: in_tile_url
+    download: True
   - name: covar_tile_fn
-    download: True
+    download: False
   - name: in_tile_fn
-    download: True
+    download: False
   - name: in_tile_id_col
     download: False
   - name: in_tile_num
