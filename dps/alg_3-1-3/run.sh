@@ -17,6 +17,8 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-3/
 #pip install --user -U ${basedir}/../requirements_main.txt
 
 FILENAMELIST=($(ls -d input/*))
+
+#### How to make sure INPUT1 if the 'in_tile_fn' and INPUT2 is the covar_tile_fn???
 INPUT1="${PWD}/${FILENAMELIST[0]}"
 INPUT2="${PWD}/${FILENAMELIST[1]}"
 
@@ -33,15 +35,15 @@ OUTPUTDIR="${PWD}/output"
 #Print to stdout for debugging
 python ${basedir}/../../lib/build_stack.py \
 --in_tile_fn ${INPUT1} \
+--covar_tile_fn ${INPUT2} \
 --in_tile_id_col $1 \
---in_tile_num $2
+--in_tile_num $2 \
 --tile_buffer_m $3 \
 --in_tile_layer $4 \
 --output_dir $OUTPUTDIR \
 --topo_off \
 --covar_src_name $5 \ 
---covar_tile_fn ${INPUT2} \
---in_covar_s3_col $7 \
---input_nodata_value $8 \
+--in_covar_s3_col $6 \
+--input_nodata_value $7 \
 --clip
 #--topo_tile_fn ${INPUT2}

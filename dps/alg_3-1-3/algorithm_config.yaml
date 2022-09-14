@@ -20,6 +20,8 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
+  - name: covar_tile_fn
+    download: True
   - name: in_tile_fn
     download: True
   - name: in_tile_id_col
@@ -30,17 +32,9 @@ inputs:
     download: False
   - name: in_tile_layer
     download: False
-  - name: output_dir
-    download: False
-  - name: topo_off
-    download: False
   - name: covar_src_name
     download: False
-  - name: covar_tile_fn
-    download: True
   - name: in_covar_s3_col
     download: False
   - name: input_nodata_value
-    download: False
-  - name: clip
     download: False
