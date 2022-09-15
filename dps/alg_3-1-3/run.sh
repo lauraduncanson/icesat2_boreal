@@ -42,8 +42,7 @@ python ${basedir}/../../lib/build_stack.py \
 --in_tile_layer $6 \
 --output_dir $OUTPUTDIR \
 --topo_off \
---covar_src_name $7 \ 
+--covar_src_name $7 \
 --in_covar_s3_col $8 \
 --input_nodata_value $9 \
 --clip
-#--topo_tile_fn ${INPUT2}
