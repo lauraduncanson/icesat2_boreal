@@ -59,7 +59,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
     parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
@@ -67,7 +67,7 @@ def main():
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
     parser.add_argument("-alg_name", type=str, choices=['do_HLS_stack_3-1-2_ubuntu','do_landsat_stack_3-1-2_ubuntu',
                                                         'do_topo_stack_3-1-5_ubuntu','run_extract_filter_atl08_ubuntu',
-                                                        'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu'], 
+                                                        'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu','run_build_stack_ubuntu'], 
                         default='run_boreal_biomass_v5_ubuntu', help="The MAAP algorithm name used to produce output for the tindex")
     parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
@@ -117,7 +117,7 @@ def main():
             os.makedirs(args.outdir)
     
     if args.type == 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HLS']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HLS','LC']
     else:
         TYPE_LIST = [args.type]
     
@@ -137,6 +137,11 @@ def main():
         str_exclude_list = ['SAMPLE', 'checkpoint']
         
         if HAS_MAAP:
+            
+            if "LC" in TYPE:
+                user = 'nathanmthomas'
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                ends_with_str = "_cog.tif"
         
             if "HLS" in TYPE:
                 user = 'nathanmthomas'
@@ -199,6 +204,9 @@ def main():
         df['file'] = [os.path.basename(f) for f in df[col_name].tolist()]
         print(df.head()) 
         
+        # Get the tile num from the file string, which is in different places
+        if 'LC' in TYPE:
+            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
         if 'AGB' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         if 'Topo' in TYPE:

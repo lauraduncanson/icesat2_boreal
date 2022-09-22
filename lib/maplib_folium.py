@@ -73,7 +73,11 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json',
-                                        'worldcover_json_s3_fn': None
+                                        'worldcover_json_s3_fn': None,
+                                        'tp_standage2020_json_s3_fn': None,
+                                        'tp_tcc2020_json_s3_fn': None,
+                                        'tp_tcc2020slope_json_s3_fn': None,
+                                        'tp_tcc2020pvalue_json_s3_fn': None
                                     },
                     mscomp_rgb_dict = None,
                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
@@ -148,7 +152,40 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     dps_subset_style = {'fillColor': '#377eb8', 'color': '#377eb8', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}
     dps_check_style = {'fillColor': 'red', 'color': 'red'}
     
-    # Set colormap for legend
+    # Set colormaps for legends
+    if mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn'] is not None:
+        TCC2020PVALUE_MAX = 1
+        TCC2020PVALUE_COLORBAR = 'hot'
+        cmap = matplotlib.cm.get_cmap(TCC2020PVALUE_COLORBAR, 12)
+        colormap_TCC2020PVALUE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, TCC2020PVALUE_MAX)
+        colormap_TCC2020PVALUE.caption = "Tree Canopy Cover trend p-value"
+        m1.add_child(colormap_TCC2020PVALUE)
+        
+    if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
+        TCC2020SLOPE_MAX = 2
+        TCC2020SLOPE_MIN = -2
+        TCC2020SLOPE_COLORBAR = 'BrBG'
+        cmap = matplotlib.cm.get_cmap(TCC2020SLOPE_COLORBAR, 12)
+        colormap_TCC2020SLOPE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(TCC2020SLOPE_MIN, TCC2020SLOPE_MAX)
+        colormap_TCC2020SLOPE.caption = "Tree Canopy Cover trend (1984-2020)"
+        m1.add_child(colormap_TCC2020SLOPE)
+        
+    if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
+        STANDAGE2020_MAX = 50
+        STANDAGE2020_COLORBAR = 'nipy_spectral'
+        cmap = matplotlib.cm.get_cmap(STANDAGE2020_COLORBAR, 12)
+        colormap_STANDAGE2020 = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, STANDAGE2020_MAX)
+        colormap_STANDAGE2020.caption = "Stand Age (yrs in 2020)"
+        m1.add_child(colormap_STANDAGE2020)
+        
+    if mosaic_json_dict['tp_tcc2020_json_s3_fn'] is not None:
+        TCC2020_MAX = 75
+        TCC2020_COLORBAR = 'YlGn'
+        cmap = matplotlib.cm.get_cmap(TCC2020_COLORBAR, 12)
+        colormap_tcc2020 = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, TCC2020_MAX)
+        colormap_tcc2020.caption = "Tree Canopy Cover (%, 2020)"
+        m1.add_child(colormap_tcc2020)
+    
     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
         cols_worldcover = ["#006400","#ffbb22","#ffff4c","#f096ff","#fa0000","#b4b4b4","#f0f0f0","#0064c8","#0096a0","#00cf75","#fae6a0"]
         names_worldcover = ['Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
@@ -156,13 +193,12 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
         colormap_worldcover = cm.StepColormap(colors = cols_worldcover, vmin=min(values_worldcover), vmax=max(values_worldcover), index=values_worldcover, caption = 'ESA Worldcover v1')
         m1.add_child(colormap_worldcover)
-
         
     if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         cmap = matplotlib.cm.get_cmap(MS_BANDCOLORBAR, 12)
-        colormap_doy = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BANDMIN, MS_BANDMAX)
-        colormap_doy.caption = MS_BANDNAME
-        m1.add_child(colormap_doy)
+        colormap_MSCOMP = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BANDMIN, MS_BANDMAX)
+        colormap_MSCOMP.caption = MS_BANDNAME
+        m1.add_child(colormap_MSCOMP)
         
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
         m1.add_child(colormap_AGB)
@@ -246,10 +282,71 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         )
         mscomp_tiles_layer.add_to(m1)
         
+    ###########################    
+    # TILE LAYERS
+    if mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn'] is not None:
+        tcc2020pvalue_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn']}&rescale=0,{TCC2020PVALUE_MAX}&bidx=1&colormap_name={TCC2020PVALUE_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            opacity=1,
+            name="Tree canopy cover trend significance",
+            attr="TerraPulse",
+            overlay=True
+        )
+        tcc2020pvalue_tiles_layer.add_to(m1)  
+        
+    if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
+        tcc2020slope_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020slope_json_s3_fn']}&rescale={TCC2020SLOPE_MIN},{TCC2020SLOPE_MAX}&bidx=1&colormap_name={TCC2020SLOPE_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            opacity=1,
+            name="Tree canopy cover trend (1984-2020)",
+            attr="TerraPulse",
+            overlay=True
+        )
+        tcc2020slope_tiles_layer.add_to(m1)  
+        
+    if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
+        standage2020_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_standage2020_json_s3_fn']}&rescale=0,{STANDAGE2020_MAX}&bidx=1&colormap_name={STANDAGE2020_COLORBAR}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            opacity=1,
+            name="Stand age 2020",
+            attr="TerraPulse",
+            overlay=True
+        )
+        standage2020_tiles_layer.add_to(m1)
+        
+    if mosaic_json_dict['tp_tcc2020_json_s3_fn'] is not None:
+        tcc2020_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020_json_s3_fn']}&rescale=0,{TCC2020_MAX}&bidx=1&colormap_name={TCC2020_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            opacity=1,
+            name="Tree canopy cover 2020",
+            attr="TerraPulse",
+            overlay=True
+        )
+        tcc2020_tiles_layer.add_to(m1)
+        
     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
+        # encode the colormap so it works with a mosaic json
+        import urllib
+        import json
+        colormap_worldcover_dict = [
+                ((0, 10), '#006400'),
+                ((10, 20) , '#ffbb22'),
+                ((20, 30) , '#ffff4c'),
+                ((30, 40) , '#f096ff'),
+                ((40, 50) , '#fa0000'),
+                ((50, 60) , '#b4b4b4'),
+                ((60, 70) , '#f0f0f0'),
+                ((70, 80) , '#0064c8'),
+                ((80, 90) , '#0096a0'),
+                ((90, 95) , '#00cf75'),
+                ((95, 100) , '#fae6a0'),
+                ((100, 255), '#000000')
+            ]
+        colormap_encode = urllib.parse.urlencode({"colormap": json.dumps(colormap_worldcover_dict)})
         worldcover_tiles_layer = TileLayer(
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&{colormap_encode}",
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap={colormap_worldcover_dict}", # <---- THIS IS NOT WORKING
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
             opacity=1,
             name="Worldcover",
             attr="ESA",
@@ -290,7 +387,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         plugins.Geocoder().add_to(m1)
         
     LayerControl().add_to(m1)
-    plugins.Fullscreen().add_to(m1)
+    plugins.Geocoder(position='bottomright').add_to(m1)
+    plugins.Fullscreen(position='bottomleft').add_to(m1)
     plugins.MousePosition().add_to(m1)
     
     if SHOW_WIDGETS:
@@ -359,7 +457,6 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
     basemaps['Imagery'].add_to(m3)
     basemaps['ESRINatGeo'].add_to(m3)
 
-   
     tile_matches_n_obs.add_to(m3)
     colormap_nobs= nobs_cmap.to_step(15)
     colormap_nobs.caption = map_name

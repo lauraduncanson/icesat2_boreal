@@ -131,7 +131,7 @@ def main():
     parser.add_argument("-covar", "--covar_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson", help="The filename of the covariates's set of vector tiles")
     parser.add_argument("--input_nodata_value", type=int, default=None, help="The input's nodata value")
     parser.add_argument("--in_covar_s3_col", type=str, default="s3", help="The column name that holds the s3 path of each s3 COG")
-    parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped covar cog before covar calcs")
+    parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/tmp", help="The tmp out path for the clipped covar cog before covar calcs")
     parser.add_argument("-name", "--covar_src_name", type=str, default="Copernicus", help="Name to identify the general source of the covariate data")
     parser.add_argument('--topo_off', dest='topo_off', action='store_true', help='Topo stack creation is a special case. Turn off topo stack covar extraction.')
     parser.set_defaults(topo_off=False)
@@ -176,7 +176,7 @@ def main():
     clip = args.clip
     
     print("\n---Running build_stack()---\n")
-    build_stack(stack_tile_fn, 
+    build_stack_(stack_tile_fn, 
                 in_tile_id_col, 
                 stack_tile_id, 
                 tile_buffer_m,

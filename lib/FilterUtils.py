@@ -473,7 +473,7 @@ def filter_atl08_qual_v3(input_fn=None,
             if input_fn.endswith('geojson'):
                 atl08_df = gpd.read(input_fn)
             elif input_fn.endswith('csv'):
-                atl08_df = pd.read_csv(input_fn)
+                atl08_df = pd.read_csv(input_fn, storage_options={'anon':True})
             else:
                 print("Input filename must be a CSV, GEOJSON, or pd.DataFrame")
                 os._exit(1)
