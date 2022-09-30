@@ -665,7 +665,9 @@ mapBoreal<-function(rds_models,
     out_tif_fn <- paste(out_fn_stem, 'tmp.tif', sep="" )
     out_cog_fn <- paste(out_fn_stem, '.tif', sep="" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
+    out_train_fn <- paste0(out_fn_stem, '_train_data.csv', sep="")
     out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="")
+
     
     #set NA values
     #NAvalue(out_map) <- 'NaN'
@@ -695,8 +697,8 @@ mapBoreal<-function(rds_models,
     #file.remove(out_tif_fn)
           
      #Write out_table of ATL08 AGB as a csv
-    out_table = xtable[,c('lon','lat','AGB','SE')]    
-    write.csv(out_table, file=out_stats_fn)
+    out_table = xtable[c('lon','lat','AGB','SE')]    
+    write.csv(out_table, file=out_train_fn)
     
     #write output for model accuracy and importance variables for single model
     #create one single model for stats
