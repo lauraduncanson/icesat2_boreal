@@ -10,7 +10,7 @@ queue: maap-dps-worker-8gb
 
 # fill out these fields
 # explain what this algorithm does
-description:
+description: DPS to extract a csv of fields from ATL08 h5 granules
 # path to the build script for installing and building the algorithm in the docker image
 build_command: icesat2_boreal/dps/build_command_main.sh
 # path to the wrapper script for running the algorithm
