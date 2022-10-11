@@ -79,7 +79,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     
     if comp_type=="HLS":
         #print("HLS")
-        return (np.squeeze(img.as_masked().astype(np.float32)) * 0.001)
+        return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
     else:
@@ -517,7 +517,8 @@ def main():
               crs_transform, 
               bandnames, 
               out_crs=out_crs, 
-              resolution=(res, res)
+              resolution=(res, res) 
+              #align=True # this was added late to address some HLS output showing 2999 rows..now this matches how topo stacks are built. Does not correct issue.
              )
     print(f"Wrote out stack:\t\t{out_stack_fn}\n")
     return(out_stack_fn)
