@@ -705,7 +705,10 @@ def main():
     if args.output == None:
         print("\n OUTPUT DIR IS NOT SPECIFIED (OPTIONAL). OUTPUT WILL BE PLACED IN THE SAME LOCATION AS INPUT H5 \n\n")
     else:
-        pass
+        if not os.path.exists(args.output):
+            os.makedirs(args.output)
+        else:
+            pass
     if args.resolution == None:
         print("SPECIFY OUTPUT RASTER RESOLUTION IN METERS'")
         os._exit(1)
