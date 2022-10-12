@@ -93,7 +93,7 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs)
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
-    return np.ma.array(np.where(((fmaskarr==1) | (REDarr>1.0) | (REDarr<0.1)), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    return np.ma.array(np.where(((fmaskarr==1) | (REDarr>0.1) | (REDarr<0.01)), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
 def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width, comp_type):
     '''Calculate NDVI for each source scene'''
