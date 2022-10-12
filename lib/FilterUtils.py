@@ -67,7 +67,8 @@ def prep_filter_atl08_qual(atl08):
     print(f"\t\ttype float: {cols_float}")
     atl08[cols_float] = atl08[cols_float].apply(pd.to_numeric, errors='coerce')
 
-    cols_int = ['n_ca_ph', 'n_seg_ph', 'n_toc_ph']
+    # Sometimes these come as 'object' instead of numeric values, which causes filterering errors when numeric values are expected.
+    cols_int = ['n_ca_ph', 'n_seg_ph', 'n_toc_ph', 'msw_flg', 'seg_snow']
     print(f"\t\ttype integer: {cols_int}")
     atl08[cols_int] = atl08[cols_int].apply(pd.to_numeric, downcast='signed', errors='coerce')
     
