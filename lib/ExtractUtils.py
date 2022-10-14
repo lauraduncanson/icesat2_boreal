@@ -440,3 +440,101 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
         print(ax)
         
     return out_gdf
+
+
+def get_tile_matches_gdf(tindex_master_fn, 
+                   boreal_tile_index_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', 
+                   BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004], 
+                   cols_list = ['tile_num','s3_path','local_path']):
+    
+    '''For a pandas data frame from a tindex_master CSV from build_tindex_master.py, return a vector geodataframe tiles that show the tiles we have
+    '''
+    import pandas as pd
+    import geopandas
+    
+    tindex_master = pd.read_csv(tindex_master_fn)
+    
+    boreal_tile_index = geopandas.read_file(boreal_tile_index_path)
+    boreal_tile_index["tile_num"] = boreal_tile_index["tile_num"].astype(int)    
+
+    # Select the rows we have results for
+    tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', on='tile_num')
+    tile_index_matches_gdf = tile_index_matches_gdf[tile_index_matches_gdf['s3_path'].notna()]
+    
+    return tile_index_matches_gdf
+
+
+def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True):
+    
+    '''Return a json of the set of vector tiles (a geodataframe) that hold the matches with the output in a tindex master csv '''
+    
+    import shapely
+    import geopandas
+    import json
+
+    tile_matches_geojson_fn = tindex_master_fn.replace('.csv', '.json')
+    
+    # Get tiles_match gdf
+    #tile_index_matches_gdf = gpd.read_file(tile_footprints_fn)
+    
+    # Corrections were made to ensure GeoJSON *_tindex_master.json was set correctly to 4326
+    tile_matches_geojson_string = tile_index_matches_gdf.to_crs("EPSG:4326")
+
+    #Write copy to disk for debug 
+    tile_matches_geojson_string.to_file(tile_matches_geojson_fn, driver='GeoJSON')
+    
+    if SHOW_MAP:
+        world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+
+        # Create a custom polygon
+        polygon = shapely.geometry.Polygon([(-180, 45), (-180, 75), (180, 75), (180, 45), (-180, 45)])
+        poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
+        #poly_gdf.plot()
+        world_clip = geopandas.clip(world, poly_gdf)
+        ax = world_clip.plot(color='gray')
+
+        boreal = geopandas.read_file('/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson')
+        ax = boreal.boundary.plot(color='black', ax=ax)
+        tile_matches_geojson_string.boundary.plot(color='orange', ax=ax, figsize=(20,5))
+
+    tile_matches_geojson_string = tile_matches_geojson_string.to_json()
+
+    # This is formatted nicely (printed)
+    tile_matches_geojson = json.loads(tile_matches_geojson_string)
+    
+    return(tile_matches_geojson)
+
+def build_mosaic_json(
+                       tindex_master_fn, 
+                       boreal_tile_index_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', 
+                       BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004], 
+                       cols_list = ['tile_num','s3_path','local_path']):
+    
+    '''Build the Mosaic Json needed to map raster tile with TiTiler in Folium'''
+    
+    out_mosaic_json_fn      = tindex_master_fn.replace('.csv', '_mosaic.json')
+    import pandas as pd
+    import geopandas
+    from typing import Dict
+    from cogeo_mosaic.mosaic import MosaicJSON
+    from cogeo_mosaic.backends import MosaicBackend
+
+    def get_accessor(feature: Dict):
+        """Return specific feature identifier."""
+        return feature["properties"]["s3_path"]
+    
+    # Step 1 get the gdf of the tiles matches to the tindex master csv (from build_tindex_master.py on the dps_output)
+    tile_index_matches_gdf = get_tile_matches_gdf(tindex_master_fn, boreal_tile_index_path = boreal_tile_index_path, BAD_TILE_LIST = BAD_TILE_LIST, cols_list = cols_list)
+
+    # Step 2 get the tiles json rfom the gdf of matched tiles
+    tile_matches_geojson = build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True)
+
+
+    print(f"Building {out_mosaic_json_fn}")
+    mosaicdata = MosaicJSON.from_features(tile_matches_geojson.get('features'), minzoom=6, maxzoom=18, accessor=get_accessor)
+
+    with MosaicBackend(out_mosaic_json_fn, mosaic_def=mosaicdata) as mosaic:
+        mosaic.write(overwrite=True)
+        
+    return out_mosaic_json_fn, tile_index_matches_gdf
+        
