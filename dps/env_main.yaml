@@ -19,9 +19,14 @@ dependencies:
   - rtree==0.9.7
   - s3fs==2022.2.0
   - boto3
+<<<<<<< Updated upstream
   - cachetools
   - r-rockchalk
   - r-terra
   - pip
   - pip:
     - git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
+=======
+  - r-rockchalk
+  - r-terra
+>>>>>>> Stashed changes
