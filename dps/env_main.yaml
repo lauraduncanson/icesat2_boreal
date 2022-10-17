@@ -20,6 +20,8 @@ dependencies:
   - s3fs==2022.2.0
   - boto3
   - cachetools
+  - r-rockchalk
+  - r-terra
   - pip
   - pip:
     - git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
