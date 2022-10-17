@@ -4,7 +4,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 #install requirements packages
 mamba env create -f  ${basedir}/env_main.yaml
 pushd ${HOME}
-/opt/conda/envs/icesat2_boreal/bin/pip install --user -e git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
+#/opt/conda/envs/icesat2_boreal/bin/pip install --user -e git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
 source activate base
 mamba install -y -c conda-forge gdal==3.3.3
