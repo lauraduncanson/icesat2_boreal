@@ -17,6 +17,8 @@ from fetch_HLS import get_HLS_data
 from fetch_from_api import get_ls8_data
 import json
 import datetime
+from CovariateUtils import get_creds, get_creds_DAAC
+
 from maap.maap import MAAP
 maap = MAAP(maap_host='api.ops.maap-project.org')
 
@@ -260,9 +262,9 @@ def get_pixel_coords(arr, transform):
 
 def renew_session(comp_type):
     if comp_type == 'HLS':
-        aws_session = get_aws_session_DAAC()
+        aws_session = get_aws_session_DAAC(get_creds_DAAC())
     elif comp_type == 'LS8':
-        aws_session = get_aws_session()
+        aws_session = get_aws_session(get_creds())
     return aws_session   
 
 def main():
@@ -356,9 +358,9 @@ def main():
     print(args.composite_type)
     # insert AWS credentials here if needed
     if args.composite_type == 'HLS':
-        aws_session = get_aws_session_DAAC()
+        aws_session = get_aws_session_DAAC(get_creds_DAAC())
     elif args.composite_type == 'LS8':
-        aws_session = get_aws_session()
+        aws_session = get_aws_session(get_creds())
     else:
         print("specify the composite type (HLS, ls8)")
         os._exit(1)

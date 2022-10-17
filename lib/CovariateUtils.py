@@ -11,6 +11,9 @@ from rio_cogeo.cogeo import cog_translate
 import geopandas
 import os
 import boto3
+from cachetools import FIFOCache, TLRUCache, cached
+from datetime import datetime, timedelta, timezone
+
 try:
     from maap.maap import MAAP
     # create MAAP class
@@ -20,7 +23,24 @@ except ImportError:
     print('NASA MAAP is unavailable')
     HAS_MAAP = False
 
+def creds_expiration_timestamp(_key, creds, _now) -> float:
+    """Return the expiration time of an AWS credentials object converted to the
+    number of seconds (fractional) from the epoch in UTC, minus 5 minutes."""
 
+    # Credentials from `get_creds` contains the key "Expiration" with a `datetime`
+    # value, while credentials from `get_creds_DAAC` contains the key "expiration"
+    # with a `str` value.
+
+    expiration = creds.get("Expiration") or creds["expiration"]
+    expiration_dt = (
+        expiration
+        if isinstance(expiration, datetime)  # from AWS STS (ref: boto3 docs)
+        else datetime.strptime(expiration, "%Y-%m-%d %H:%M:%S%z") # from MAAP
+    )
+    expiration_dt_utc = expiration_dt.astimezone(timezone.utc)
+
+    # Subtract 5 minutes for "wiggle room"
+    return (expiration_dt_utc - timedelta(minutes=5)).timestamp()
 
 def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
@@ -214,6 +234,13 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     # TODO: return something useful
     return True
 
+@cached(
+    cache=TLRUCache(
+        maxsize=1,
+        ttu=creds_expiration_timestamp,
+        timer=lambda: datetime.now(timezone.utc).timestamp(),
+    )
+)
 
 def get_creds():
     """Get temporary credentials by assuming role"""
@@ -223,20 +250,34 @@ def get_creds():
         RoleSessionName="AssumeRoleSession1"
     )
     return assumed_role_object['Credentials']
-    
-def get_aws_session():
+
+@cached(
+    cache=TLRUCache(
+        maxsize=1,
+        ttu=creds_expiration_timestamp,
+        timer=lambda: datetime.now(timezone.utc).timestamp(),
+    )
+)
+def get_creds_DAAC():
+    return maap.aws.earthdata_s3_credentials(
+        'https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials'
+    )
+
+@cached(cache=FIFOCache(maxsize=1), key=lambda creds: creds["SessionToken"])
+def get_aws_session(creds):
     """Create a Rasterio AWS Session with Credentials"""
-    credentials = get_creds()
+    #creds = get_creds()
     boto3_session = boto3.Session(
-        aws_access_key_id=credentials['AccessKeyId'],
-        aws_secret_access_key=credentials['SecretAccessKey'],
-        aws_session_token=credentials['SessionToken']
+        aws_access_key_id=creds['AccessKeyId'],
+        aws_secret_access_key=creds['SecretAccessKey'],
+        aws_session_token=creds['SessionToken']
     )
     return AWSSession(boto3_session, requester_pays=True)
 
-def get_aws_session_DAAC():
+@cached(cache=FIFOCache(maxsize=1), key=lambda creds: creds["sessionToken"])
+def get_aws_session_DAAC(creds):
     """Create a Rasterio AWS Session with Credentials"""
-    creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
+    #creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
     boto3_session = boto3.Session(
         aws_access_key_id=creds['accessKeyId'], 
         aws_secret_access_key=creds['secretAccessKey'],

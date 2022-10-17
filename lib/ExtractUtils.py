@@ -487,7 +487,7 @@ def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True):
         world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
 
         # Create a custom polygon
-        polygon = shapely.geometry.Polygon([(-180, 45), (-180, 75), (180, 75), (180, 45), (-180, 45)])
+        polygon = shapely.geometry.Polygon([(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)])
         poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
         #poly_gdf.plot()
         world_clip = geopandas.clip(world, poly_gdf)
