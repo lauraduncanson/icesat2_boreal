@@ -15,20 +15,21 @@ mkdir output
 ATL08_tindex_master_fn=${1}
 TOPO_TIF=${2}
 LANDSAT_TIF=${3}
-DO_SLOPE_VALID_MASK=${4}
-ATL08_SAMPLE_CSV=${5}
-in_tile_num=${6}
-in_tile_fn=${7}
-in_tile_field=${8}
-iters=${9}
-ppside=${10}
-minDOY=${11}
-maxDOY=${12}
-max_sol_el=${13}
-expand_training=${14}
-local_train_perc=${15}
-min_n=${16}
-boreal_vect_fn=${17}
+LC_TIF=${4}
+DO_SLOPE_VALID_MASK=${5}
+ATL08_SAMPLE_CSV=${6}
+in_tile_num=${7}
+in_tile_fn=${8}
+in_tile_field=${9}
+iters=${10}
+ppside=${11}
+minDOY=${12}
+maxDOY=${13}
+max_sol_el=${14}
+expand_training=${15}
+local_train_perc=${16}
+min_n=${17}
+boreal_vect_fn=${18}
 
 TAR_FILE=${basedir}/../../lib/bio_models.tar
 
@@ -53,7 +54,7 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 source activate r-with-gdal
 
 # Run mapBoreal with merged CSV as input
-Rscript ${basedir}/../../lib/mapBoreal_speedy.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn}
+Rscript ${basedir}/../../lib/mapBoreal_speedy_uncertainties.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
 source activate base
