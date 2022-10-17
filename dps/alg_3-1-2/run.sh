@@ -4,8 +4,9 @@
 # This installs the python libs needed to run the script at the bottom
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
-source activate icesat2_boreal
 set -x
+source activate icesat2_boreal
+
 unset PROJ_LIB
 #conda list
 #pip install --user -U numpy==1.20.3 geopandas==0.9.0 rio-cogeo==2.3.1 rio-tiler==2.1.4 rasterio==1.2.6 morecantile==2.1.4 pystac-client importlib_resources 
