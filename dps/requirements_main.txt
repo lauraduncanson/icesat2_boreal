@@ -45,3 +45,4 @@ importlib_resources
 #fsspec
 #s3fs
 #rio-cogeo==2.3.1
+cachetools
