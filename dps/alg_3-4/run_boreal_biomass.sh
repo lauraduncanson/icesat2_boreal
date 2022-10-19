@@ -57,7 +57,7 @@ source activate r-with-gdal
 Rscript ${basedir}/../../lib/mapBoreal_speedy_uncertainties.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
-source activate base
+#source activate base
 
 #IN_TIF_NAME=$(ls ${PWD}/output/*tmp.tif)
 #OUT_TIF_NAME=$(echo ${IN_TIF_NAME%tmp.tif}.tif)
