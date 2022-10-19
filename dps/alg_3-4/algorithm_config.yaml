@@ -10,7 +10,7 @@ queue: maap-dps-worker-32gb
 
 # fill out these fields
 # explain what this algorithm does
-description: 
+description: Produces wall-to-wall maps of predicted biomass using ICESat-2 and covariates
 # path to the build script for installing and building the algorithm in the docker image
 build_command: icesat2_boreal/dps/build_command_main.sh
 # path to the wrapper script for running the algorithm
