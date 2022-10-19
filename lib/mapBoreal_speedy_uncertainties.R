@@ -823,6 +823,13 @@ local_train_perc <- args[13]
 min_n <- args[14]
 boreal_vect <- args[15]
 
+#print for testing
+print(data_table_file)
+print(topo_stack_file)
+print(l8_stack_file)
+print(LC_mask_file)
+print(data_sample_file)
+print(boreal_vect)
 
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
