@@ -14,7 +14,7 @@ rasterio==1.2.6
 importlib_resources
 contextily
 fsspec
-s3fs
+s3fs==0.3.4
 #
 #alg_3-1-2
 #numpy==1.20.3
