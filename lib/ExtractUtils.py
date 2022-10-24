@@ -467,7 +467,7 @@ def get_tile_matches_gdf(tindex_master_fn,
     
     return tile_index_matches_gdf
 
-def plot_gdf_on_world(gdf, DO_TYPE=True, boundary_layer_fn = '/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
+def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
     
     '''Plot a gdf (in 4326) on a world map'''
     import shapely
@@ -487,7 +487,7 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, boundary_layer_fn = '/projects/my-publi
     boundary_layer = geopandas.read_file(boundary_layer_fn)
     ax = boundary_layer.boundary.plot(color='black', ax=ax)
     if DO_TYPE:
-        print(gdf.plot(column='run_type', cmap = "nipy_spectral", legend=True,  ax=ax, figsize=(25,10)))
+        print(gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True,  ax=ax, figsize=(25,10)))
     else:
         print(gdf.plot(color='orange', ax=ax, figsize=(25,10)))
 
@@ -568,17 +568,18 @@ def build_mosaic_json(
 def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list):
     
     '''Build a single-row data frame of the input multi-spec compositing parameters for each tile'''
+    # Make sure you have the right version of s3fs... https://github.com/dask/dask/issues/5152
     
     dir_tile = os.path.split(s3_path)[0]
     
     # Find the json file with the MS comp input params
     f = s3.glob(os.path.join(dir_tile, mscomp_input_glob_str))[0]
+    #print(f)
     df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[params_cols_list]
     df['json_path'] = s3_path
     
     # Find the json file with the metadata for each scene; get count of scenes used for this composite
     f = s3.glob(os.path.join(dir_tile, mscomp_num_scenes_glob_str))[0]
-    #print(f)
     scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
     df['num_scenes'] = len(scene_metadata_list)
     

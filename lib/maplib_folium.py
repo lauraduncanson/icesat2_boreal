@@ -142,8 +142,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     #------------------
     m1 = Map(
         #tiles="Stamen Toner",
+        tiles='',
         location=(60, 5),
-        zoom_start=3, tiles='',
+        zoom_start=3, 
         control_scale = True
     )
     Map_Figure.add_child(m1)
@@ -365,8 +366,6 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         )
         topo_tiles_layer.add_to(m1)
         
-
-
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
     basemaps['Google Terrain'].add_to(m1)
@@ -430,6 +429,7 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
     
     m3 = Map(
         #tiles="Stamen Toner",
+        tiles='',
         location=(60, 5),
         zoom_start=2
     )
@@ -448,6 +448,76 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
         tooltip=features.GeoJsonTooltip(
                 fields=['tile_num','n_obs','local_path'],
                 aliases=['Tile:','# obs.:','path:'],
+            )
+        )
+    
+        # Add custom basemaps
+    basemaps['basemap_gray'].add_to(m3)
+    basemaps['Google Terrain'].add_to(m3)
+    basemaps['Imagery'].add_to(m3)
+    basemaps['ESRINatGeo'].add_to(m3)
+
+    tile_matches_n_obs.add_to(m3)
+    colormap_nobs= nobs_cmap.to_step(15)
+    colormap_nobs.caption = map_name
+    m3.add_child(colormap_nobs)
+
+    LayerControl().add_to(m3)
+
+    return m3
+
+def map_tile_n_scenes(tindex_master_fn='s3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS/fall2022/HLS_stack_2022_v2/HLS_input_params.csv', 
+                   map_name = '# of HLS scenes',
+                    N_SCENES_FIELD_NAME = "num_scenes",
+                   max_n_obs=125, map_width=1000, map_height=200, 
+                   boreal_tile_index_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg'):
+    
+    import pandas as pd
+    import geopandas
+    import branca.colormap as cm
+    from folium import Map, TileLayer, GeoJson, LayerControl, Icon, Marker, features, Figure, CircleMarker
+    
+    # Build up a dataframe from the list of dps output files
+    tindex_master = pd.read_csv(tindex_master_fn)
+
+    # Get all boreal tiles
+    boreal_tile_index = geopandas.read_file(boreal_tile_index_path)
+    #boreal_tile_index.astype({'layer':'int'})
+    boreal_tile_index.rename(columns={"layer":"tile_num"}, inplace=True)
+    boreal_tile_index["tile_num"] = boreal_tile_index["tile_num"].astype(int)
+
+    bad_tiles = [3540,3634,3728,3823,3916,4004] #Dropping the tiles near antimeridian that reproject poorly.
+
+    boreal_tile_index = boreal_tile_index[~boreal_tile_index['tile_num'].isin(bad_tiles)]
+    tile_matches = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(bad_tiles)], how='right', on='tile_num')
+
+    nobs_cmap = cm.LinearColormap(colors=cm.linear.RdYlGn_11.colors, vmin=0, vmax=max_n_obs)
+
+    tile_matches['color'] = [nobs_cmap(n_obs) for n_obs in tile_matches[N_SCENES_FIELD_NAME]]
+
+    Map_Figure3=Figure(width=map_width,height=map_height)
+    
+    m3 = Map(
+        #tiles="Stamen Toner",
+        tiles='',
+        location=(60, 5),
+        zoom_start=2
+    )
+    Map_Figure3.add_child(m3)
+
+    tile_matches_n_obs = GeoJson(
+        tile_matches,
+        style_function=lambda feature: {
+            'fillColor': feature['properties']['color'],
+            #'color' : feature['properties']['color'],
+            'color' : 'black',
+            'weight' : 1,
+            'fillOpacity' : 0.5,
+            },
+        name="HLS # scenes",
+        tooltip=features.GeoJsonTooltip(
+                fields=['tile_num',N_SCENES_FIELD_NAME,'run_type'],
+                aliases=['Tile:','# scenes.:','run:'],
             )
         )
     
