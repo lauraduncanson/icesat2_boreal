@@ -504,9 +504,6 @@ mapBoreal<-function(rds_models,
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
     
-    #remove first row
-    broad_data <- broad_data[,2:ncol(broad_data)]
-    
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
     
@@ -527,6 +524,7 @@ mapBoreal<-function(rds_models,
     #}
 
     all_train_data <- rbind(tile_data, broad_data)
+    
     #all_train_data <- broad_data
    # if(sample_broad>0){
    #     samp_ids <- seq(1,sample_broad)
@@ -823,6 +821,13 @@ local_train_perc <- args[13]
 min_n <- args[14]
 boreal_vect <- args[15]
 
+#print for testing
+print(data_table_file)
+print(topo_stack_file)
+print(l8_stack_file)
+print(LC_mask_file)
+print(data_sample_file)
+print(boreal_vect)
 
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
