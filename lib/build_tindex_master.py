@@ -47,6 +47,41 @@ def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path')
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
+def handle_duplicates(df, FOCAL_FIELD_NAME, TYPE: str, RETURN_DUPS):
+        ######
+        # Handle duplicate tiles (or files, if ATL08) by sorting and keeping the latest
+        
+        # Sort (descending; newest first)
+        df.sort_values(by=['local_path'], ascending=False, inplace=True)
+                
+        # Check
+        dropped  = df[df.duplicated(subset=[FOCAL_FIELD_NAME], keep='first')]
+        if len(dropped) > 0:
+            dropped.loc[:,'status'] = 'dropped'
+            # TODO: These arent handled correctly at the moment. 
+            retained = df[df.duplicated(subset=[FOCAL_FIELD_NAME], keep='last')]
+            retained.loc[:,'status'] = 'retained'
+            if RETURN_DUPS:
+                #pd.concat([dropped, retained]).to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
+                dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
+                # dropped['local_path'].to_list()[0:10]
+                # retained['local_path'].to_list()[0:10]
+        else:
+            print('\nNo duplicates found.\n')
+        
+        # Drop duplicates, keeping the latest version of the tile
+        df = df.drop_duplicates(subset=[FOCAL_FIELD_NAME], keep='first')
+        
+        if FOCAL_FIELD_NAME == 'tile_num':
+            # Make sure the tile_num field is int (not object)
+            df['tile_num'] = df['tile_num'].astype(str).astype(int)
+        
+        num_without_duplicates = df.shape[0]
+        print(f"# of duplicate tiles: {dropped.shape[0]}")
+        print(f"Final # of tiles: {num_without_duplicates}")
+        print(f"df shape : {df.head()}")
+        return df
+
 def main():
     """
     Build a list of output geotiff tiles returned from DPS jobs
@@ -235,38 +270,11 @@ def main():
             print(f'Appending to existing tindex...')
             df_existing = pd.read_csv(out_tindex_fn)
             df = df_existing.append(df)
-        
-        ######
-        # Handle duplicate tiles
-        
-        # Sort (descending; newest first)
-        df.sort_values(by=['local_path'], ascending=False, inplace=True)
-                
-        # Check
-        dropped  = df[df.duplicated(subset=['tile_num'], keep='first')]
-        if len(dropped) > 0:
-            dropped.loc[:,'status'] = 'dropped'
-            # TODO: These arent handled correctly at the moment. 
-            retained = df[df.duplicated(subset=['tile_num'], keep='last')]
-            retained.loc[:,'status'] = 'retained'
-            if args.RETURN_DUPS:
-                #pd.concat([dropped, retained]).to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
-                dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
-                # dropped['local_path'].to_list()[0:10]
-                # retained['local_path'].to_list()[0:10]
+            
+        if TYPE == 'ATL08':
+            df = handle_duplicates(df, 'file', TYPE, args.RETURN_DUPS)
         else:
-            print('\nNo duplicates found.\n')
-        
-        # Drop duplicates, keeping the latest version of the tile
-        df = df.drop_duplicates(subset=['tile_num'], keep='first')
-        
-        # Make sure the tile_num field is int (not object)
-        df['tile_num'] = df['tile_num'].astype(str).astype(int)
-        
-        num_without_duplicates = df.shape[0]
-        print(f"# of duplicate tiles: {dropped.shape[0]}")
-        print(f"Final # of tiles: {num_without_duplicates}")
-        print(f"df shape : {df.head()}")
+            df = handle_duplicates(df, 'tile_num', TYPE, args.RETURN_DUPS) 
         
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn)
