@@ -61,11 +61,7 @@ def handle_duplicates(df, FOCAL_FIELD_NAME, TYPE: str, RETURN_DUPS):
             # TODO: These arent handled correctly at the moment. 
             retained = df[df.duplicated(subset=[FOCAL_FIELD_NAME], keep='last')]
             retained.loc[:,'status'] = 'retained'
-            if RETURN_DUPS:
-                #pd.concat([dropped, retained]).to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
-                dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv')
-                # dropped['local_path'].to_list()[0:10]
-                # retained['local_path'].to_list()[0:10]
+
         else:
             print('\nNo duplicates found.\n')
         
@@ -80,7 +76,11 @@ def handle_duplicates(df, FOCAL_FIELD_NAME, TYPE: str, RETURN_DUPS):
         print(f"# of duplicate tiles: {dropped.shape[0]}")
         print(f"Final # of tiles: {num_without_duplicates}")
         print(f"df shape : {df.head()}")
-        return df
+        
+        if RETURN_DUPS:
+            return df, dropped
+        else:
+            return df
 
 def main():
     """
@@ -272,12 +272,20 @@ def main():
             df = df_existing.append(df)
             
         if TYPE == 'ATL08':
-            df = handle_duplicates(df, 'file', TYPE, args.RETURN_DUPS)
+            focal_field_name = 'file'
         else:
-            df = handle_duplicates(df, 'tile_num', TYPE, args.RETURN_DUPS) 
+            focal_field_name = 'tile_num'
+            
+        if args.RETURN_DUPS:    
+            df, dropped = handle_duplicates(df, focal_field_name, TYPE, args.RETURN_DUPS)
+            print(f'Writing duplicates csv: {out_tindex_fn}')
+            dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv', mode='w+')
+        else:
+            df = handle_duplicates(df, focal_field_name, TYPE, args.RETURN_DUPS)
         
         print(f'Writing tindex master csv: {out_tindex_fn}')
-        df.to_csv(out_tindex_fn)
+        df.to_csv(out_tindex_fn, mode='w+')
         return df
+    
 if __name__ == "__main__":
     main()

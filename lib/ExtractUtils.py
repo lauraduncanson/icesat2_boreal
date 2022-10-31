@@ -32,11 +32,15 @@ except ImportError:
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
-    if type is 'public':
-        replacement_str = f's3://maap-ops-workspace/shared/{user}'
-    else:
-        replacement_str = f's3://maap-ops-workspace/{user}'
-    return url.replace(f'/projects/my-{type}-bucket', replacement_str)
+    if '/my-' in url:
+        if type is 'public':
+            replacement_str = f's3://maap-ops-workspace/shared/{user}'
+        else:
+            replacement_str = f's3://maap-ops-workspace/{user}'
+        return url.replace(f'/projects/my-{type}-bucket', replacement_str)
+    if '/shared-buckets/' in url:
+        replacement_str = f's3://maap-ops-workspace/shared'
+        return url.replace(f'/projects/shared-buckets', replacement_str)
 
 def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 0, layer: str = None):
     '''
@@ -274,11 +278,13 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
     if REMOVE_BAD_TILES:
         # Remove bad tiles
         boreal_tile_index = boreal_tile_index[~boreal_tile_index['tile_num'].isin(bad_tiles)]
+    if False:    
+        tindex_master_fn_s3 = local_to_s3(tindex_master_fn, user=USER, type=TYPE)
+        print(f"s3 index path for pandas read: {tindex_master_fn_s3}")
+        tindex_master = pd.read_csv(tindex_master_fn, storage_options={'anon':True})
+    else:
+        tindex_master = pd.read_csv(tindex_master_fn)
         
-    tindex_master_fn_s3 = local_to_s3(tindex_master_fn, user=USER, type=TYPE)
-    print(f"s3 index path for pandas read: {tindex_master_fn_s3}")
-    
-    tindex_master = pd.read_csv(tindex_master_fn_s3, storage_options={'anon':True})
     #topo_tindex_master = pd.read_csv(topo_tindex_master_fn, storage_options={'anon':True})
     tindex = boreal_tile_index.merge(tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
     #topo_tindex = boreal_tile_index.merge(topo_tindex_master[['tile_num','s3_path','local_path']], how='right', on='tile_num')
@@ -323,6 +329,10 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
     
 def BUILD_TABLE_JOBSTATUS(submit_results_df):
     import xmltodict
+    
+    # If jobs failed to submit, then they have a NaN for jobid, which makes the merge (join) fail
+    submit_results_df = submit_results_df.fillna('')
+    
     job_status_df = pd.concat([pd.DataFrame(xmltodict.parse(maap.getJobStatus(job_id).content)).transpose() for job_id in submit_results_df.job_id.to_list()])
     job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='wps:JobID')
     
