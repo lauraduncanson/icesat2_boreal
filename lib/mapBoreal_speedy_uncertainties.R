@@ -524,7 +524,9 @@ mapBoreal<-function(rds_models,
      #if(length(bad_rows)>0){
      #   tile_data <- tile_data[-bad_rows,]
     #}
-
+    message(str(tile_data))
+    message(str(broad_data))
+    str(broad_data)
     all_train_data <- rbind(tile_data, broad_data)
     
     #all_train_data <- broad_data
