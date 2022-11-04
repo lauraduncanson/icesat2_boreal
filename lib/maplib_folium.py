@@ -91,7 +91,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     tiles_remove = [41995, 41807, 41619], # geo abyss,
                     SHOW_WIDGETS=False,
                     TOPO_OPACITY=0.15,
-                    map_width=1000, map_height=500
+                    map_width=1000, map_height=500,
+                    ADD_TILELAYER = None
                    ):
     
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
@@ -365,6 +366,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             overlay=True
         )
         topo_tiles_layer.add_to(m1)
+        
+    if ADD_TILELAYER is not None:
+        ADD_TILELAYER.add_to(m1)
         
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
