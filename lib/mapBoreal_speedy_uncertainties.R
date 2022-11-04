@@ -504,6 +504,8 @@ mapBoreal<-function(rds_models,
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
     
+    #remove first col of broad_data
+    #broad_data <- broad_data[,2:ncol(broad_data)]
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_tile * (local_train_perc/100)
     
@@ -522,7 +524,9 @@ mapBoreal<-function(rds_models,
      #if(length(bad_rows)>0){
      #   tile_data <- tile_data[-bad_rows,]
     #}
-
+    message(str(tile_data))
+    message(str(broad_data))
+    str(broad_data)
     all_train_data <- rbind(tile_data, broad_data)
     
     #all_train_data <- broad_data
