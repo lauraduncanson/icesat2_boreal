@@ -524,10 +524,8 @@ mapBoreal<-function(rds_models,
      #if(length(bad_rows)>0){
      #   tile_data <- tile_data[-bad_rows,]
     #}
-    message(str(tile_data))
-    message(str(broad_data))
-    str(broad_data)
     all_train_data <- rbind(tile_data, broad_data)
+    tile_data_output <- tile_data
     
     #all_train_data <- broad_data
    # if(sample_broad>0){
@@ -643,7 +641,7 @@ mapBoreal<-function(rds_models,
     tile_totals <- final_map[[2]]$Tile_Total
     #tile_totals <- tile_totals$Tile_Total
     out_map <- final_map[[1]]
-    var_thresh <- 0.01
+    var_thresh <- 0.03
     
     check_var <- function(totals){
         #calc sd iteratively
@@ -679,9 +677,12 @@ mapBoreal<-function(rds_models,
     combined_totals <- tile_totals
     #if larger difference, need more models and more iterations
     #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
-    while(var_diff > var_thresh){
-        print('Adding more interations...')
-        new_models <- agbModeling(rds_models=rds_models,
+    #set some maximum number of iterations
+    max_iters <- 500
+        if(length(tile_totals)<max_iters){
+            while(var_diff > var_thresh){
+            print('Adding more interations...')
+            new_models <- agbModeling(rds_models=rds_models,
                             models_id=models_id,
                             in_data=all_train_data,
                             pred_vars=pred_vars,
@@ -692,13 +693,13 @@ mapBoreal<-function(rds_models,
                             strat_random=strat_random,
                             boreal_poly=boreal_poly)
     
-        new_final_map <- applyModels(new_models, stack, pred_vars)
-        temp <- new_final_map[[2]]
-        new_tile_totals <- temp$Tile_Total
-        combined_totals <- c(combined_totals, new_tile_totals)
-        var_diff <- check_var(combined_totals)
+            new_final_map <- applyModels(new_models, stack, pred_vars)
+            temp <- new_final_map[[2]]
+            new_tile_totals <- temp$Tile_Total
+            combined_totals <- c(combined_totals, new_tile_totals)
+            var_diff <- check_var(combined_totals)
+        }
     }
-    
     #out_map[[1]] <- agb_preds
     
     print('AGB successfully predicted!')
@@ -747,7 +748,8 @@ mapBoreal<-function(rds_models,
     out_cog_fn <- paste(out_fn_stem, '.tif', sep="" )
     out_csv_fn <- paste0(out_fn_stem, '.csv' )
     out_train_fn <- paste0(out_fn_stem, '_train_data.csv', sep="")
-    out_stats_fn <- paste0(out_fn_stem, '_stats.csv', sep="")
+    out_stats_fn <- paste0(out_fn_stem, '_stats.Rds', sep="")
+    out_model_fn <- paste0(out_fn_stem, '_model.Rds', sep="")
 
     
     #set NA values
@@ -784,12 +786,12 @@ mapBoreal<-function(rds_models,
     #write output for model accuracy and importance variables for single model
     #create one single model for stats
     rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
-    
+    saveRDS(rf_single, file=out_model_fn)
     rsq <- max(rf_single$rsq, na.rm=T)
     
     #calc rsq only over local data
-    nrow_tile <- nrow(tile_data)
-    local_model <- lm(rf_single$predicted[1:nrow_tile], rf_single$x[1:nrow_tile], na.rm=TRUE)
+    nrow_tile <- nrow(tile_data_output)
+    local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$AGB[1:nrow_tile], na.rm=TRUE)
     rsq_local <- summary(local_model)$r.squared
     rmse_local <- sqrt(mean(abs(rf_single$predicted - rf_single$x)^2))
     print('rsq_local:')
@@ -797,7 +799,7 @@ mapBoreal<-function(rds_models,
     rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
     out_accuracy <- list(rsq_local, rmse_local, imp_vars)
-    write.csv(out_accuracy, file=out_stats_fn)
+    saveRDS(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
     return(list(out_cog_fn, out_csv_fn))
@@ -824,14 +826,6 @@ expand_training <- args[12]
 local_train_perc <- args[13]
 min_n <- args[14]
 boreal_vect <- args[15]
-
-#print for testing
-print(data_table_file)
-print(topo_stack_file)
-print(l8_stack_file)
-print(LC_mask_file)
-print(data_sample_file)
-print(boreal_vect)
 
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
