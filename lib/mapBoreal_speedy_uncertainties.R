@@ -641,7 +641,7 @@ mapBoreal<-function(rds_models,
     tile_totals <- final_map[[2]]$Tile_Total
     #tile_totals <- tile_totals$Tile_Total
     out_map <- final_map[[1]]
-    var_thresh <- 0.03
+    var_thresh <- 0.01
     
     check_var <- function(totals){
         #calc sd iteratively
