@@ -102,7 +102,7 @@ def main():
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
     parser.add_argument("-alg_name", type=str, choices=['do_HLS_stack_3-1-2_ubuntu','do_landsat_stack_3-1-2_ubuntu',
                                                         'do_topo_stack_3-1-5_ubuntu','run_extract_filter_atl08_ubuntu',
-                                                        'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu','run_build_stack_ubuntu'], 
+                                                        'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu','run_boreal_biomass_quick_v2_ubuntu','run_build_stack_ubuntu'], 
                         default='run_boreal_biomass_v5_ubuntu', help="The MAAP algorithm name used to produce output for the tindex")
     parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
