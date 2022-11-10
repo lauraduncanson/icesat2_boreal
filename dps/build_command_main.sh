@@ -7,6 +7,7 @@ pushd ${HOME}
 #/opt/conda/envs/icesat2_boreal/bin/pip install --user -e git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
 source activate base
+pip3 install pyOpenSSL --upgrade
 mamba install -y -c conda-forge gdal==3.3.3
 source activate r-with-gdal
 mamba install -y -c conda-forge r-terra
