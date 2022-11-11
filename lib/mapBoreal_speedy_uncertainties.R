@@ -675,6 +675,15 @@ mapBoreal<-function(rds_models,
     print('var_diff')
     print(var_diff)
     combined_totals <- tile_totals
+    if(length(tile_totals)>75){
+        var_thresh <- 0.02
+    }
+    if(length(tile_totals)>100){
+        var_thresh <- 0.03
+    }
+    if(length(tile_totals)>200){
+        var_thresh <- 0.05
+    }
     #if larger difference, need more models and more iterations
     #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
     #set some maximum number of iterations
@@ -798,7 +807,7 @@ mapBoreal<-function(rds_models,
     print(rsq_local)
     rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
-    out_accuracy <- list(rsq_local, rmse_local, imp_vars)
+    out_accuracy <- list(rsq_local, rmse, imp_vars)
     saveRDS(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
