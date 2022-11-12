@@ -675,15 +675,7 @@ mapBoreal<-function(rds_models,
     print('var_diff')
     print(var_diff)
     combined_totals <- tile_totals
-    if(length(tile_totals)>75){
-        var_thresh <- 0.02
-    }
-    if(length(tile_totals)>100){
-        var_thresh <- 0.03
-    }
-    if(length(tile_totals)>200){
-        var_thresh <- 0.05
-    }
+
     #if larger difference, need more models and more iterations
     #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
     #set some maximum number of iterations
@@ -707,6 +699,15 @@ mapBoreal<-function(rds_models,
             new_tile_totals <- temp$Tile_Total
             combined_totals <- c(combined_totals, new_tile_totals)
             var_diff <- check_var(combined_totals)
+            if(length(combined_totals)>75){
+                var_thresh <- 0.02
+            }
+            if(length(combined_totals)>100){
+                var_thresh <- 0.03
+            }
+            if(length(combined_totals)>200){
+                var_thresh <- 0.05
+            }
         }
     }
     #out_map[[1]] <- agb_preds
