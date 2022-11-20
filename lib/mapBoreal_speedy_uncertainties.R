@@ -345,7 +345,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         map_pred_temp <- mask(map_pred_temp, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
         
         map_pred_tot_temp <- app(map_pred_temp, total_convert)
-        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)
+        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)$sum
         map_pred <- c(map_pred, map_pred_temp)
         AGB_total <- c(AGB_total, AGB_total_temp$sum)
         
@@ -355,7 +355,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
-        AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)
+        AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)$sum
         AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
         rm(boreal_map_temp)        
     }
