@@ -327,16 +327,10 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
     
         #calculate just the boreal total
-        vect <- boreal_poly
-    
-        #for some reason can't figure this out with terra, reverting to raster
-        library(raster)
-        AGB_tot_map <- raster(AGB_tot_map)
-        boreal_map <- mask(AGB_tot_map, vect, updatevalue=NA)
-        detach("package:raster")  
-    
-        library(terra)
-        boreal_map <- rast(boreal_map)
+        #vect <- vect(boreal_poly)
+        str(AGB_tot_map)
+        boreal_map <- mask(AGB_tot_map, boreal_poly, updatevalue=0)
+        print('it got here')
         AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
         rm(AGB_tot_map)
         rm(boreal_map)
@@ -356,14 +350,11 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         AGB_total <- c(AGB_total, AGB_total_temp$sum)
         
         #repeat for just boreal
-        library(raster)
-        map_pred_tot_temp <- raster(map_pred_tot_temp)
-        boreal_map_temp <- mask(map_pred_tot_temp, vect, updatevalue=NA)
-        detach("package:raster") 
+        print('it also got here')
+        boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
         rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
-        boreal_map_temp <- rast(boreal_map_temp)
         AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)
         AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
         rm(boreal_map_temp)        
@@ -907,7 +898,7 @@ if(DO_MASK_WITH_STACK_VARS){
 }
 
 #read boreal polygon for masking later
-boreal_poly <- readOGR(boreal_vect)
+boreal_poly <- vect(boreal_vect)
 
 print("modelling begins")
 
