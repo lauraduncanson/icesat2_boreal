@@ -586,6 +586,7 @@ mapBoreal<-function(rds_models,
 
              if((exists('out_map')==TRUE) & (length(maps)>1) & (tile>1)){
                  out_map <- mosaic(maps[[1]], out_map, fun="max")
+                 if(exists('tile_total')==FALSE){tile_total <- 0.0}
                  tile_total <- tile_total + maps[[2]]
                  rm(maps)
              }
