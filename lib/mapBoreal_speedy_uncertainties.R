@@ -328,9 +328,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     
         #calculate just the boreal total
         #vect <- vect(boreal_poly)
-        str(AGB_tot_map)
         boreal_map <- mask(AGB_tot_map, boreal_poly, updatevalue=0)
-        print('it got here')
         AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
         rm(AGB_tot_map)
         rm(boreal_map)
@@ -347,16 +345,15 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         map_pred_tot_temp <- app(map_pred_temp, total_convert)
         AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)$sum
         map_pred <- c(map_pred, map_pred_temp)
-        AGB_total <- c(AGB_total, AGB_total_temp$sum)
+        AGB_total <- c(AGB_total, AGB_total_temp)
         
         #repeat for just boreal
-        print('it also got here')
         boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
         rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
         AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)$sum
-        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
+        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp)
         rm(boreal_map_temp)        
     }
     
