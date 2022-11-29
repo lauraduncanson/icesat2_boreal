@@ -25,5 +25,14 @@ OUTPUTDIR="${PWD}/output"
 
 # Call for spring 2022 version
 #python ${basedir}/../../lib/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m -o output/
-# Call for summer 2022 version
-python ${basedir}/../../lib/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m --get_gedi_rh -o output/
+
+# Call for summer/fall 2022 version
+#python ${basedir}/../../lib/extract_filter_atl08.py --i ${FILENAME} --no-filter-qual --do_30m --get_gedi_rh -o output/
+
+# Call for summer/fall 2022 version 2
+python ${basedir}/../../lib/extract_filter_atl08.py \
+--i ${FILENAME} \
+--no-filter-qual \
+--rh_type ${1} \
+--seg_length ${2} \
+--out_dir output/

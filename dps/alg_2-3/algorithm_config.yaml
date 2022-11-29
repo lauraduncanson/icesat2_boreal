@@ -22,5 +22,7 @@ inputs:
 # rename and set algorithm input names accordingly
   - name: input_file
     download: True
-
-
+  - name: rh_type
+    download: False
+  - name: seg_length
+    download: False

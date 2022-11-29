@@ -29,8 +29,9 @@ def rec_merge1(d1, d2):
 
 def extract_atl08(args):
     TEST = args.TEST
-    do_30m = args.do_30m
-    get_gedi_rh = args.get_gedi_rh
+    seg_length = args.seg_length
+    #get_gedi_rh = args.get_gedi_rh
+    rh_type = args.rh_type
     filter_qual = args.filter_qual
     
     # File path to ICESat-2h5 file
@@ -73,15 +74,15 @@ def extract_atl08(args):
             pass
 
     land_seg_path = '/land_segments/'
-    if do_30m:
-        segment_length = 30
-        land_seg_path = land_seg_path + str(segment_length) + 'm_segment/'
+    if seg_length == 30:
+        do_30m = True
+        land_seg_path = land_seg_path + str(seg_length) + 'm_segment/'
     else:
-        segment_length = 100
+        do_30m = False
         
-    fn_tail = '_' + str(segment_length) + 'm.csv'
+    fn_tail = '_' + str(seg_length) + 'm.csv'
     
-    print("\nSegment length: {}m".format(segment_length)) 
+    print("\nSegment length: {}m".format(seg_length)) 
     
     # open file
     f = h5py.File(H5,'r')
@@ -208,28 +209,29 @@ def extract_atl08(args):
         segid_end.append(f['/' + line   + land_seg_path + 'segment_id_end/'][...,].tolist())
         
         # Canopy fields
-        if get_gedi_rh:
-            RH_TYPE = 'gedi_rh'
-        else:
-            RH_TYPE = 'atl03_rh'
+        #if get_gedi_rh:
+        #    RH_TYPE = 'gedi_rh'
+        #else:
+        #    RH_TYPE = 'atl03_rh'
+        
         if do_30m:
 
-            can_h_met_0.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_25/'][...,].tolist() )
-            can_h_met_1.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_30/'][...,].tolist() )
-            can_h_met_2.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_40/'][...,].tolist() )
-            can_h_met_3.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_50/'][...,].tolist() )
-            can_h_met_4.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_60/'][...,].tolist() )
-            can_h_met_5.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_70/'][...,].tolist() )
-            can_h_met_6.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_75/'][...,].tolist() )
-            can_h_met_7.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_80/'][...,].tolist() )
-            can_h_met_8.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_90/'][...,].tolist() )
+            can_h_met_0.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_25/'][...,].tolist() )
+            can_h_met_1.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_30/'][...,].tolist() )
+            can_h_met_2.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_40/'][...,].tolist() )
+            can_h_met_3.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_50/'][...,].tolist() )
+            can_h_met_4.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_60/'][...,].tolist() )
+            can_h_met_5.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_70/'][...,].tolist() )
+            can_h_met_6.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_75/'][...,].tolist() )
+            can_h_met_7.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_80/'][...,].tolist() )
+            can_h_met_8.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_90/'][...,].tolist() )
             
             if TEST:
                 pass
                 #print(len(can_h_met_0), len(can_h_met_1), len(can_h_met_2))
                 
-            h_max_can.append(f['/' + line   + f'/land_segments/30m_segment/{RH_TYPE}_100/'][...,].tolist())
-            h_can.append(f['/' + line       + f'/land_segments/30m_segment/{RH_TYPE}_98/'][...,].tolist())
+            h_max_can.append(f['/' + line   + f'/land_segments/30m_segment/{rh_type}_rh_100/'][...,].tolist())
+            h_can.append(f['/' + line       + f'/land_segments/30m_segment/{rh_type}_rh_98/'][...,].tolist())
             h_can_quad.append(f['/' + line  + '/land_segments/30m_segment/h_canopy_quad'][...,].tolist())
             h_can_unc.append(f['/' + line   + '/land_segments/30m_segment/h_canopy_uncertainty'][...,].tolist())
             
@@ -587,6 +589,8 @@ def extract_atl08(args):
 
     # Add granule name to table
     out['granule_name'] = granule_fname
+    # Add rh metric type to table
+    out['rh_type'] = rh_type
     
     if filter_qual:
 
@@ -606,7 +610,7 @@ def extract_atl08(args):
         print('Apply the aggressive land-cover based (v3) filters updated in Jan/Feb 2022')
         out = FilterUtils.filter_atl08_qual_v3(out, SUBSET_COLS=True, DO_PREP=True,
                                               subset_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can',
-                                                                     'h_te_best','granule_name',
+                                                                     'h_te_best','granule_name', 'rh_type',
                                                                      'seg_landcov','seg_cover','sol_el','y','m','doy'], 
                                                    filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
                                                    list_lc_h_can_thresh=args.list_lc_h_can_thresh,
@@ -662,9 +666,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, help="Specify the input ICESAT H5 file")
     parser.add_argument("-r", "--resolution", type=str, default='100', help="Specify the output raster resolution (m)")
-    parser.add_argument("-o", "--output", type=str, help="Specify the output directory (optional)")
+    parser.add_argument("-o", "--out_dir", type=str, help="Specify the output directory (optional)")
     parser.add_argument("-v", "--out_var", type=str, default='h_max_can', help="A selected variable to rasterize")
-    parser.add_argument("-prj", "--out_epsg", type=str, default='102001', help="Out raster prj (default: Canada Albers Equal Area)")
+    #parser.add_argument("-prj", "--out_epsg", type=str, default='102001', help="Out raster prj (default: Canada Albers Equal Area)")
     parser.add_argument("--max_h_can" , type=float, choices=[Range(0.0, 100.0)], default=30.0, help="Max value of h_can to include")
     parser.add_argument("--min_n_toc_ph" , type=int, default=1, help="Min number of top of canopy classified photons required for shot to be output")
     parser.add_argument("--minlon" , type=float, choices=[Range(-180.0, 180.0)], default=-180.0, help="Min longitude of ATL08 shots for output to include") 
@@ -673,6 +677,8 @@ def main():
     parser.add_argument("--maxlat" , type=float, choices=[Range(-90.0, 90.0)], default=80.0, help="Max latitude of ATL08 shots for output to include")
     parser.add_argument("--minmonth" , type=int, choices=[Range(1, 12)], default=6, help="Min month of ATL08 shots for output to include")
     parser.add_argument("--maxmonth" , type=int, choices=[Range(1, 12)], default=9, help="Max month of ATL08 shots for output to include")
+    parser.add_argument("-t", "--rh_type", choices=['gedi', 'atl03'], nargs="?", type=str, default='ATL08', const='ATL08', help="Specify the RH metric calc type; GEDI calc includes ground photons, ATL03 does not")
+    parser.add_argument("-l", "--seg_length", choices=[30, 100], nargs="?", type=int, default=30, const=30, help='Choose 30m or 100m ATL08 extraction')
     parser.add_argument("--list_lc_h_can_thresh", nargs="+", type=int, default=[0, 60, 60, 60, 60, 60, 60, 50, 50, 50, 50, 50, 50, 20, 10, 10, 5, 5, 0, 0, 0, 0, 0], help="A list of land-cover specific thresholds for h_can")
     parser.add_argument('--no-overwrite', dest='overwrite', action='store_false', help='Turn overwrite off (To help complete big runs that were interrupted)')
     parser.set_defaults(overwrite=True)
@@ -680,10 +686,10 @@ def main():
     parser.set_defaults(filter_qual=True)
     parser.add_argument('--no-filter-geo', dest='filter_geo', action='store_false', help='Turn off geographic filtering (To control filtering downstream)')
     parser.set_defaults(filter_geo=True)
-    parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
-    parser.set_defaults(do_30m=False)
-    parser.add_argument('--get_gedi_rh', dest='get_gedi_rh', action='store_true', help='Get rh metrics from the GEDI version (which considers ground photons)')
-    parser.set_defaults(get_gedi_rh=False)
+    #parser.add_argument('--do_30m', dest='do_30m', action='store_true', help='Turn on 30m ATL08 extraction')
+    #parser.set_defaults(do_30m=False)
+    #parser.add_argument('--get_gedi_rh', dest='get_gedi_rh', action='store_true', help='Get rh metrics from the GEDI version (which considers ground photons)')
+    #parser.set_defaults(get_gedi_rh=False)
     parser.add_argument('--output_dataframe', dest='output_dataframe', action='store_true', help='Output a pandas dataframe instead of a csv')
     parser.set_defaults(output_dataframe=False)
     parser.add_argument('--set_flag_names', dest='set_flag_names', action='store_true', help='Set the flag values to meaningful flag names')
