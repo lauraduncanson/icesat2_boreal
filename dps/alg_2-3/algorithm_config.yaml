@@ -20,7 +20,7 @@ disk_space: 10GB
 inputs:
 # remove below this line if no inputs
 # rename and set algorithm input names accordingly
-  - name: input_file
+  - name: input
     download: True
   - name: rh_type
     download: False
