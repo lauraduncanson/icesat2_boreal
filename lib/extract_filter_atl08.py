@@ -53,10 +53,10 @@ def extract_atl08(args):
         print('Quality Filtering: \t[OFF] (you should upgrade ATL08 to v5)')
         filter_qual = False
     
-    if args.output == None:
+    if args.out_dir == None:
         outbase = os.path.join(inDir, Name)
     else:
-        outbase = os.path.join(args.output, Name)
+        outbase = os.path.join(args.out_dir, Name)
         
     print("\nATL08 granule name: \t{}".format(Name))
     print("Input dir: \t\t{}".format(inDir))
@@ -708,11 +708,11 @@ def main():
     else:
         print("INPUT ICESAT2 FILE MUST END '.H5'")
         os._exit(1)
-    if args.output == None:
+    if args.out_dir == None:
         print("\n OUTPUT DIR IS NOT SPECIFIED (OPTIONAL). OUTPUT WILL BE PLACED IN THE SAME LOCATION AS INPUT H5 \n\n")
     else:
-        if not os.path.exists(args.output):
-            os.makedirs(args.output)
+        if not os.path.exists(args.out_dir):
+            os.makedirs(args.out_dir)
         else:
             pass
     if args.resolution == None:
