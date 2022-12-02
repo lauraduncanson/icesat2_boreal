@@ -327,9 +327,10 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
     
         #calculate just the boreal total
-        #vect <- vect(boreal_poly)
-        boreal_map <- mask(AGB_tot_map, boreal_poly, updatevalue=0)
-        AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
+        boreal_total_temp <- extract(AGB_tot_map, boreal_poly, na.rm=TRUE)
+        #AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
+        AGB_total_boreal <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
+        print(AGB_total_boreal)
         rm(AGB_tot_map)
         rm(boreal_map)
 
@@ -348,11 +349,15 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         AGB_total <- c(AGB_total, AGB_total_temp)
         
         #repeat for just boreal
-        boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
+        #boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
+        boreal_total_temp <- extract(map_pred_tot_temp, boreal_poly, na.rm=TRUE)
+
         rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
-        AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)$sum
+        #AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)$sum
+        AGB_boreal_temp <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
+        print(AGB_boreal_temp)
         AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp)
         rm(boreal_map_temp)        
     }
@@ -607,7 +612,7 @@ mapBoreal<-function(rds_models,
         out_data <- list(out_map, tile_total)
         return(out_data)
     }
-    #crs(agb.preds) <- crs(stack)
+
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
                             in_data=all_train_data,
@@ -623,7 +628,6 @@ mapBoreal<-function(rds_models,
 
     xtable <- models[[1]]
     tile_totals <- final_map[[2]]$Tile_Total
-    #tile_totals <- tile_totals$Tile_Total
     out_map <- final_map[[1]]
     var_thresh <- 0.01
 
