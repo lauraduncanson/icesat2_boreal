@@ -70,5 +70,8 @@ inputs:
     download: True
   - name: boreal_vect_fn
     download: False
+  - name: predict_var
+    download: False
+    
     
 
