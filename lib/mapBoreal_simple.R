@@ -227,7 +227,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
       }
 
     # SE
-    xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma
+    xtable_sqrt$SE[xtable_sqrt$model_id==i] <- summary(model_i)$sigma^2
     
     # AGB prediction
     xtable_sqrt$AGB[xtable_sqrt$model_id==i]<-predict(model_i, newdata=xtable_sqrt[xtable_sqrt$model_id==i,])
@@ -369,7 +369,7 @@ if(rep>1){
     row.names(stats_df)<-1:nrow(stats_df)
     
     #save output to a list where length = n(rep)
-    model_list <- list.append(model_list, fit.rf)  
+    model_list <- list.append(model_list, xtable, fit.rf)  
       }
     }
   
@@ -757,7 +757,7 @@ print(predict_var)
     final_map <- applyModels(models, stack, pred_vars, predict_var, tile_num)
 
     xtable <- models[[1]]
-    
+
     if(predict_var=='AGB'){
         tile_totals <- final_map[[2]]$Tile_Total
     }
@@ -926,8 +926,8 @@ print(predict_var)
 
      #Write out_table of ATL08 AGB as a csv
     if(predict_var=='AGB'){
-        out_table = xtable[c('lon','lat','AGB','SE')]    
-        write.csv(out_table, file=out_train_fn)
+        out_table <- xtable[,c('lon', 'lat', 'AGB', 'SE')]
+        write.csv(out_table, file=out_train_fn, row.names=FALSE)
         rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$AGB[1:nrow_tile], na.rm=TRUE)
 
@@ -935,7 +935,7 @@ print(predict_var)
     
     if(predict_var=='Ht'){
         out_table = xtable[c('lon','lat','RH_98')]    
-        write.csv(out_table, file=out_train_fn)
+        write.csv(out_table, file=out_train_fn, row.names=FALSE)
         rf_single <- randomForest(y=xtable$RH_98, x=xtable[pred_vars], ntree=500, importance=TRUE)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$RH_98[1:nrow_tile], na.rm=TRUE)
 
