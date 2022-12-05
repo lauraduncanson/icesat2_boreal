@@ -336,7 +336,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   n<-nrow(x)
   ids<-1:n
   i.s=0
-    
+
 if(rep>1){
     for (j in 2:rep){
     i.s<-i.s+1
@@ -730,7 +730,10 @@ mapBoreal<-function(rds_models,
     }
 
     all_train_data <- rbind(tile_data, broad_data)
-    tile_data_output <- tile_data
+    #remove first col
+    all_train_data <- all_train_data[,-1]
+    
+    tile_data_output <- tile_data[,-1]
         
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
@@ -926,6 +929,7 @@ print(predict_var)
 
      #Write out_table of ATL08 AGB as a csv
     if(predict_var=='AGB'){
+
         out_table <- xtable[,c('lon', 'lat', 'AGB', 'SE')]
         write.csv(out_table, file=out_train_fn, row.names=FALSE)
         rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE)
