@@ -53,9 +53,9 @@ applyModels <- function(models=models,
         }
         x <- xtable[pred_vars]
         rf_single <- randomForest(y=y, x=x, ntree=500)
-    
-        pred_stack <- na.omit(stack)
 
+        pred_stack <- na.omit(stack)
+    
         agb_preds <- predict(pred_stack, models[[1]], na.rm=TRUE)
 
         #set slope and valid mask to zero
@@ -63,7 +63,7 @@ applyModels <- function(models=models,
     
         agb_preds <- mask(agb_preds, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
     
-        print(paste0('models successfully fit with ', length(pred_vars), ' predictor variables'))
+        print(paste0('models successfully applied with ', length(pred_vars), ' predictor variables'))
         
         #split stack into list of iles
         if(ppside > 1){
@@ -318,6 +318,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         se <- xtable$se
         # create one single rf using all the data; the first in model_list will be used for prediction
         fit.rf <- randomForest(y=xtable_predict$AGB, x=xtable_predict[pred_vars], ntree=500)
+        print(max(fit.rf$rsq, na.rm=TRUE))
     }
     
     if(predict_var=='Ht'){
@@ -759,7 +760,8 @@ print(predict_var)
                             strat_random=strat_random,
                             boreal_poly=boreal_poly,
                             predict_var=predict_var)
-
+    print('model fitting complete!')
+    
     final_map <- applyModels(models, stack, pred_vars, predict_var, tile_num)
 
     xtable <- models[[1]]
@@ -1032,10 +1034,12 @@ lc <- rast(LC_mask_file)
 nrow_topo = nrow(topo)
 nrow_l8 = nrow(l8)
 nrow_diff <- abs(nrow_topo-nrow_l8)
+print(nrow_diff)
 
 ncol_topo <- ncol(topo)
 ncol_l8 <- ncol(l8)
 ncol_diff <- abs(ncol_topo-ncol_l8)
+print(ncol_diff)
 
 if(nrow_diff>0 || ncol_diff>0){
    #resample l8
@@ -1045,6 +1049,7 @@ if(nrow_diff>0 || ncol_diff>0){
 
 ext(l8) <- ext(topo)
 ext(lc) <- ext(topo)
+
 stack<-c(l8,topo, lc)
 
 
