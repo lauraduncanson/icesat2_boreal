@@ -161,7 +161,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     
   #Assign model id based on landcover
 
-    # if using ground photon models: 1 = DBT trees (boreal-wide), 2=Evergreen needleleaf trees (boreal-wide), 12 = boreal-wide all PFT
+    # if using ground photon models: 1 = DBT trees (boreal-wide), 4=Evergreen needleleaf trees (boreal-wide), 12 = boreal-wide all PFT
     # if using no ground photon models: 1 = DBT trees (boreal-wide), 3=Evergreen needleleaf trees (boreal-wide), 8 = boreal-wide all PFT
 
     # for the seg_landcov: {0: "water", 1: "evergreen needleleaf forest", 2: "evergreen broadleaf forest", \ 3: "deciduous needleleaf forest", 4: "deciduous broadleaf forest", \ 5: "mixed forest", 6: "closed shrublands", 7: "open shrublands", \ 8: "woody savannas", 9: "savannas", 10: "grasslands", 11: "permanent wetlands", \ 12: "croplands", 13: "urban-built", 14: "croplands-natural mosaic", \ 15: "permanent snow-ice", 16: "barren"})
@@ -187,16 +187,29 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     #xtable_sqrt$model_id[xtable_sqrt$seg_landcov==15] <- 8
     #xtable_sqrt$model_id[xtable_sqrt$seg_landcov==16] <- 8
     
+    #for no ground photon models
+    #xtable_sqrt$model_id <- 'NA'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm3'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm3'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==112] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==122] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm3'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm3'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==114] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==124] <- 'm1'
+    #xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm8'
+    
+    #for ground models, DBT coarse = m1, ENT coarse = m4, global = m12
     xtable_sqrt$model_id <- 'NA'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm3'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm3'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm4'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm4'
     xtable_sqrt$model_id[xtable_i$seg_landcov==112] <- 'm1'
     xtable_sqrt$model_id[xtable_i$seg_landcov==122] <- 'm1'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm3'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm3'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm4'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm4'
     xtable_sqrt$model_id[xtable_i$seg_landcov==114] <- 'm1'
     xtable_sqrt$model_id[xtable_i$seg_landcov==124] <- 'm1'
-    xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm8'
+    xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm12'
 
     #xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
@@ -1043,12 +1056,12 @@ print(ncol_diff)
 
 if(nrow_diff>0 || ncol_diff>0){
    #resample l8
-    l8 <- resample(l8, topo, method='near')
-    lc <- resample(lc, topo, method='near')
+    topo <- resample(topo, l8, method='near')
+    lc <- resample(lc, l8, method='near')
 } 
 
-ext(l8) <- ext(topo)
-ext(lc) <- ext(topo)
+ext(topo) <- ext(l8)
+ext(lc) <- ext(l8)
 
 stack<-c(l8,topo, lc)
 
