@@ -133,7 +133,7 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     
   xtable2<-cbind(xtable_i, xtable_sqrt$AGB, xtable_sqrt$SE)
     ncol <- ncol(xtable2)
-  colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
+    colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
   return(xtable2)
 }
 
@@ -314,33 +314,25 @@ SplitRas <- function(raster,ppside,save){
 agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stack, boreal_poly=boreal_poly, output){
     #predict directly on raster using terra
     pred_stack <- na.omit(stack)
-        
-    map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
-    
-    #set slope and valid mask to zero
-    map_pred <- mask(map_pred, pred_stack$slopemask, maskvalues=0, updatevalue=0)
-    
-    map_pred <- mask(map_pred, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
 
-    #convert to total map (Pg, values per cell will be extremely small)
-    total_convert <- function(x){(x*0.09)/1000000000}
-    AGB_tot_map <- app(map_pred, total_convert)
-    AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
+    if(length(unique(values(pred_stack$Red)))>1){
+        map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
+        #set slope and valid mask to zero
+        map_pred <- mask(map_pred, pred_stack$slopemask, maskvalues=0, updatevalue=0)
+        map_pred <- mask(map_pred, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
+
+        #convert to total map (Pg, values per cell will be extremely small)
+        total_convert <- function(x){(x*0.09)/1000000000}
+        AGB_tot_map <- app(map_pred, total_convert)
+        AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
     
-    #calculate just the boreal total
-    vect <- boreal_poly
-    
-    #for some reason can't figure this out with terra, reverting to raster
-    library(raster)
-    AGB_tot_map <- raster(AGB_tot_map)
-    boreal_map <- mask(AGB_tot_map, vect, updatevalue=NA)
-    detach("package:raster")  
-    
-    library(terra)
-    boreal_map <- rast(boreal_map)
-    AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
-    rm(AGB_tot_map)
-    rm(boreal_map)
+        #calculate just the boreal total
+        boreal_total_temp <- extract(AGB_tot_map, boreal_poly, na.rm=TRUE)
+        #AGB_total_boreal <- global(boreal_map, 'sum', na.rm=TRUE)$sum
+        AGB_total_boreal <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
+        print(AGB_total_boreal)
+        rm(AGB_tot_map)
+        rm(boreal_map)
 
     #loop over predicting for tile with each model in list
     for (i in 2:length(model_list)){
@@ -352,21 +344,21 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         map_pred_temp <- mask(map_pred_temp, pred_stack$ValidMask, maskvalues=0, updatevalue=0)
         
         map_pred_tot_temp <- app(map_pred_temp, total_convert)
-        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)
+        AGB_total_temp <- global(map_pred_tot_temp, 'sum', na.rm=TRUE)$sum
         map_pred <- c(map_pred, map_pred_temp)
-        AGB_total <- c(AGB_total, AGB_total_temp$sum)
+        AGB_total <- c(AGB_total, AGB_total_temp)
         
         #repeat for just boreal
-        library(raster)
-        map_pred_tot_temp <- raster(map_pred_tot_temp)
-        boreal_map_temp <- mask(map_pred_tot_temp, vect, updatevalue=NA)
-        detach("package:raster") 
+        #boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
+        boreal_total_temp <- extract(map_pred_tot_temp, boreal_poly, na.rm=TRUE)
+
         rm(map_pred_tot_temp)
         rm(map_pred_temp)
 
-        boreal_map_temp <- rast(boreal_map_temp)
-        AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)
-        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp$sum)
+        #AGB_boreal_temp <- global(boreal_map_temp, 'sum', na.rm=TRUE)$sum
+        AGB_boreal_temp <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
+        print(AGB_boreal_temp)
+        AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp)
         rm(boreal_map_temp)        
     }
     
@@ -377,6 +369,13 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     #model with all data for mapping
     mean_map <- map_pred[[1]]
     
+  #else {
+   #     #this is if the entire sub-tile is NA
+   #     AGB_total <- rep(0,length(model_list))
+   #     AGB_total_boreal <- rep(0,length(model_list))
+   #     mean_map <- pred_stack$slopemask
+   #     sd_map <- pred_stack$slopemask
+    #}    
     AGB_total_out <- as.data.frame(cbind(AGB_total, AGB_total_boreal))
     names(AGB_total_out) <- c('Tile_Total', 'Boreal_Total')
 
@@ -386,8 +385,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
 
     write.csv(file=out_fn_total, AGB_total_out)
     agb_maps <- list(c(mean_map, sd_map), AGB_total_out)
-    
+
   return(agb_maps)
+  }
 }
 
 
@@ -518,30 +518,14 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-    #check for bad data
-    #bad_rows <- which(tile_data$ValidMask < 0)
 
-     #if(length(bad_rows)>0){
-     #   tile_data <- tile_data[-bad_rows,]
-    #}
     all_train_data <- rbind(tile_data, broad_data)
     tile_data_output <- tile_data
-    
-    #all_train_data <- broad_data
-   # if(sample_broad>0){
-   #     samp_ids <- seq(1,sample_broad)
-   #     broad_sample_ids <- sample(samp_ids, sample_broad, replace=FALSE)
-   #     broad_data <- broad_data[broad_sample_ids,]
-   #     all_train_data <- rbind(tile_data, broad_data)
-   # } else{
-   #     all_train_data <- tile_data
-   # }
         
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
     if(DO_MASK){
-        #pred_vars <- c('slopemask', 'ValidMask', 'Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
         pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
 
     }else{
@@ -584,27 +568,33 @@ mapBoreal<-function(rds_models,
 
         n_subtiles <- length(tile_list)
         print(paste0('nsubtiles:', n_subtiles))
+            if(exists('out_map')==TRUE){rm(out_map)}
+            
          for (tile in 1:n_subtiles){
             tile_stack <- tile_list[[tile]]
-
+            #for a subtile that is all NA, combine it with the next subtile
+             print('tile number:')
+             print(tile)
                 maps<-agbMapping(x=xtable[pred_vars],
                          y=xtable$AGB,
                          model_list=models,
                          tile_num=tile_num,
                          stack=tile_stack,
                          boreal_poly=boreal_poly)
-            
-             if(tile == 1){
-                 out_map <- maps[[1]]
-                 tile_total <- maps[[2]]
              
+             if((exists('out_map')==FALSE) | tile==1){
+                 if(length(maps)>1){
+                     out_map <- maps[[1]]
+                     tile_total <- maps[[2]]
+                 }
              } 
-             if(tile>1){
+
+             if((exists('out_map')==TRUE) & (length(maps)>1) & (tile>1)){
                  out_map <- mosaic(maps[[1]], out_map, fun="max")
+                 if(exists('tile_total')==FALSE){tile_total <- 0.0}
                  tile_total <- tile_total + maps[[2]]
                  rm(maps)
              }
-
             }
     
         }
@@ -618,12 +608,11 @@ mapBoreal<-function(rds_models,
             out_map <- temp_map[[1]]
             tile_total <- temp_map[[2]]
             rm(temp_map)
-        }      
+        }
         out_data <- list(out_map, tile_total)
         return(out_data)
     }
 
-    #crs(agb.preds) <- crs(stack)
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
                             in_data=all_train_data,
@@ -634,15 +623,14 @@ mapBoreal<-function(rds_models,
                             rep=rep,
                             strat_random=strat_random,
                             boreal_poly=boreal_poly)
-    
-    
+
     final_map <- applyModels(models, stack, pred_vars)
+
     xtable <- models[[1]]
     tile_totals <- final_map[[2]]$Tile_Total
-    #tile_totals <- tile_totals$Tile_Total
     out_map <- final_map[[1]]
     var_thresh <- 0.01
-    
+
     check_var <- function(totals){
         #calc sd iteratively
         sd <- totals*0.0
@@ -653,7 +641,7 @@ mapBoreal<-function(rds_models,
         for (i in 1:nrow){
             temp_tot <- totals[1:i]
             if(i>2){
-                 sd[i] <- sd(temp_tot)
+                 sd[i] <- sd(temp_tot, na.rm=TRUE)
             }
         }
         #test the variance for the last 10 sds
@@ -664,22 +652,23 @@ mapBoreal<-function(rds_models,
             print(baseline_var)
             
             last_var <- mean(sd[0:nrow], na.rm=TRUE)
-            print('last_var:')
             print(last_var)
             var_diff <- abs((baseline_var - last_var)/baseline_var)
+            print('var_diff:')
             print(var_diff)
             return(var_diff)
     }
-    
+    str(tile_totals)
     var_diff <- check_var(tile_totals)
     print('var_diff')
     print(var_diff)
     combined_totals <- tile_totals
+
     #if larger difference, need more models and more iterations
     #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
     #set some maximum number of iterations
-    max_iters <- 500
-        if(length(tile_totals)<max_iters){
+    max_iters <- 250
+        if(length(combined_totals)<max_iters){
             while(var_diff > var_thresh){
             print('Adding more interations...')
             new_models <- agbModeling(rds_models=rds_models,
@@ -692,12 +681,21 @@ mapBoreal<-function(rds_models,
                             rep=10,
                             strat_random=strat_random,
                             boreal_poly=boreal_poly)
-    
             new_final_map <- applyModels(new_models, stack, pred_vars)
+
             temp <- new_final_map[[2]]
             new_tile_totals <- temp$Tile_Total
             combined_totals <- c(combined_totals, new_tile_totals)
             var_diff <- check_var(combined_totals)
+            if(length(combined_totals)>75){
+                var_thresh <- 0.02
+            }
+            if(length(combined_totals)>100){
+                var_thresh <- 0.03
+            }
+            if(length(combined_totals)>200){
+                var_thresh <- 0.05
+            }
         }
     }
     #out_map[[1]] <- agb_preds
@@ -730,7 +728,6 @@ mapBoreal<-function(rds_models,
 
             }    
         }
-        
         #summarize accross subtiles
         total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
         total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
@@ -798,7 +795,7 @@ mapBoreal<-function(rds_models,
     print(rsq_local)
     rmse <- sqrt(min(rf_single$mse, na.rm=T))
     imp_vars <- rf_single$importance
-    out_accuracy <- list(rsq_local, rmse_local, imp_vars)
+    out_accuracy <- list(rsq_local, rmse, imp_vars)
     saveRDS(out_accuracy, file=out_stats_fn)
     
     print("Returning names of COG and CSV...")
@@ -903,7 +900,7 @@ if(DO_MASK_WITH_STACK_VARS){
 }
 
 #read boreal polygon for masking later
-boreal_poly <- readOGR(boreal_vect)
+boreal_poly <- vect(boreal_vect)
 
 print("modelling begins")
 
