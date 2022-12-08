@@ -502,7 +502,7 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
         print(gdf.plot(color='orange', ax=ax, figsize=(25,10)))
 
 
-def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True):
+def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', SHOW_MAP=True):
     
     '''Return a json of the set of vector tiles (a geodataframe) that hold the matches with the output in a tindex master csv '''
     
@@ -531,7 +531,7 @@ def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True):
         world_clip = geopandas.clip(world, poly_gdf)
         ax = world_clip.plot(color='gray')
 
-        boreal = geopandas.read_file('/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson')
+        boreal = geopandas.read_file(boreal_fn)
         ax = boreal.boundary.plot(color='black', ax=ax)
         tile_matches_geojson_string.plot(color='orange', ax=ax, figsize=(25,10))
 
