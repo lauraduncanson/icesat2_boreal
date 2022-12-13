@@ -27,7 +27,8 @@ def get_shape(bbox, res=30):
     left, bottom, right, top = bbox
     width = int((right-left)/res)
     height = int((top-bottom)/res)
-    return height,width
+    #return height,width
+    return 3000,3000
 
 def main():
     '''Command line script to create topo stacks by vector tile id.
