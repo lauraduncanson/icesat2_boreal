@@ -26,7 +26,8 @@ def get_shape(bbox, res=30):
     left, bottom, right, top = bbox
     width = int((right-left)/res)
     height = int((top-bottom)/res)
-    return height,width
+    #return height,width
+    return 3000,3000
 
 def get_json(s3path, output):
     '''
@@ -81,6 +82,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     
     if comp_type=="HLS":
         #print("HLS")
+        print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
@@ -519,8 +521,9 @@ def main():
               crs_transform, 
               bandnames, 
               out_crs=out_crs, 
-              resolution=(res, res) 
-              #align=True # this was added late to address some HLS output showing 2999 rows..now this matches how topo stacks are built. Does not correct issue.
+              resolution=(res, res), 
+              align=False
+              #clip_geom=tile_id["geom_orig"] # this was added late to address some HLS output showing 2999 rows..now this matches how topo stacks are built. Does not correct issue.
              )
     print(f"Wrote out stack:\t\t{out_stack_fn}\n")
     return(out_stack_fn)
