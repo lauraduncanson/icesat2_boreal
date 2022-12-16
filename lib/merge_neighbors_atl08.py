@@ -76,7 +76,7 @@ def main():
     print(f"# of neighbor tiles: {len(neighbor_tile_ids)}")
     
     # Build up a dataframe of dps output ATL08 filtered CSVs
-    ATL08_filt_tindex_master = pd.read_csv(csv_list_fn, storage_options={'anon':True})
+    ATL08_filt_tindex_master = pd.read_csv(csv_list_fn)
     
     ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
     print(ATL08_filt_tindex_master.info())
