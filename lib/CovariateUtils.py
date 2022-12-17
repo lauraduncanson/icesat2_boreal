@@ -8,11 +8,15 @@ from rasterio.warp import array_bounds, calculate_default_transform
 from rio_cogeo.profiles import cog_profiles
 from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
+from rio_tiler.models import ImageData
+from rio_tiler.mosaic import mosaic_reader
+from rio_tiler.io import COGReader
 import geopandas
 import os
 import boto3
 from cachetools import FIFOCache, TLRUCache, cached
 from datetime import datetime, timedelta, timezone
+from typing import List
 
 try:
     from maap.maap import MAAP
@@ -102,6 +106,16 @@ def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 
     tile_parts["bbox_4326_buffered"] = tile_parts["geom_4326_buffered"].bounds.iloc[0].to_list()
     
     return tile_parts
+
+def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+    with COGReader(src_path) as cog:
+        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+
+def get_shape(bbox, res=30):
+    left, bottom, right, top = bbox
+    width = int((right-left)/res)
+    height = int((top-bottom)/res)
+    return height,width
 
 def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False, input_nodata_value:int=None):
     '''

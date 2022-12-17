@@ -57,4 +57,5 @@ python ${basedir}/../../lib/3.1.2_dps.py \
 --end_month_day ${8} \
 --max_cloud ${9} \
 --composite_type ${10} \
+--shape ${11} \
 --output_dir ${OUTPUTDIR}

@@ -49,3 +49,5 @@ inputs:
     download: False
   - name: composite_type
     download: False
+  - name: shape
+    download: False

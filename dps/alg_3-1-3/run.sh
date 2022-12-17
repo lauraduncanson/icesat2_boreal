@@ -45,4 +45,5 @@ python ${basedir}/../../lib/build_stack.py \
 --covar_src_name $7 \
 --in_covar_s3_col $8 \
 --input_nodata_value $9 \
+--shape $10 \
 --clip

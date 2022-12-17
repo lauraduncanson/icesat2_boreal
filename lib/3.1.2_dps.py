@@ -12,7 +12,8 @@ from rasterio.crs import CRS
 from rio_tiler.io import COGReader
 import numpy as np
 from rasterio.session import AWSSession
-from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC, common_mask
+from typing import List
+from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC, common_mask, get_shape, reader
 from fetch_HLS import get_HLS_data
 from fetch_from_api import get_ls8_data
 import json
@@ -22,12 +23,12 @@ from CovariateUtils import get_creds, get_creds_DAAC
 from maap.maap import MAAP
 maap = MAAP(maap_host='api.ops.maap-project.org')
 
-def get_shape(bbox, res=30):
-    left, bottom, right, top = bbox
-    width = int((right-left)/res)
-    height = int((top-bottom)/res)
-    #return height,width
-    return 3000,3000
+# def get_shape(bbox, res=30):
+#     left, bottom, right, top = bbox
+#     width = int((right-left)/res)
+#     height = int((top-bottom)/res)
+#     #return height,width
+#     return 3000,3000
 
 def get_json(s3path, output):
     '''
@@ -82,7 +83,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     
     if comp_type=="HLS":
         #print("HLS")
-        print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
+        #print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
@@ -276,6 +277,7 @@ def main():
     parser.add_argument("-o", "--output_dir", type=str, help="The path for the JSON files to be written")
     parser.add_argument("-b", "--tile_buffer_m", type=float, default=0, help="The buffer size (m) applied to the extent of the specified stack tile")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
+    parser.add_argument("--shape", type=int, default=None, help="The output height and width of the grid's shape. If None, get from input tile.")    
     parser.add_argument("-lyr", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-in_tile_id_col", type=str, default="tile_num", help="The column of the tile layer name of the stack tiles dataset that holds the tile num")
     parser.add_argument("-a", "--sat_api", type=str, default="https://landsatlook.usgs.gov/sat-api", help="URL of USGS query endpoint")
@@ -300,8 +302,10 @@ def main():
     res = args.res
     print("Output res (m):\t\t", res)
     
+    tile_buffer_m = args.tile_buffer_m
+    
     # Get tile by number form GPKG. Store box and out crs
-    tile_id = get_index_tile(vector_path=geojson_path_albers, id_col=args.in_tile_id_col, tile_id=tile_n, buffer=args.tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
+    tile_id = get_index_tile(vector_path=geojson_path_albers, id_col=args.in_tile_id_col, tile_id=tile_n, buffer=tile_buffer_m, layer = args.in_tile_layer)#layer = "boreal_tiles_albers"
     #in_bbox = tile_id['bbox_4326']
     in_bbox = tile_id['geom_orig_buffered'].bounds.iloc[0].to_list()
     out_crs = tile_id['tile_crs']
@@ -311,9 +315,17 @@ def main():
     print('bbox 4326:\t\t', tile_id['bbox_4326'])
     #print("out_crs = ", out_crs)
 
+    # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
+    # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+    if args.shape is None:
+        print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
+        height, width = get_shape(in_bbox, res)
+    else:
+        print('Getting output height and width from input shape arg...')
+        height = args.shape
+        width = args.shape
     
-    height, width = get_shape(in_bbox, res)
-    
+    print(f"{height} x {width}")
     
     # specify either -j or -a. 
     # -j is the path to the ready made json files with links to LS buckets (needs -o to placethe composite)
