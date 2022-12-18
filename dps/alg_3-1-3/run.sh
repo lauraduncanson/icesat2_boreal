@@ -36,14 +36,14 @@ OUTPUTDIR="${PWD}/output"
 python ${basedir}/../../lib/build_stack.py \
 --covar_tile_fn ${COVAR_TILE_FN} \
 --in_tile_fn ${IN_TILE_FN} \
---in_tile_id_col $3 \
---in_tile_num $4 \
---tile_buffer_m $5 \
---in_tile_layer $6 \
---output_dir $OUTPUTDIR \
+--in_tile_id_col ${3} \
+--in_tile_num ${4} \
+--tile_buffer_m ${5} \
+--in_tile_layer ${6} \
+--output_dir ${OUTPUTDIR} \
 --topo_off \
---covar_src_name $7 \
---in_covar_s3_col $8 \
---input_nodata_value $9 \
---shape $10 \
+--covar_src_name ${7} \
+--in_covar_s3_col ${8} \
+--input_nodata_value ${9} \
+--shape ${10} \
 --clip
