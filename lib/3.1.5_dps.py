@@ -15,19 +15,19 @@ from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.io import COGReader
 
-from CovariateUtils import write_cog, get_index_tile
+from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
 
+# def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+#     with COGReader(src_path) as cog:
+#         return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
 
-def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
-    with COGReader(src_path) as cog:
-        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
-
-def get_shape(bbox, res=30):
-    left, bottom, right, top = bbox
-    width = int((right-left)/res)
-    height = int((top-bottom)/res)
-    return height,width
+# def get_shape(bbox, res=30):
+#     left, bottom, right, top = bbox
+#     width = int((right-left)/res)
+#     height = int((top-bottom)/res)
+#     return height,width
+#     #return 3000,3000
 
 def main():
     '''Command line script to create topo stacks by vector tile id.
@@ -44,6 +44,7 @@ def main():
     parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
+    parser.add_argument("--shape", type=int, default=None, help="The output height and width of the grid's shape. If None, get from input tile.")    
     parser.add_argument("-topo", "--topo_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson", help="The filename of the topo's set of vector tiles")
     parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/projects/tmp", help="The tmp out path for the clipped topo cog before topo calcs")
     parser.add_argument("-tsrc", "--topo_src_name", type=str, default="Copernicus", help="Name to identify the general source of the topography")
@@ -100,16 +101,27 @@ def main():
     # Get the s3 urls to the granules
     file_s3 = dem_tiles_selection["s3"].to_list()
     file_s3.sort()
-    print("The DEM filename(s) intersecting the {} m bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
+    print("The DEM filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
     
     # Create a mosaic from all the images
-    bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
-    height, width = get_shape(bbox, res)
-
-    img = mosaic_reader(file_s3, reader, bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
-    mosaic = (img[0].as_masked())
-    out_trans =  rasterio.transform.from_bounds(*bbox, width, height)
+    in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+    print(f"in_bbox: {in_bbox}")
     
+    # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
+    # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+    if args.shape is None:
+        print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
+        height, width = get_shape(in_bbox, res)
+    else:
+        print('Getting output height and width from input shape arg...')
+        height = args.shape
+        width = args.shape
+    
+    print(f"{height} x {width}")
+    
+    img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+    mosaic = (img[0].as_masked())
+    out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
     
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)

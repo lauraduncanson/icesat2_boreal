@@ -42,3 +42,5 @@ inputs:
     download: False
   - name: input_nodata_value
     download: False
+  - name: shape
+    download: False

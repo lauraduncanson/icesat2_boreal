@@ -15,21 +15,22 @@ from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.io import COGReader
 
-from CovariateUtils import write_cog, get_index_tile
+from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
 
 
-def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
-    with COGReader(src_path) as cog:
-        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+# def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+#     with COGReader(src_path) as cog:
+#         return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
 
-def get_shape(bbox, res=30):
-    left, bottom, right, top = bbox
-    width = int((right-left)/res)
-    height = int((top-bottom)/res)
-    return height,width
+# def get_shape(bbox, res=30):
+#     left, bottom, right, top = bbox
+#     width = int((right-left)/res)
+#     height = int((top-bottom)/res)
+#     return height,width
+#     #return 3000, 3000
 
-def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, clip: bool, topo_off: bool, output_dir: str):
+def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, clip: bool, topo_off: bool, output_dir: str, height, width):
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
@@ -45,16 +46,25 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     # Get the s3 urls to the granules
     file_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
     file_s3.sort()
-    print("The covariate's filename(s) intersecting the {} m bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
+    print("The covariate's filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
 
     # Create a mosaic from all the images
-    bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
-    print(f"bbox: {bbox}")
-    height, width = get_shape(bbox, res)
-
-    img = mosaic_reader(file_s3, reader, bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+    in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+    print(f"in_bbox: {in_bbox}")
+    
+    # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
+    # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+    if height is None or not topo_off:
+        print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
+        height, width = get_shape(in_bbox, res)
+    else:
+        print('Getting output height and width from input shape arg...')
+        
+    print(f"{height} x {width}")
+    
+    img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
     mosaic = (img[0].as_masked())
-    out_trans =  rasterio.transform.from_bounds(*bbox, width, height)
+    out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
 
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
@@ -128,6 +138,7 @@ def main():
     parser.add_argument("-l", "--in_tile_layer", type=str, default=None, help="The layer name of the stack tiles dataset")
     parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
     parser.add_argument("-r", "--res", type=int, default=30, help="The output resolution of the stack")
+    parser.add_argument("--shape", type=int, default=None, help="The output height and width of the grid's shape. If None, get from input tile.")    
     parser.add_argument("-covar", "--covar_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson", help="The filename of the covariates's set of vector tiles")
     parser.add_argument("--input_nodata_value", type=int, default=None, help="The input's nodata value")
     parser.add_argument("--in_covar_s3_col", type=str, default="s3", help="The column name that holds the s3 path of each s3 COG")
@@ -166,6 +177,8 @@ def main():
     output_dir = args.output_dir
     in_tile_id_col = args.in_tile_id_col
     res = args.res
+    height = args.shape
+    width = args.shape
     tile_buffer_m = args.tile_buffer_m
     covar_tile_fn = args.covar_tile_fn
     input_nodata_value = args.input_nodata_value
@@ -189,7 +202,9 @@ def main():
                 covar_src_name,
                 clip, 
                 topo_off,
-                output_dir
+                output_dir,
+                height,
+                width
                )
 
 if __name__ == "__main__":

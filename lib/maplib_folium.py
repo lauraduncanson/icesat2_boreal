@@ -155,6 +155,15 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     dps_check_style = {'fillColor': 'red', 'color': 'red'}
     
     # Set colormaps for legends
+    # Choose colormap names from this set: 
+    # plt.cm.datad.keys()
+        #     dict_keys(['Blues', 'BrBG', 'BuGn', 'BuPu', 'CMRmap', 'GnBu', 'Greens', 'Greys', 'OrRd', 'Oranges',\
+        #                          'PRGn', 'PiYG', 'PuBu', 'PuBuGn', 'PuOr', 'PuRd', 'Purples', 'RdBu', 'RdGy', 'RdPu', 'RdYlBu', 'RdYlGn', 'Reds', \
+        #                          'Spectral', 'Wistia', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'afmhot', 'autumn', 'binary', 'bone', 'brg', 'bwr', 'cool', 'coolwarm', 'copper', 'cubehelix', \
+        #                          'flag', 'gist_earth', 'gist_gray', 'gist_heat', 'gist_ncar', 'gist_rainbow', 'gist_stern', 'gist_yarg', 'gnuplot', 'gnuplot2', 'gray', 'hot', 'hsv', 'jet', \
+        #                          'nipy_spectral', 'ocean', 'pink', 'prism', 'rainbow', 'seismic', 'spring', 'summer', 'terrain', 'winter', 'Accent', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', \
+        #                          'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b', 'tab20c'])
+    
     if mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn'] is not None:
         TCC2020PVALUE_MAX = 1
         TCC2020PVALUE_COLORBAR = 'hot'
@@ -173,8 +182,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         m1.add_child(colormap_TCC2020SLOPE)
         
     if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
-        STANDAGE2020_MAX = 50
-        STANDAGE2020_COLORBAR = 'nipy_spectral'
+        STANDAGE2020_MAX = 35
+        STANDAGE2020_COLORBAR = 'jet'
         cmap = matplotlib.cm.get_cmap(STANDAGE2020_COLORBAR, 12)
         colormap_STANDAGE2020 = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, STANDAGE2020_MAX)
         colormap_STANDAGE2020.caption = "Stand Age (yrs in 2020)"
@@ -308,7 +317,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         
     if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
         standage2020_tiles_layer = TileLayer(
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_standage2020_json_s3_fn']}&rescale=0,{STANDAGE2020_MAX}&bidx=1&colormap_name={STANDAGE2020_COLORBAR}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_standage2020_json_s3_fn']}&rescale=0,{STANDAGE2020_MAX}&bidx=1&colormap_name={STANDAGE2020_COLORBAR}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM ; try this: https://developmentseed.org/titiler/examples/code/tiler_with_custom_colormap/COLORBAR WE NEED
             opacity=1,
             name="Stand age 2020",
             attr="TerraPulse",
@@ -346,6 +355,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             ]
         colormap_encode = urllib.parse.urlencode({"colormap": json.dumps(colormap_worldcover_dict)})
         worldcover_tiles_layer = TileLayer(
+            #TODO: try this: https://developmentseed.org/titiler/examples/code/tiler_with_custom_colormap/
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&{colormap_encode}",
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap={colormap_worldcover_dict}", # <---- THIS IS NOT WORKING
             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
