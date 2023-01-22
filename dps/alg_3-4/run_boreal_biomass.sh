@@ -32,7 +32,7 @@ min_n=${17}
 boreal_vect_fn=${18}
 predict_var=${19}
 
-TAR_FILE=${basedir}/../../lib/bio_models.tar
+TAR_FILE=${basedir}/../../lib/bio_modelsnoground.tar
 
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
