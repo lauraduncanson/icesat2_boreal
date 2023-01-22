@@ -108,6 +108,7 @@ applyModels <- function(models=models,
                  if((exists('out_map')==TRUE) & (length(maps)>1) & (tile>1)){
                      out_map <- mosaic(maps[[1]], out_map, fun="max")
                      if(exists('tile_total')==FALSE){tile_total <- 0.0}
+                     print('tile total:')
                      tile_total <- tile_total + maps[[2]]
                      rm(maps)
                  }
@@ -188,28 +189,28 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     #xtable_sqrt$model_id[xtable_sqrt$seg_landcov==16] <- 8
     
     #for no ground photon models
-    #xtable_sqrt$model_id <- 'NA'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm3'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm3'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==112] <- 'm1'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==122] <- 'm1'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm3'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm3'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==114] <- 'm1'
-    #xtable_sqrt$model_id[xtable_i$seg_landcov==124] <- 'm1'
-    #xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm8'
-    
-    #for ground models, DBT coarse = m1, ENT coarse = m4, global = m12
     xtable_sqrt$model_id <- 'NA'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm4'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm4'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm3'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm3'
     xtable_sqrt$model_id[xtable_i$seg_landcov==112] <- 'm1'
     xtable_sqrt$model_id[xtable_i$seg_landcov==122] <- 'm1'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm4'
-    xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm4'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm3'
+    xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm3'
     xtable_sqrt$model_id[xtable_i$seg_landcov==114] <- 'm1'
     xtable_sqrt$model_id[xtable_i$seg_landcov==124] <- 'm1'
-    xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm12'
+    xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm8'
+    
+    #for ground models, DBT coarse = m1, ENT coarse = m4, global = m12
+    #xtable_sqrt$model_id <- 'NA'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==111] <- 'm4'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==121] <- 'm4'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==112] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==122] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==113] <- 'm4'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==123] <- 'm4'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==114] <- 'm1'
+    #xtable_sqrt$model_id[xtable_i$seg_landcov==124] <- 'm1'
+    #xtable_sqrt$model_id[xtable_sqrt$model_id=='NA'] <- 'm12'
 
     #xtable_sqrt$model_id<-names(rds_models)[1]
     ids<-unique(xtable_sqrt$model_id)
@@ -352,7 +353,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   i.s=0
 
 if(rep>1){
-    for (j in 2:rep){
+    for (j in 1:rep){
     i.s<-i.s+1
       set.seed(j)
     if (strat_random==TRUE){
@@ -371,19 +372,19 @@ if(rep>1){
     testData.y <- y[!row.names(x) %in% trainRowNumbers]
     
     # rf modeling
-    set.seed(j)
-    
-    fit.rf <- randomForest(y=trainData.y, x=trainData.x, ntree=500)
-    pred.rf<-predict(fit.rf, newdata=testData.x) # 
-    stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
+    set.seed(j)    
+    #fit.rf <- randomForest(y=trainData.y, x=trainData.x, ntree=500)
+    fit.rf <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500)
+    #pred.rf<-predict(fit.rf, newdata=testData.x) # 
+    #stats.rf<-cbind(method=rep("RF",6), rep=rep(j,6), StatModel(testData.y,pred.rf))
     
     # model validation stats
-    stats_df<-rbind(stats_df,
-                    stats.rf)
-    row.names(stats_df)<-1:nrow(stats_df)
+    #stats_df<-rbind(stats_df,
+    #                stats.rf)
+    #row.names(stats_df)<-1:nrow(stats_df)
     
     #save output to a list where length = n(rep)
-    model_list <- list.append(model_list, xtable, fit.rf)  
+    model_list <- list.append(model_list, fit.rf)  
       }
     }
   
@@ -445,11 +446,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     
         #calculate just the boreal total
         boreal_total_temp <- extract(AGB_tot_map, boreal_poly, fun=sum, na.rm=TRUE)
-        str(boreal_total_temp)
 
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         AGB_total_boreal <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
-        print('test')
         print(AGB_total_boreal)
         rm(AGB_tot_map)
         n_models <- length(model_list)
@@ -502,7 +501,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
 
     out_fn_total <- paste0(out_fn_stem, '_total.csv')
 
-    write.csv(file=out_fn_total, AGB_total_out)
+    write.csv(file=out_fn_total, AGB_total_out, row.names=FALSE)
     if(n_models>1){
         agb_maps <- list(c(mean_map, sd_map), AGB_total_out)
     } else{
@@ -530,7 +529,6 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         #calculate just the boreal total
         boreal_ht_temp <- extract(map_pred, boreal_poly, na.rm=TRUE)
         Ht_mean_boreal <- mean(boreal_ht_temp$lyr1, na.rm=TRUE)
-        str(boreal_ht_temp)
         print(Ht_mean_boreal)
         rm(boreal_ht_temp)
         
@@ -577,7 +575,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
 
     out_fn_total <- paste0(out_fn_stem, '_mean.csv')
 
-    write.csv(file=out_fn_total, Ht_mean_out)
+    write.csv(file=out_fn_total, Ht_mean_out, row.names=FALSE)
     if(n_models>1){
         ht_maps <- list(c(mean_map, sd_map), Ht_mean_out)
     } else{
@@ -603,12 +601,12 @@ check_var <- function(totals){
         }
         #test the variance for the last 10 sds
             #b_min <- (nrow-20)
-            b_max <- (nrow-10)
-            baseline_var <- mean(sd[0:b_max], na.rm=TRUE)
+            b_max <- (nrow-9)
+            baseline_var <- mean(sd[1:b_max], na.rm=TRUE)
             print('baseline_var:')
             print(baseline_var)
             
-            last_var <- mean(sd[0:nrow], na.rm=TRUE)
+            last_var <- mean(sd[1:nrow], na.rm=TRUE)
             print(last_var)
             var_diff <- abs((baseline_var - last_var)/baseline_var)
             print('var_diff:')
@@ -776,24 +774,61 @@ print(predict_var)
     print('model fitting complete!')
     
     final_map <- applyModels(models, stack, pred_vars, predict_var, tile_num)
+    print('looking at structure of final_map')
 
     xtable <- models[[1]]
 
     if(predict_var=='AGB'){
         tile_totals <- final_map[[2]]$Tile_Total
+        
+        #read in all csv files from output, combine for tile totals
+        if(ppside > 1){
+            #read csv files
+            csv_files <- list.files(path='output', pattern='_total.csv', full.names=TRUE)
+            n_files <- length(csv_files)
+            for(h in 1:n_files){
+                if(h==1){
+                    tile_data <- read.csv(csv_files[h])
+                    total_data <- tile_data$Tile_Total
+                    total_data_boreal <- tile_data$Boreal_Total
+                    file.remove(csv_files[h])
+                }
+                if(h>1){
+                    temp_data <- read.csv(csv_files[h])
+                    total_data <- cbind(total_data, temp_data$Tile_Total)
+                    total_data_boreal <- cbind(total_data_boreal, temp_data$Boreal_Total)
+                    file.remove(csv_files[h])
+
+                }    
+            }
+        
+        }
+        
+        #summarize accross models
+        total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
+        total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
+        total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
+        names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
+        
+        out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+        out_fn_total <- paste0(out_fn_stem, '_total_all.csv')
+        write.csv(file=out_fn_total, total_AGB_out, row.names=FALSE)
+        combined_totals <- tile_totals
+
     }
+    
     if(predict_var=='Ht'){
         tile_totals <- final_map[[2]]$Tile_Mean
     }
     
     out_map <- final_map[[1]]
     var_thresh <- 0.01
+    
+
     if(rep>1){
-        str(tile_totals)
-        var_diff <- check_var(tile_totals)
+        var_diff <- check_var(combined_totals)
         print('var_diff')
         print(var_diff)
-        combined_totals <- tile_totals
 
         #if larger difference, need more models and more iterations
         #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
@@ -811,14 +846,23 @@ print(predict_var)
                             s_train=s_train,
                             rep=10,
                             strat_random=strat_random,
-                            boreal_poly=boreal_poly)
+                            boreal_poly=boreal_poly,
+                            predict_var=predict_var)
                 
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
-
             temp <- new_final_map[[2]]
-            new_tile_totals <- temp$Tile_Total
+                
+                if(predict_var=='AGB'){
+                    new_tile_totals <- new_final_map[[2]]$Tile_Total
+                }
+                if(predict_var=='Ht'){
+                    new_tile_totals <- new_final_map[[2]]$Tile_Mean
+                }    
+                
             combined_totals <- c(combined_totals, new_tile_totals)
             var_diff <- check_var(combined_totals)
+                print('check length')
+                print(length(combined_totals))
             if(length(combined_totals)>75){
                 var_thresh <- 0.02
                 }
@@ -828,20 +872,10 @@ print(predict_var)
             if(length(combined_totals)>200){
                 var_thresh <- 0.05
                 }
-            }
-        }
-    }
-    
+                
     if(predict_var=='AGB'){
-        print('AGB successfully predicted!')
-    
-        print('mosaics completed!')
-
-        # Make a 2-band stack as a COG
-
-        out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
-        
-        #read in all csv files from output, combine for tile totals
+          
+                    #read in all csv files from output, combine for tile totals
     if(ppside > 1){
         #read csv files
         csv_files <- list.files(path='output', pattern='_total.csv', full.names=TRUE)
@@ -861,18 +895,53 @@ print(predict_var)
 
             }    
         }
-        #summarize accross subtiles
+        #summarize accross models
         total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
         total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
-        
         total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
-
         names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
         out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
-        out_fn_total <- paste0(out_fn_stem, '_total.csv')
-        write.csv(file=out_fn_total, total_AGB_out)
+        out_fn_total <- paste0(out_fn_stem, '_total_all.csv')
+        write.csv(file=out_fn_total, total_AGB_out, row.names=FALSE)
         }
+                
+            }
+        }
+    }
+    
+    #combine all output total files into one
+        #read csv files
+        csv_files <- list.files(path='output', pattern='_total_all.csv', full.names=TRUE)
+        n_files <- length(csv_files)
+    print('length all files:')
+    print(n_files)
+        for(h in 1:n_files){
+            if(h==1){
+                tile_data <- read.csv(csv_files[h])
+                file.remove(csv_files[h])
+            }
+            if(h>1){
+                temp_data <- read.csv(csv_files[h])
+                tile_data <- rbind(tile_data, temp_data)
+                file.remove(csv_files[h])
+            }    
+        }
+       
+        total_AGB_out <- as.data.frame(tile_data)
+        names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
+        
+        out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
+        out_fn_total <- paste0(out_fn_stem, '_total_iters.csv')
+        write.csv(file=out_fn_total, total_AGB_out, row.names=FALSE)
+    
+        print('AGB successfully predicted!')
+    
+        print('mosaics completed!')
+
+        # Make a 2-band stack as a COG
+
+        out_fn_stem = paste("output/boreal_agb", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")   
 
     }
     
@@ -915,7 +984,7 @@ print(predict_var)
         
         out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
         out_fn_total <- paste0(out_fn_stem, '_mean.csv')
-        write.csv(file=out_fn_total, mean_Ht_out)
+        write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
         }
 
     }
@@ -940,6 +1009,7 @@ print(predict_var)
     
     tifoptions <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "ZLEVEL=6", "OVERVIEW_RESAMPLING=AVERAGE")
     writeRaster(out_map, filename=out_cog_fn, filetype="COG", gdal=c("COMPRESS=LZW", overwrite=TRUE, gdal=c("COMPRESS=LZW", "OVERVIEW_RESAMPLING=AVERAGE")))
+    #writeRaster(out_map, filename=out_cog_fn, overwrite=TRUE)
     
     print(paste0("Write COG tif: ", out_cog_fn))
           
@@ -971,10 +1041,23 @@ print(predict_var)
     
     #calc rsq only over local data
     rsq_local <- summary(local_model)$r.squared
-    rmse_local <- sqrt(mean(abs(rf_single$predicted - rf_single$x)^2))
     print('rsq_local:')
     print(rsq_local)
-    rmse <- sqrt(min(rf_single$mse, na.rm=T))
+    
+    na_data <- which(is.na(local_model$predicted==TRUE))
+str(local_model)
+    rmse_local <- sqrt(mean(local_model$fitted.values-local_model$x)^2)
+    print('rmse_local:')
+    print(rmse_local)
+    print(rmse_local)
+    if(length(na_data)>1){
+        rmse_local <- sqrt(mean(local_model$residuals[-na_data]^2))
+    } else {
+        rmse_local <- sqrt(mean(local_model$residuals)^2)
+    }
+    print('rmse_local:')
+    print(rmse_local)
+    
     imp_vars <- rf_single$importance
     out_accuracy <- list(rsq_local, rmse_local, imp_vars)
     saveRDS(out_accuracy, file=out_stats_fn)
@@ -1052,10 +1135,9 @@ print(nrow_diff)
 ncol_topo <- ncol(topo)
 ncol_l8 <- ncol(l8)
 ncol_diff <- abs(ncol_topo-ncol_l8)
-print(ncol_diff)
 
 if(nrow_diff>0 || ncol_diff>0){
-   #resample l8
+   #resample
     topo <- resample(topo, l8, method='near')
     lc <- resample(lc, l8, method='near')
 } 
@@ -1064,7 +1146,6 @@ ext(topo) <- ext(l8)
 ext(lc) <- ext(l8)
 
 stack<-c(l8,topo, lc)
-
 
 if(DO_MASK_WITH_STACK_VARS){
     print("Masking stack...")

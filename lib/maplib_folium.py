@@ -82,7 +82,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     mscomp_rgb_dict = None,
                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
-                    max_AGB_display = 150, max_AGBSE_display = 20,
+                    max_AGB_display = 50, max_AGBSE_display = 20,
                     MS_BANDNAME = 'NDVI',
                     MS_BANDNUM = 8,
                     MS_BANDMIN = 0,
@@ -102,7 +102,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
         #colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
         cmap = matplotlib.cm.get_cmap(agb_colormap, 25)
-        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
+        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 50)
         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
         
         agb_se_colormap = 'magma'
@@ -548,7 +548,7 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json'
                                     },
                    map_width = 100, map_height=600, OVERVIEW_MAP= True,
-                   max_AGB_display = 150, max_AGBSE_display = 20
+                   max_AGB_display = 50, max_AGBSE_display = 20
                   ):
     
     import branca.colormap as cm
