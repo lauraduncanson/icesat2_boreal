@@ -30,7 +30,7 @@ from CovariateUtils_topo import *
 #     return height,width
 #     #return 3000, 3000
 
-def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, clip: bool, topo_off: bool, output_dir: str, height, width):
+def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, clip: bool, topo_off: bool, output_dir: str, height: None, width: None):
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
@@ -100,6 +100,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
               resolution=(res, res), 
               clip_geom=clip_geom, 
               clip_crs=clip_crs, 
+              align=True, # manually turn this on for some testing
               input_nodata_value=input_nodata_value
              )
 

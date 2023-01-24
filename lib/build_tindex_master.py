@@ -6,6 +6,7 @@ from shapely.geometry import box
 import subprocess
 import argparse
 import s3fs
+import ExtractUtils
 
 try:
     from maap.maap import MAAP
@@ -112,6 +113,7 @@ def main():
     parser.add_argument("-b","--bucket_name", type=str, default=None, help="s3 bucket name for file searching.")
     parser.add_argument("-r", "--root_key", type=str, default=None, help="Root dir for data search")
     parser.add_argument("--col_name", type=str, default="s3_path", help="Column name for the local path of the found files")
+    parser.add_argument("-boreal_tile_index_path", type=str, default='/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', help='Boreal tiles gpkg')
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
     parser.add_argument('-local_dir', type=str, default=None, help='Local testing dir')
@@ -140,6 +142,8 @@ def main():
     dps_month = args.dps_month
     dps_month_list = args.dps_month_list
     alg_name = args.alg_name
+    
+    boreal_tile_index_path = args.boreal_tile_index_path
     
     if HAS_MAAP and dps_month is None and dps_month_list is None:
         print('You need to specify either a -dps_month or a -dps_month_list')
@@ -286,6 +290,15 @@ def main():
         
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn, mode='w+')
+        
+        print(f'Building tindex master json and mosaic json...')
+        mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
+                           out_tindex_fn, 
+                           boreal_tile_index_path = boreal_tile_index_path, 
+                           BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619], # tiles touching the anti-meridian are annoying
+                           cols_list = ['tile_num','s3_path','local_path'])
+        
+        
         return df
     
 if __name__ == "__main__":
