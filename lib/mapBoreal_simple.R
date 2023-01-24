@@ -533,7 +533,6 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         rm(boreal_ht_temp)
         
         mean_map <- map_pred[[1]]
-        rm(map_pred)
 
     #loop over predicting for tile with each model in list
     n_models <- length(model_list)
@@ -556,7 +555,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         boreal_ht_temp <- extract(map_pred_temp, boreal_poly, na.rm=TRUE)
         rm(map_pred_temp)
 
-        Ht_boreal_temp <- mean(boreal_total_temp$lyr1, na.rm=TRUE)
+        Ht_boreal_temp <- mean(boreal_ht_temp$lyr1, na.rm=TRUE)
         print(Ht_boreal_temp)
         Ht_mean_boreal <- c(Ht_mean_boreal, Ht_boreal_temp)
         rm(boreal_ht_temp)        
@@ -1046,7 +1045,6 @@ print(predict_var)
     
     na_data <- which(is.na(local_model$predicted==TRUE))
 
-    print(rmse_local)
     if(length(na_data)>1){
         rmse_local <- sqrt(mean(local_model$residuals[-na_data]^2))
     } else {
