@@ -822,7 +822,7 @@ print(predict_var)
     }
     
     out_map <- final_map[[1]]
-    var_thresh <- 0.01
+    var_thresh <- 0.05
     
 
     if(rep>1){
@@ -864,13 +864,13 @@ print(predict_var)
                 print('check length')
                 print(length(combined_totals))
             if(length(combined_totals)>75){
-                var_thresh <- 0.02
+                var_thresh <- 0.06
                 }
             if(length(combined_totals)>100){
-                var_thresh <- 0.03
+                var_thresh <- 0.08
                 }
             if(length(combined_totals)>200){
-                var_thresh <- 0.05
+                var_thresh <- 0.1
                 }
                 
     if(predict_var=='AGB'){
@@ -1045,10 +1045,7 @@ print(predict_var)
     print(rsq_local)
     
     na_data <- which(is.na(local_model$predicted==TRUE))
-str(local_model)
-    rmse_local <- sqrt(mean(local_model$fitted.values-local_model$x)^2)
-    print('rmse_local:')
-    print(rmse_local)
+
     print(rmse_local)
     if(length(na_data)>1){
         rmse_local <- sqrt(mean(local_model$residuals[-na_data]^2))
