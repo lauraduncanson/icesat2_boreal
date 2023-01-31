@@ -56,8 +56,6 @@ applyModels <- function(models=models,
 
         pred_stack <- na.omit(stack)
 
-        print('break')
-        save(stack, models, file='/projects/testing/testoutputs.Rdata')
         agb_preds <- predict(pred_stack, models[[1]], na.rm=TRUE)
 
         #set slope and valid mask to zero
