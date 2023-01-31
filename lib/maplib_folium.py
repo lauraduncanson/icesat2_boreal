@@ -113,8 +113,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
         
     if ADD_TILELAYER is not None:
-        cmap = matplotlib.cm.get_cmap('plasma', 25)
-        colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 20)
+        cmap = matplotlib.cm.get_cmap('plasma', 30)
+        colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
         colormap_Ht.caption = 'Vegetation Height (m)'
 
     # Get Vector layers
