@@ -203,7 +203,7 @@ def main():
                 user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".csv"
-            if "AGB" or 'HT' in TYPE:
+            if "AGB" in TYPE or 'HT' in TYPE:
                 user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
@@ -221,6 +221,7 @@ def main():
             dps_out_searchkey_list = [f"{args.local_dir}/*{args.ends_with_str}"]
             
         if args.DEBUG:
+            print(f'TYPE = {TYPE}')
             print(f'bucket = {bucket}')
             print(f'dps_out_searchkey_list = {dps_out_searchkey_list}')
             print(f'col_name = {col_name}')
