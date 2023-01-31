@@ -111,7 +111,11 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
         colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
-
+        
+    if ADD_TILELAYER is not None:
+        cmap = matplotlib.cm.get_cmap('plasma', 30)
+        colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
+        colormap_Ht.caption = 'Vegetation Height (m)'
 
     # Get Vector layers
     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
@@ -379,6 +383,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         
     if ADD_TILELAYER is not None:
         ADD_TILELAYER.add_to(m1)
+        m1.add_child(colormap_Ht)
         
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
