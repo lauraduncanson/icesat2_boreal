@@ -83,11 +83,14 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
                     max_AGB_display = 50, max_AGBSE_display = 20,
-                    MS_BANDNAME = 'NDVI',
-                    MS_BANDNUM = 8,
-                    MS_BANDMIN = 0,
-                    MS_BANDMAX = 1,
-                    MS_BANDCOLORBAR = 'viridis',
+                    MS_BAND_DICT = {
+                        'name': 'NDVI',
+                        'num': 8,
+                        'min': 0,
+                        'max': 1,
+                        'cmap': 'viridis',
+                        'legend_name': 'NDVI composite'
+                    },
                     tiles_remove = [41995, 41807, 41619], # geo abyss,
                     SHOW_WIDGETS=False,
                     TOPO_OPACITY=0.15,
@@ -102,20 +105,23 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
         #colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
         cmap = matplotlib.cm.get_cmap(agb_colormap, 25)
-        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 50)
+        colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
         
-        agb_se_colormap = 'magma'
+        agb_se_colormap = 'plasma'
         agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGBSE_display}&bidx=2&colormap_name={agb_se_colormap}"
-        #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
+        #colormap_AGBSE = cm.linear.plasma.scale(0, 20).to_step(5)
         cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
         colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
         
     if ADD_TILELAYER is not None:
-        cmap = matplotlib.cm.get_cmap('plasma', 30)
-        colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
-        colormap_Ht.caption = 'Vegetation Height (m)'
+        #cmap = matplotlib.cm.get_cmap('plasma', 30)
+        #colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
+        #colormap_Ht.caption = 'Vegetation Height (m)'
+        cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
+        colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
+        colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
 
     # Get Vector layers
     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
@@ -210,9 +216,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         m1.add_child(colormap_worldcover)
         
     if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
-        cmap = matplotlib.cm.get_cmap(MS_BANDCOLORBAR, 12)
-        colormap_MSCOMP = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BANDMIN, MS_BANDMAX)
-        colormap_MSCOMP.caption = MS_BANDNAME
+        cmap = matplotlib.cm.get_cmap(MS_BAND_DICT["cmap"], 25)
+        colormap_MSCOMP = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BAND_DICT["min"], MS_BAND_DICT["max"])
+        colormap_MSCOMP.caption = MS_BAND_DICT["name"]
         m1.add_child(colormap_MSCOMP)
         
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
@@ -289,9 +295,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         
     elif mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
         mscomp_tiles_layer = TileLayer(
-            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale={MS_BANDMIN},{MS_BANDMAX}&bidx={MS_BANDNUM}&colormap_name={MS_BANDCOLORBAR}",
+            tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale={MS_BAND_DICT['min']},{MS_BAND_DICT['max']}&bidx={MS_BAND_DICT['num']}&colormap_name={MS_BAND_DICT['cmap']}",
             opacity=1,
-            name="MS Composite",
+            name=MS_BAND_DICT['legend_name'],
             attr="MAAP",
             overlay=True
         )
@@ -369,21 +375,23 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             overlay=True
         )
         worldcover_tiles_layer.add_to(m1)
+    
+    # Add the additional tile layer to map with its colorbar
+    if ADD_TILELAYER is not None:
+        ADD_TILELAYER["layer"].add_to(m1)
+        m1.add_child(colormap_ADDED_TILELAYER)
         
+    # Overlay topo last with an opacity     
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
         topo_tiles_layer = TileLayer(
             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray", #tsri
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,2&bidx=5&colormap_name=tab10", #slopemask
             opacity=TOPO_OPACITY,
-            name="Topography",
+            name="Topo Solar Rad. Idx",
             attr="MAAP",
             overlay=True
         )
         topo_tiles_layer.add_to(m1)
-        
-    if ADD_TILELAYER is not None:
-        ADD_TILELAYER.add_to(m1)
-        m1.add_child(colormap_Ht)
         
     # Add custom basemaps
     basemaps['basemap_gray'].add_to(m1)
@@ -582,9 +590,9 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
         colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
         
-        agb_se_colormap = 'magma'
+        agb_se_colormap = 'plasma'
         agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGBSE_display}&bidx=2&colormap_name={agb_se_colormap}"
-        #colormap_AGBSE = cm.linear.magma.scale(0, 20).to_step(5)
+        #colormap_AGBSE = cm.linear.plasma.scale(0, 20).to_step(5)
         cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
         colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'

@@ -904,7 +904,7 @@ print(predict_var)
     if(ppside > 1){
         combined_totals <- combine_temp_files(final_map, predict_var, tile_num)
     }
-    
+    str(combined_totals)
     
     #subset out the iteration bands
     out_map_all <- subset(final_map[[1]], 3:nlyr(final_map[[1]]))
@@ -943,7 +943,7 @@ print(predict_var)
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
             
             if(ppside > 1){
-                combined_totals <- combine_temp_files(new_final_map, predict_var, tile_num)
+                combined_totals_new <- combine_temp_files(new_final_map, predict_var, tile_num)
             }
                 
             temp <- new_final_map[[2]]
@@ -959,7 +959,8 @@ print(predict_var)
                 }    
             rm(new_final_map)
                 
-            combined_totals <- c(combined_totals, new_tile_totals)
+            combined_totals <- c(combined_totals, combined_totals_new)
+                str(combined_totals)
             var_diff <- check_var(combined_totals)
                 print('check length')
                 print(length(combined_totals))
