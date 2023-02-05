@@ -243,7 +243,6 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             }
             #summarize accross subtiles
             mean_Ht <- apply(total_data, 1, mean, na.rm=TRUE)
-
             mean_Ht_boreal <- apply(total_data_boreal, 1, mean, na.rm=TRUE)
             mean_Ht_out <- as.data.frame(cbind(mean_Ht, mean_Ht_boreal))
             names(mean_Ht_out) <- c('tile_mean', 'tile_boreal_mean')
@@ -251,7 +250,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
-            combined_totals <- tile_means
+            #combined_totals <- tile_means
             print(str(tile_means))
     }
     return(combined_totals)
@@ -904,7 +903,6 @@ print(predict_var)
     if(ppside > 1){
         combined_totals <- combine_temp_files(final_map, predict_var, tile_num)
     }
-    str(combined_totals)
     
     #subset out the iteration bands
     out_map_all <- subset(final_map[[1]], 3:nlyr(final_map[[1]]))
@@ -958,9 +956,7 @@ print(predict_var)
                     new_tile_totals <- new_final_map[[2]]$Tile_Mean
                 }    
             rm(new_final_map)
-                
             combined_totals <- c(combined_totals, combined_totals_new)
-                str(combined_totals)
             var_diff <- check_var(combined_totals)
                 print('check length')
                 print(length(combined_totals))
