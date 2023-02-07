@@ -201,9 +201,16 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
                 }    
             }
         
+        
         #summarize accross models
-        total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
-        total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
+        if(h>1){
+            total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
+            total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE) 
+        } else {
+            total_AGB <- sum(total_data, na.rm=TRUE)
+            total_AGB_boreal <- sum(total_data_boreal, na.rm=TRUE)
+        }
+        
         total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
         names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
