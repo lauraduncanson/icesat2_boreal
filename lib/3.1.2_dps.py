@@ -289,6 +289,9 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
+    # TODO
+    parser.add_argument("-hls", "--hls_product", choices=['S30', 'L30','SL30'], nargs="?", type=str, default='L30', help="Specify the HLS product; SL30 is our name for a combined HLS composite")
+    parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     args = parser.parse_args()    
     
     #print(args.start_month_day)
@@ -318,18 +321,20 @@ def main():
     # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
     # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
     if args.shape is None:
-        print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
+        print(f'Getting output dims from buffered (buffer={tile_buffer_m}) original tile geometry...')
         height, width = get_shape(in_bbox, res)
     else:
-        print('Getting output height and width from input shape arg...')
+        print('Getting output dims from input shape arg...')
         height = args.shape
         width = args.shape
     
-    print(f"{height} x {width}")
+    print(f'Output dims:\t\t{height} x {width}')
     
     # specify either -j or -a. 
     # -j is the path to the ready made json files with links to LS buckets (needs -o to placethe composite)
     # -a is the link to the api to search for data (needs -o to fetch the json files from at_api)
+    
+    print(f'Composite type:\t\t{args.composite_type}')
     
     # TODO: Change this section to be able to read JSON files from S3
     if args.json_file == None:
@@ -337,10 +342,10 @@ def main():
             print("MUST SPECIFY -o FOR JSON PATH")
             os._exit(1)
         elif args.composite_type == 'HLS':
-            print("get HLS data")
-            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            
+            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, args.hls_product, args.hls_product_version)
         elif args.composite_type == 'LS8':
-            print("get ls8 data")
+            
             master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
         else:
             print("specify the composite type (HLS, LS8)")
@@ -350,14 +355,17 @@ def main():
     
     
     blue_bands = GetBandLists(master_json, 2, args.composite_type)
-    print("# of files per band:\t\t", len(blue_bands))
-    print(f"Example path to a band:\t\t {blue_bands[0]}")
-    
+    print(f"\nTotal # of scenes for composite:\t\t{len(blue_bands)}")
+    if len(blue_bands) == 0:
+            print("\nNo scenes to build a composite. Exiting.\n")
+            os._exit(1)  
+    #print(f"Example path to a band:\t\t {blue_bands[0]}")
     green_bands = GetBandLists(master_json, 3, args.composite_type)
     red_bands = GetBandLists(master_json, 4, args.composite_type)
     nir_bands = GetBandLists(master_json, 5, args.composite_type)
     swir_bands = GetBandLists(master_json, 6, args.composite_type)
     swir2_bands = GetBandLists(master_json, 7, args.composite_type)
+    
     if args.composite_type=='HLS':
         fmask_bands = GetBandLists(master_json, 8, args.composite_type)
     

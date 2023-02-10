@@ -72,6 +72,7 @@ def query_satapi(query, api):
         }
 
     url = f"{api}/stac/search"
+    print(f'\nQuerying api: {url}\n')
     data = requests.post(url, headers=headers, json=query).json()
     
     return data

@@ -62,8 +62,9 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
         
         return local_catalog
 
-def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
-    print('opening client')
+def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_product='L30', HLS_product_version='2.0'):
+    
+    print('\nQuerying STAC...')
     catalog = Client.open(api)
     
     date_min = str(year) + '-' + start_month_day
@@ -76,16 +77,23 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     
     print('start date, end date:\t\t', start, end)
     
-    print('\nConducting HLS search now...')
+    # Note: this is our name for a combined S30 and L30 composite
+    if HLS_product != 'SL30':
+        HLS_product_list = [f"HLS{HLS_product}.v{HLS_product_version}"]
+    else:
+        HLS_product_list = [f"HLSL30.v{HLS_product_version}", f"HLSS30.v{HLS_product_version}"]
+        
+    print(f'\nConducting HLS search now...')
+    print(f'Searching for:\t\t\t{HLS_product_list}')
     
     search = catalog.search(
-        collections=["HLSL30.v2.0"],
+        collections=HLS_product_list,
         datetime=[start,end],
         bbox=bbox,
         max_items=500, # for testing, and keep it from hanging
         # query={"eo:cloud_cover":{"lt":20}} #doesn't work
     )
-    print(f"Search query parameters:\n{search}\n")
+    #print(f"Search query parameters:\n{search}\n")
     results = search.get_all_items_as_dict()
     
     print("initial results:\t\t", len(results['features']))
@@ -102,12 +110,14 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day):
     return results
 
 
-def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False):
+def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0'):
 
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
     tile_n = int(in_tile_num)
-
+    
+    print('\nGetting HLS data...')
+    
     tile_id = get_index_tile(geojson_path_albers, in_tile_id_col, tile_n, buffer=0, layer = layer)
     #print(tile_id)
     # Accessing imagery
@@ -119,8 +129,8 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
-        print('run function')
-        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day) for year in years]
+        print(f'bbox: {bbox}')
+        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_product=hls_product, HLS_product_version=hls_product_version) for year in years]
         
         print(len(response_by_year[0]['features']))
     
