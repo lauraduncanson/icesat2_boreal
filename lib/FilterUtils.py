@@ -451,7 +451,7 @@ def filter_atl08_qual_v3(input_fn=None,
     This is only appropriate for ATL08 v5 and above
     Update to handle land-cover based h_can thresholding
     Returns a data frame
-    Note: beams 1 & 5 strong (better radiometric perf, sensitive), then beam 3 [NOT IMPLEMENTED]
+    Note: beams 1 & 5 strong (better radiometric perf, sensitive), than beam 3 [NOT IMPLEMENTED]
     '''
     # TODO: filt col names: make sure you have these in the EPT db
     print("\nFiltering by quality")
@@ -510,7 +510,7 @@ def filter_atl08_qual_v3(input_fn=None,
     filt_params_static = [
                              ['msw_flg', 0],
                              ['beam_type', 'Strong'],
-                             ['seg_snow' , 1]
+                             ['seg_snow' , 1] # snow free land
                         ]
     # Apply filter
     for flag, val in filt_params_static:
@@ -550,6 +550,20 @@ def filter_atl08_qual_v3(input_fn=None,
                                     ]    
     print(f"\tAfter month filters: {month_min}-{month_max}")
     print(f"\tAfter all quality filtering: \t\t{atl08_df_filt.shape[0]} observations in the output dataframe.")
+    
+    if len(atl08_df_filt) == 0:
+        #
+        # Return a dataframe of 1 obs.
+        # Modified in Feb 2023 - PMM
+        # If 0 obs at this point, get a seg_snow=2 obs.
+        #
+        print('\nNo obs left. Making a dummy data frame...') 
+        for flag, val in filt_params_static[0:2]:
+            atl08_df_filt = atl08_df_prepd[atl08_df_prepd[flag] == val]
+            #print(f"\tAfter {flag}={val}: \t\t{atl08_df_filt.shape[0]} observations in the dataframe.")
+            
+        print('\tReturning a dummy data frame with a single strong beam obs...')
+        atl08_df_filt = atl08_df_filt.head(1)
     
     atl08_df_prepd = None
     

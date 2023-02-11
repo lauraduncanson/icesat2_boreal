@@ -341,17 +341,13 @@ def main():
                                                           subset_cols_list = atl08_cols_list + ['seg_cover'], #, 'granule_name'
                                                    filt_cols=['h_can','h_dif_ref','m','msw_flg','beam_type','seg_snow','sig_topo'], 
                                                    list_lc_h_can_thresh=args.list_lc_h_can_thresh,
-                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)
-        
-    atl08=None
-    
-    if len(atl08_pdf_filt) == 0:
-        print("\nNo ATL08 obs after quality filtering.\n")
-        os._exit(0)
-    
+                                                   thresh_h_can=100, thresh_h_dif=25, thresh_sig_topo=2.5, month_min=minmonth, month_max=maxmonth)  
+
     print("\nConverting to geopandas data frame in lat/lon ...")
     atl08_gdf = geopandas.GeoDataFrame(atl08_pdf_filt, geometry=geopandas.points_from_xy(atl08_pdf_filt.lon, atl08_pdf_filt.lat), crs='epsg:4326')
-    atl08_pdf_filt=None
+    
+    atl08_pdf_filt=None    
+    atl08=None
     
     if args.extract_covars and len(atl08_gdf) > 0:
 
@@ -363,9 +359,9 @@ def main():
             
             atl08_gdf = ExtractUtils.extract_value_gdf(topo_covar_fn, atl08_gdf, topo_cols_list, reproject=True)
             out_name_stem = out_name_stem + "_topo"
-
+            
             atl08_gdf = ExtractUtils.extract_value_gdf(landsat_covar_fn, atl08_gdf, landsat_cols_list, reproject=False)
-            out_name_stem = out_name_stem + "_landsat"
+            out_name_stem = out_name_stem + "_landsat" # Note: this stem is 'landsat' even though it could be HLS
         
     if len(atl08_gdf) == 0:
         print(f"No ATL08 obs. for tile {in_tile_num}")
