@@ -201,9 +201,16 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
                 }    
             }
         
+        
         #summarize accross models
-        total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
-        total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE)
+        if(h>1){
+            total_AGB <- apply(total_data, 1, sum, na.rm=TRUE)
+            total_AGB_boreal <- apply(total_data_boreal, 1, sum, na.rm=TRUE) 
+        } else {
+            total_AGB <- sum(total_data, na.rm=TRUE)
+            total_AGB_boreal <- sum(total_data_boreal, na.rm=TRUE)
+        }
+        
         total_AGB_out <- as.data.frame(cbind(total_AGB, total_AGB_boreal))
         names(total_AGB_out) <- c('tile_total', 'tile_boreal_total')
         
@@ -243,7 +250,6 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             }
             #summarize accross subtiles
             mean_Ht <- apply(total_data, 1, mean, na.rm=TRUE)
-
             mean_Ht_boreal <- apply(total_data_boreal, 1, mean, na.rm=TRUE)
             mean_Ht_out <- as.data.frame(cbind(mean_Ht, mean_Ht_boreal))
             names(mean_Ht_out) <- c('tile_mean', 'tile_boreal_mean')
@@ -251,7 +257,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
-            combined_totals <- tile_means
+            #combined_totals <- tile_means
             print(str(tile_means))
     }
     return(combined_totals)
@@ -905,7 +911,6 @@ print(predict_var)
         combined_totals <- combine_temp_files(final_map, predict_var, tile_num)
     }
     
-    
     #subset out the iteration bands
     out_map_all <- subset(final_map[[1]], 3:nlyr(final_map[[1]]))
     
@@ -943,7 +948,7 @@ print(predict_var)
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
             
             if(ppside > 1){
-                combined_totals <- combine_temp_files(new_final_map, predict_var, tile_num)
+                combined_totals_new <- combine_temp_files(new_final_map, predict_var, tile_num)
             }
                 
             temp <- new_final_map[[2]]
@@ -958,8 +963,7 @@ print(predict_var)
                     new_tile_totals <- new_final_map[[2]]$Tile_Mean
                 }    
             rm(new_final_map)
-                
-            combined_totals <- c(combined_totals, new_tile_totals)
+            combined_totals <- c(combined_totals, combined_totals_new)
             var_diff <- check_var(combined_totals)
                 print('check length')
                 print(length(combined_totals))
