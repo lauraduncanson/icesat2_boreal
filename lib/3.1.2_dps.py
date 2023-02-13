@@ -271,6 +271,7 @@ def renew_session(comp_type):
     return aws_session   
 
 def main():
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg", help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
@@ -294,10 +295,20 @@ def main():
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     args = parser.parse_args()    
     
-    #print(args.start_month_day)
+    '''
+    Build multi-spectral composites with scenes from queries of:
+    (a) An endpoint of the USGS Landsat-8 archive
+    (b) An endpoint of the v 2.0 of the HLS S30, L30 archive
+    
+    Note: 
+    HLS info:
+    https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/harmonized-landsat-sentinel-2-hls-overview/
+    '''
+    
 
     # EXAMPLE CALL
     # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
+    
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
     tile_n = args.in_tile_num
