@@ -247,10 +247,10 @@ def tasseled_cap(bands):
     # which in turn are from/built from: Crist 1985. These are sensor non-specific so should be applicable
     # irrespective of sensor and collection, provided it is SREF
 
-def VegMask(NDVI):
+def VegMask(NDVI, MIN_NDVI = 0.1):
     mask = np.zeros_like(NDVI)
-    mask = np.where(NDVI > 0.1, 1, mask)
-    print("\tVeg Mask Created")
+    mask = np.where(NDVI > MIN_NDVI, 1, mask)
+    print(f"\tVegetation mask created: valid data where NDVI > {MIN_NDVI}")
     return mask
 
 def get_pixel_coords(arr, transform):
@@ -290,24 +290,38 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
-    # TODO
-    parser.add_argument("-hls", "--hls_product", choices=['S30', 'L30','SL30'], nargs="?", type=str, default='L30', help="Specify the HLS product; SL30 is our name for a combined HLS composite")
+    # Feb 2023
+    parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
+    parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
+    #parser.add_argument("-bnames", "--bandnames_list", nargs="+", default='Blue Green Red NIR SWIR SWIR2 NDVI SAVI MSAVI NDMI EVI NBR NBR2 TCB TCG TCW ValidMask Xgeo Ygeo JulianDate yearDate', help="List of bandnames for composite.")
     args = parser.parse_args()    
     
     '''
-    Build multi-spectral composites with scenes from queries of:
+    Build multi-spectral (ms) composites with scenes from queries of:
     (a) An endpoint of the USGS Landsat-8 archive
     (b) An endpoint of the v 2.0 of the HLS S30, L30 archive
     
+    The ms composite will have the following bands:
+    
+    'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2': surface reflectance values for ms composite obs.
+    'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2' : indices calc'd from the surface reflectance values of the ms composite obs.
+    'TCB', 'TCG', 'TCW' : tasseled cap values from the ms composite obs.
+    'ValidMask' : a mask identifing valid vegetation obs.
+    'Xgeo' : x coordinate
+    'Ygeo' : y coordinate
+    'JulianDate' : day-of-year of ms composite obs.
+    'yearDate' : year of ms composite obs.
+    
     Note: 
     HLS info:
-    https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/harmonized-landsat-sentinel-2-hls-overview/
+    https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/harmonized-landsat-sentinel-2-hls-overview/  
+
+    EXAMPLE CALL
+    python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
     '''
     
-
-    # EXAMPLE CALL
-    # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
+    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
     
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
@@ -511,16 +525,19 @@ def main():
     NBR2 = calcNBR2(SWIRComp, SWIR2Comp)
     #print("TCB")
     TCB, TCG, TCW = tasseled_cap(np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp], [0, 1, 2]))
+    
     print("Calculating X and Y pixel center coords...")
-    ValidMask = VegMask(NDVIComp)
+    ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
     Xgeo, Ygeo = get_pixel_coords(ValidMask, crs_transform)
     
     # Stack bands together
     print("\nCreating raster stack...\n")
+    # These must correspond with the bandnames
     stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARComp], [0, 1, 2]) 
     
     #assign band names
-    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    # ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    #bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
     #outdir = '/projects/tmp/Landsat'

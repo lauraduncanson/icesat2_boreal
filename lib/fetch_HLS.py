@@ -68,7 +68,7 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_p
     catalog = Client.open(api)
     
     date_min = str(year) + '-' + start_month_day
-    print('start_month_day:\t\t', start_month_day)
+
     date_max = str(year) + '-' + end_month_day
     start_date = datetime.datetime.strptime(date_min, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(date_max, "%Y-%m-%d") 
@@ -77,8 +77,8 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_p
     
     print('start date, end date:\t\t', start, end)
     
-    # Note: this is our name for a combined S30 and L30 composite
-    if HLS_product != 'SL30':
+    # Note: H30 this is our name for a HARMONIZED 30m composite with S30 and L30
+    if HLS_product != 'H30':
         HLS_product_list = [f"HLS{HLS_product}.v{HLS_product_version}"]
     else:
         HLS_product_list = [f"HLSL30.v{HLS_product_version}", f"HLSS30.v{HLS_product_version}"]
@@ -110,7 +110,7 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_p
     return results
 
 
-def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0'):
+def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0', bands = ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']):
 
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
@@ -148,7 +148,6 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
     
-    bands = ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']
     # If local True, rewrite the s3 paths to internal not public buckets
     #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
     master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://")
