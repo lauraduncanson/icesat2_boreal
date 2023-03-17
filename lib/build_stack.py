@@ -18,6 +18,64 @@ from rio_tiler.io import COGReader
 from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
 
+#Check for file existence
+def fn_check(fn):
+    """Wrapper to check for file existence
+    
+    Parameters
+    ----------
+    fn : str
+        Input filename string.
+    
+    Returns
+    -------
+    bool
+        True if file exists, False otherwise.
+    """
+    return os.path.exists(fn)
+
+def fn_check_full(fn):
+    """Check for file existence
+    Avoids race condition, but slower than os.path.exists.
+    
+    Parameters
+    ----------
+    fn : str
+        Input filename string.
+    
+    Returns
+    -------
+    status 
+        True if file exists, False otherwise.
+    """
+    status = True 
+    if not os.path.isfile(fn): 
+        status = False
+    else:
+        try: 
+            open(fn) 
+        except IOError:
+            status = False
+    return status
+
+def fn_list_check(fn_list):
+    status = True
+    for fn in fn_list:
+        if not fn_check(fn):
+            print('Unable to find: %s' % fn)
+            status = False
+    return status
+
+def fn_list_valid(fn_list):
+    print('%i input fn' % len(fn_list))
+    out_list = []
+    for fn in fn_list:
+        if not fn_check(fn):
+            print('Unable to find: %s' % fn)
+        else:
+            out_list.append(fn)
+    print('%i output fn' % len(out_list))
+    return out_list 
 
 # def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
 #     with COGReader(src_path) as cog:
@@ -123,6 +181,111 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     else:
         return(cog_fn)
 
+def build_stack_list(covar_dict_list, stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, 
+                     #covar_tile_fn_list, in_covar_s3_col: str, 
+                     res: int, 
+                     #input_nodata_value: int, tmp_out_path: str, covar_src_name: str, 
+                     clip: bool, 
+                     #topo_off: bool, 
+                     output_dir: str, 
+                     height: None, width: None):
+    '''
+    Build a stack of a list of data and export as a multi-band COG
+    TODO:  in_covar_s3_col is s3_path for each covar_tile_fn; to vary this by fn, make this var into a list that corresponds with covar_tile_fn_list
+    '''
+    
+    ## Check file list
+    #covar_tile_fn_list = fn_list_valid(covar_tile_fn_list)
+    
+    if len(covar_dict_list) == 0:
+        print('\nNo valid files in build_stack_list. Exiting.\n')
+        os.exit(1)
+    else:
+            
+        # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
+        tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
+        #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
+        geom_4326_buffered = tile_parts["geom_4326_buffered"]
+        
+        print('Looping through file build_stack_list...')
+        stack_tile_mosaic_list = []
+        stack_bandnames_list = []
+        
+        for covar_dict in covar_dict_list:
+            
+            # these used to be indiv args; now come from input dict
+            covar_tile_fn = covar_dict['COVAR_TILE_FN']
+            covar_src_name = covar_dict['RASTER_NAME']
+            in_covar_s3_col = covar_dict['IN_COVAR_S3_COL']
+            input_nodata_value = covar_dict['NODATA_VAL']
+
+            # Read the covar_tiles index file
+            covar_tiles = gpd.read_file(covar_tile_fn)
+
+            # intersect with the bbox tile
+            covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
+
+            # Get the s3 urls to the granules
+            file_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
+            file_s3.sort()
+            print("The covariate's filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
+
+            # Create a mosaic from all the images
+            in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+            print(f"in_bbox: {in_bbox}")
+
+            # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
+            # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+            if height is None:
+                print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
+                height, width = get_shape(in_bbox, res)
+            else:
+                print('Getting output height and width from input shape arg...')
+
+            print(f"{height} x {width}")
+
+            img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+            mosaic = (img[0].as_masked())
+            out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
+            
+            if clip:
+                print("Clipping to feature polygon...")
+                clip_geom = tile_parts['geom_orig']
+                clip_crs = tile_parts['tile_crs']
+            else:
+                clip_geom = None
+                clip_crs = None
+
+            bandnames_list = [covar_src_name]
+            
+            stack_bandnames_list.append(covar_src_name)
+            stack_tile_mosaic_list.append(mosaic)
+            
+    # Stack bands together
+    print("\nCreating raster stack...\n")
+    # These must correspond with the bandnames
+    stack = np.stack(stack_tile_mosaic_list)  
+    
+    # New output COG name 
+    cog_fn = os.path.join(output_dir, "_".join(['build_stack', str(stack_tile_id), ext]))
+    print(f'Writing stack as cloud-optimized geotiff: {cog_fn}')
+    write_cog(stack, 
+              cog_fn, 
+              tile_parts['tile_crs'], 
+              out_trans, 
+              stack_bandnames_list, 
+              out_crs=tile_parts['tile_crs'], 
+              resolution=(res, res), 
+              clip_geom=clip_geom, 
+              clip_crs=clip_crs, 
+              align=True, # manually turn this on for some testing
+              input_nodata_value=input_nodata_value
+             )
+
+    mosaic=None
+    
+    return(cog_fn)
+    
 
 def main():
     '''Command line script to create topo stacks by vector tile id.

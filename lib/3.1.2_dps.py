@@ -70,8 +70,57 @@ def GetBandLists(inJSON, bandnum, comp_type):
     BandList.sort()
     return BandList
 
-def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
-    '''Read a window of data from the raster matching the tile bbox'''
+# Please look at the HLS user guide for more details. 
+# https://lpdaac.usgs.gov/documents/1326/HLS_User_Guide_V2.pdf
+HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}
+
+def HLS_MASK(ma_fmask, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
+    # This function takes the HLS Fmask layer as a masked array and exports the desired mask image array. 
+    # The mask_list assigns the QA conditions you would like to mask.
+    # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
+    
+    # TODO: test this change in input. Changed from a path to a masked array (ma), because a 
+    #arr = read_img(mask_img_path)
+    arr = ma_fmask.data
+    msk = np.zeros_like(arr)#.astype(np.bool)
+    for m in MASK_LIST:
+        if m in HLS_QA_BIT.keys():
+            msk += (arr & (1 << HLS_QA_BIT[m]) ) #<--added parantheses 
+        if m == 'aerosol_high':
+            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
+        if m == 'aerosol_moderate':
+            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (0 << HLS_QA_BIT['aerosol_l']))
+        if m == 'aerosol_low':
+            msk += (arr & (0 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
+            
+    ma_fmask.mask *= msk > 0
+    return ma_fmask
+
+# def hls_mask_ma(ma_arr, mask_list=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
+#     # This function takes the masked QA array as input and exports the intersect mask image array. 
+#     # The mask_list assigns the QA conditions you would like to mask.
+#     # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
+#     # Please make sure the ma_arr is integer data type as the "bitwise_and" only works for integer and bool.
+#     arr = ma_arr.data
+#     msk = np.zeros_like(arr)#.astype(int)
+#     for m in mask_list:
+#         if m in QA_BIT.keys():
+#             msk += (arr & 1 << QA_BIT[m])
+#         if m == 'aerosol_high':
+#             msk += (arr & (1 << QA_BIT['aerosol_h']) & (1 << QA_BIT['aerosol_l']))
+#         if m == 'aerosol_moderate':
+#             msk += (arr & (1 << QA_BIT['aerosol_h']) & (0 << QA_BIT['aerosol_l']))
+#         if m == 'aerosol_low':
+#             msk += (arr & (0 << QA_BIT['aerosol_h']) & (1 << QA_BIT['aerosol_l']))
+#     ma_arr.mask *= msk > 0
+#     return ma_arr
+
+def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False, do_mask=False):
+    '''Read a window of data from the raster matching the tile bbox
+    Return a masked array for the window (subset) of the input file
+    or
+    Return the image crs and transform (incl_trans=True).
+    Note: could be renamed to Get_MaskArray_Subset() '''
     #print(file)
     
     with COGReader(file) as cog:
@@ -84,7 +133,12 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     if comp_type=="HLS":
         #print("HLS")
         #print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
-        return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
+        if do_mask:
+            # Returns the integer Fmask whose bits can be converted to a datamask
+            return (np.squeeze(img.as_masked().astype(int)) )
+        else:
+            return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
+        
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
     else:
@@ -95,10 +149,16 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     '''Calculate NDVI for each source scene'''
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs)
+    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+    
+    # Updating HLS masking: TODO test
+    fmaskarr = HLS_MASK(fmaskarr)
+    #print(f'printing fmaskarr data:\n{fmaskarr.data}')
+    #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr>0.1) | (REDarr<0.01)), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    
 
 def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width, comp_type):
     '''Calculate NDVI for each source scene'''
@@ -393,6 +453,7 @@ def main():
     
     if args.composite_type=='HLS':
         fmask_bands = GetBandLists(master_json, 8, args.composite_type)
+        #print(f'Printing a single fmask band filename for testing:\n{fmask_bands[0]}')
     
     #print("# of files per band:\t\t", len(blue_bands))
     #print(blue_bands[0])
