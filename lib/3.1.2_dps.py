@@ -112,25 +112,6 @@ def HLS_MASK(ma_fmask,
     ma_fmask.mask += msk > 0 # With +, this will be the union of the various bit masks
     return ma_fmask
 
-# def hls_mask_ma(ma_arr, mask_list=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
-#     # This function takes the masked QA array as input and exports the intersect mask image array. 
-#     # The mask_list assigns the QA conditions you would like to mask.
-#     # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
-#     # Please make sure the ma_arr is integer data type as the "bitwise_and" only works for integer and bool.
-#     arr = ma_arr.data
-#     msk = np.zeros_like(arr)#.astype(int)
-#     for m in mask_list:
-#         if m in QA_BIT.keys():
-#             msk += (arr & 1 << QA_BIT[m])
-#         if m == 'aerosol_high':
-#             msk += (arr & (1 << QA_BIT['aerosol_h']) & (1 << QA_BIT['aerosol_l']))
-#         if m == 'aerosol_moderate':
-#             msk += (arr & (1 << QA_BIT['aerosol_h']) & (0 << QA_BIT['aerosol_l']))
-#         if m == 'aerosol_low':
-#             msk += (arr & (0 << QA_BIT['aerosol_h']) & (1 << QA_BIT['aerosol_l']))
-#     ma_arr.mask *= msk > 0
-#     return ma_arr
-
 def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False, do_mask=False):
     '''Read a window of data from the raster matching the tile bbox
     Return a masked array for the window (subset) of the input file
@@ -161,19 +142,24 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
         print("composite type not recognized")
         os._exit(1)
 
-def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type):
-    '''Calculate NDVI for each source scene'''
+def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = (0.01, 0.1)):
+    '''Calculate NDVI for each source scene
+    Mask out pixels above or below the red band reflectance range limit values'''
+    
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
     
-    # Updating HLS masking: TODO test
+    #
+    # HLS masking
+    #
     fmaskarr = HLS_MASK(fmaskarr)
+    
     #print(f'printing fmaskarr data:\n{fmaskarr.data}')
     #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
-    return np.ma.array(np.where(((fmaskarr==1) | (REDarr>0.1) | (REDarr<0.01)), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
 
 def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width, comp_type):
@@ -366,6 +352,7 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
+    parser.add_argument("--rangelims_red", type=float, nargs=2, action='append', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     # Feb 2023
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
@@ -492,7 +479,7 @@ def main():
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
         #print(in_crs)
         if args.composite_type=='HLS':
-            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
+            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
         elif args.composite_type=='LS8':
             NDVIstack = [CreateNDVIstack_LS8(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
         

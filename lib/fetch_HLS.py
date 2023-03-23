@@ -164,15 +164,15 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
         "type": "FeatureCollection",
         "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
-        
-    master_json = os.path.join(save_path, f'master_{tile_n}_{np.min(years)}-{start_month_day}_{np.max(years)}-{end_month_day}_HLS.json')
-    with open(master_json, 'w') as outfile:
-            json.dump(merge_catalogs, outfile)
+
+    
     #
     # Write local JSON that catalogs the HLS data retrieved from query
     #
-    # If local True, rewrite the s3 paths to internal not public buckets
-    #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
+    master_json = os.path.join(save_path, f'master_{tile_n}_{np.min(years)}-{start_month_day}_{np.max(years)}-{end_month_day}_HLS.json')
+    with open(master_json, 'w') as outfile:
+            json.dump(merge_catalogs, outfile)
+
     master_json = write_local_data_and_catalog_s3(master_json, HLS_bands_dict, save_path, local, s3_path="s3://")
     
     return master_json
