@@ -47,19 +47,31 @@ def get_json(s3path, output):
     return catalog
 
 def GetBandLists(inJSON, bandnum, comp_type):
-    if comp_type=='HLS':
-        bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
-    elif comp_type=='LS8':
-        bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
-    else:
-        print("comp type not recognized")
-        os._exit(1)
-    #bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
+    
     BandList = []
     with open(inJSON) as f:
         response = json.load(f)
+        
     for i in range(len(response['features'])):
+        
+        # Get the HLS product type and the product-specific bands from each feature of the JSON
+        product_type = response['features'][i]['id'].split('.')[1]
+        if comp_type=='HLS':
+            if product_type=='L30':
+                bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
+            elif product_type=='S30':
+                bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B8A', 6:'B11', 7:'B12',8:'Fmask'})
+            else:
+                print("HLS product type not recognized: Must be L30 or S30.")
+                os._exit(1)
+        elif comp_type=='LS8':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
+        else:
+            print("comp type not recognized")
+            os._exit(1)
+            
         try:
+            #print(f'GetBandLists: {comp_type} {product_type} {bands[bandnum]}')
             getBand = response['features'][i]['assets'][bands[bandnum]]['href']
             # check 's3' is at position [:2]
             if getBand.startswith('s3', 0, 2):
@@ -68,13 +80,16 @@ def GetBandLists(inJSON, bandnum, comp_type):
             print(e)
                 
     BandList.sort()
+    #print(BandList)
     return BandList
 
 # Please look at the HLS user guide for more details. 
 # https://lpdaac.usgs.gov/documents/1326/HLS_User_Guide_V2.pdf
 HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}
 
-def HLS_MASK(ma_fmask, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
+def HLS_MASK(ma_fmask, 
+             MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], 
+             HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
     # This function takes the HLS Fmask layer as a masked array and exports the desired mask image array. 
     # The mask_list assigns the QA conditions you would like to mask.
     # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
@@ -93,7 +108,8 @@ def HLS_MASK(ma_fmask, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice
         if m == 'aerosol_low':
             msk += (arr & (0 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
             
-    ma_fmask.mask *= msk > 0
+    #ma_fmask.mask *= msk > 0 # With *, this will be the intersection of the various bit masks
+    ma_fmask.mask += msk > 0 # With +, this will be the union of the various bit masks
     return ma_fmask
 
 # def hls_mask_ma(ma_arr, mask_list=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
@@ -439,28 +455,24 @@ def main():
         master_json = args.json_file
     
     
-    blue_bands = GetBandLists(master_json, 2, args.composite_type)
+    blue_bands = GetBandLists(master_json, 2, args.composite_type)#, product_type=args.hls_product)
     print(f"\nTotal # of scenes for composite:\t\t{len(blue_bands)}")
     if len(blue_bands) == 0:
             print("\nNo scenes to build a composite. Exiting.\n")
             os._exit(1)  
     #print(f"Example path to a band:\t\t {blue_bands[0]}")
-    green_bands = GetBandLists(master_json, 3, args.composite_type)
-    red_bands = GetBandLists(master_json, 4, args.composite_type)
-    nir_bands = GetBandLists(master_json, 5, args.composite_type)
-    swir_bands = GetBandLists(master_json, 6, args.composite_type)
-    swir2_bands = GetBandLists(master_json, 7, args.composite_type)
+    green_bands = GetBandLists(master_json, 3, args.composite_type)#, product_type=args.hls_product)
+    red_bands =   GetBandLists(master_json, 4, args.composite_type)#, product_type=args.hls_product)
+    nir_bands =   GetBandLists(master_json, 5, args.composite_type)#, product_type=args.hls_product)
+    swir_bands =  GetBandLists(master_json, 6, args.composite_type)#, product_type=args.hls_product)
+    swir2_bands = GetBandLists(master_json, 7, args.composite_type)#, product_type=args.hls_product)
     
     if args.composite_type=='HLS':
-        fmask_bands = GetBandLists(master_json, 8, args.composite_type)
+        fmask_bands = GetBandLists(master_json, 8, args.composite_type)#, product_type=args.hls_product)
         #print(f'Printing a single fmask band filename for testing:\n{fmask_bands[0]}')
-    
-    #print("# of files per band:\t\t", len(blue_bands))
-    #print(blue_bands[0])
-    
-    
-    ## create NDVI layers
-    ## Loopsover lists of bands and calculates NDVI
+  
+    ## Create NDVI layers
+    ## Loops over lists of bands and calculates NDVI
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
     print(args.composite_type)
@@ -599,9 +611,10 @@ def main():
     #assign band names
     # ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
     #bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
-    #outdir = '/projects/tmp/Landsat'
+
     outdir = args.output_dir
     start_season = args.start_month_day[0:2] + args.start_month_day[2:]
     end_season = args.end_month_day[0:2] + args.end_month_day[2:]

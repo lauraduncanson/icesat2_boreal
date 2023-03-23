@@ -14,9 +14,14 @@ from pystac_client import Client
 from maap.maap import MAAP
 maap = MAAP(maap_host='api.ops.maap-project.org')
 
-
-def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s3://"):
-    '''Given path to a response json from a sat-api query, make a copy changing urls to local paths'''
+'''TODO: the bands var may need to be a dict, with the band names dependent on whether S30 or L30'''
+def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s3_path="s3://"):
+    
+    '''
+    Given path to a response json from a sat-api query, make a copy changing urls to local paths
+    updated: now works with a mix of HLS product types, because bands names (specific to each product type) are retreived with a dictionary for each feature ID of the set of search results
+    '''
+    
     creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
     aws_session = boto3.session.Session(
         aws_access_key_id=creds['accessKeyId'], 
@@ -27,17 +32,20 @@ def write_local_data_and_catalog_s3(catalog, bands, save_path, local, s3_path="s
     
     with open(catalog) as f:
         clean_features = []
-        asset_catalog = json.load(f)
-        
-        
+        asset_catalog = json.load(f) 
         
         # Remove duplicate scenes, keeping newest
         features = asset_catalog['features']
         #sorted_features = sorted(features, key=lambda f: (f["properties"]["landsat:scene_id"], f["id"]))
         #most_recent_features = list({ f["properties"]["landsat:scene_id"]: f for f in sorted_features }.values())
         
+        # Here is where you determine if you have S30 or L30 data, and specify the bands accordingly
         for feature in features:
-            #print(feature)
+            
+            print(feature['id']) #  Check if feature can tell us if S30 or L30
+            hls_product = feature['id'].split('.')[1]
+            bands = HLS_bands_dict[hls_product]
+            
             try:
                 for band in bands:
                     output_file = feature['assets'][band]['href'].replace('https://data.lpdaac.earthdatacloud.nasa.gov/', s3_path)
@@ -110,8 +118,18 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_p
     return results
 
 
-def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0', bands = ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask']):
+def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0'):
 
+    # Need a dict that used HLS product to specify band names
+    HLS_bands_dict = dict({
+                            'L30': ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'Fmask'], 
+                            'S30': ['B02', 'B03', 'B04', 'B8A', 'B11', 'B12', 'Fmask']
+                          })
+    
+    if hls_product != 'L30' and hls_product != 'S30' and hls_product != 'H30':
+        print("HLS product type not recognized: Must be L30, S30, or both [H30].")
+        os._exit(1)
+        
     geojson_path_albers = in_tile_fn
     layer = in_tile_layer
     tile_n = int(in_tile_num)
@@ -127,6 +145,9 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     years = range(int(start_year), int(end_year)+1)
     api = sat_api
     
+    #
+    # Query the STAC
+    #
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
         print(f'bbox: {bbox}')
@@ -147,10 +168,12 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     master_json = os.path.join(save_path, f'master_{tile_n}_{np.min(years)}-{start_month_day}_{np.max(years)}-{end_month_day}_HLS.json')
     with open(master_json, 'w') as outfile:
             json.dump(merge_catalogs, outfile)
-    
+    #
+    # Write local JSON that catalogs the HLS data retrieved from query
+    #
     # If local True, rewrite the s3 paths to internal not public buckets
     #bands = [''.join(["B",str(item)])for item in range(2,8,1)]
-    master_json = write_local_data_and_catalog_s3(master_json, bands, save_path, local, s3_path="s3://")
+    master_json = write_local_data_and_catalog_s3(master_json, HLS_bands_dict, save_path, local, s3_path="s3://")
     
     return master_json
 
