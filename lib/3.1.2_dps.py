@@ -352,8 +352,8 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
-    parser.add_argument("--rangelims_red", type=float, nargs=2, action='append', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     # Feb 2023
+    parser.add_argument("--rangelims_red", type=float, nargs=2, action='append', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
@@ -546,29 +546,6 @@ def main():
     with rio.Env(aws_session):
         print('Creating Year Date Comp')
         YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
-          
-    # with rio.Env(aws_session):
-    #     print('Creating Blue Composite')
-    #     BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating Green Composite')
-    #     GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating Red Composite')
-    #     RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating NIR Composite')
-    #     NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating SWIR Composite')
-    #     SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating SWIR2 Composite')
-    #     SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating NDVI Composite')
-    #     NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
-    #     if args.composite_type == 'HLS':
-    #         print('Creating Julian Date Comp')
-    #         JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
-    #     elif args.composite == 'LS8':
-    #         JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
-    #     print('Creating Year Date Comp')
-    #     YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     
     # calculate covars
     print("Generating covariates")
