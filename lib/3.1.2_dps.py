@@ -357,6 +357,8 @@ def main():
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
+    parser.add_argument('--search_only', dest='search_only', action='store_true', help='Only perform search and return response json. No composites made.')
+    parser.set_defaults(search_only=False)
     #parser.add_argument("-bnames", "--bandnames_list", nargs="+", default='Blue Green Red NIR SWIR SWIR2 NDVI SAVI MSAVI NDMI EVI NBR NBR2 TCB TCG TCW ValidMask Xgeo Ygeo JulianDate yearDate', help="List of bandnames for composite.")
     args = parser.parse_args()    
     
@@ -441,6 +443,9 @@ def main():
     else:
         master_json = args.json_file
     
+    if args.search_only:
+        print(f"Search only mode. Master JSON written: {master_json}")
+        os._exit(1)
     
     blue_bands = GetBandLists(master_json, 2, args.composite_type)#, product_type=args.hls_product)
     print(f"\nTotal # of scenes for composite:\t\t{len(blue_bands)}")
