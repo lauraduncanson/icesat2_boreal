@@ -4,7 +4,7 @@
 # GDAL v3.1.4
 # Change input and output path for reading and writing files accordingly
 
-python cog_na_to_9999.py --nodata -9999 --band 'aboveground_biomass' --band 'standard_deviation'
+python cog_na_to_9999.py --nodata -9999 --band 'aboveground_biomass' --band 'standard_deviation' --co OVERVIEW_RESAMPLING=AVERAGE
 """
 
 import os
@@ -17,7 +17,7 @@ import rasterio
 from rasterio.enums import ColorInterp, MaskFlags
 from rasterio.io import MemoryFile
 from rasterio.rio import options
-from rasterio.shutil import copy
+from rasterio.shutil import copy, delete
 from rasterio.vrt import WarpedVRT
 import boto3
 
@@ -68,8 +68,9 @@ def convert(
     }
     
     client = boto3.client('s3')
+    s3 = boto3.resource('s3')
     my_bucket = 'nasa-maap-data-store'
-    prefix = 'file-staging/icesat2-boreal'
+    prefix = 'file-staging/nasa-map/icesat2-boreal/'
     paginator = client.get_paginator('list_objects_v2')
     pages = paginator.paginate(Bucket=my_bucket, Prefix=prefix)
 
@@ -78,12 +79,17 @@ def convert(
         for obj in page['Contents']:
             object_list.append(obj)
     
-    for objects in object_list:
-        ifile = objects['Key']
-        ifileName = ifile.split('/')[-1].split('.')[0]
+    # Filtering only the tif files as there might be other files (csv) too
+    object_list_tif = [x['Key'] for x in object_list if ".tif" in x['Key']]
+    
+    for ifile in object_list_tif:
         
+        ifileName = ifile.split('/')[-1].split('.')[0]        
         input = "s3://nasa-maap-data-store/"+ifile
         output = "file-staging/nasa-map/icesat2-boreal/"+ifileName+".tif"
+        temp_output = "/projects/tmp/"+ifileName+".tif"
+        
+        print("Processing file", input)
     
         with rasterio.Env(**config):
             with rasterio.open(input) as src_dst:
@@ -111,6 +117,7 @@ def convert(
                         tmp_dst.write(
                             numpy.where(arr != src_dst.nodata, arr, nodata)
                         )
+                        
                         del arr
 
                         tmp_dst._set_all_scales(src_dst.scales)
@@ -157,17 +164,21 @@ def convert(
                             output_profile.pop(key, None)
 
                         output_profile["driver"] = "COG"
-                        output_profile["blocksize"] = min(int(output_profile["blockysize"]), int(output_profile["blockysize"]))
+#                         output_profile["blocksize"] = min(int(output_profile["blockysize"]), int(output_profile["blockysize"]))
+                        output_profile["blocksize"] = 512
                         output_profile.pop("blockxsize", None)
                         output_profile.pop("blockysize", None)
                         output_profile.pop("tiled", None)
                         output_profile.pop("interleave", None)
                         output_profile.pop("photometric", None)
 
-#                         copy(tmp_dst, output, copy_src_overviews=True, **output_profile)
-
-                    client.put_object(Key=output, Bucket=my_bucket, Body=m)
-
+                        #copying the raster to a local storage along with the overviews
+                        copy(tmp_dst, temp_output, copy_src_overviews=True, **output_profile)
+                        
+        # uploading the locally generated file to the S3 bucket
+        s3.meta.client.upload_file(Filename=temp_output, Bucket='nasa-maap-data-store', Key=output)
+        #Deleting the temporary files from the local storage
+        delete(temp_output)
 
 if __name__ == '__main__':
     convert()
