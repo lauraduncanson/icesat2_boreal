@@ -142,7 +142,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
         print("composite type not recognized")
         os._exit(1)
 
-def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = (0.01, 0.1)):
+def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1]):
     '''Calculate NDVI for each source scene
     Mask out pixels above or below the red band reflectance range limit values'''
     
@@ -159,6 +159,9 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
+    
+    print(f'Min, max Red value before mask: {REDarr.min()}, {REDarr.max()}')
+    print(f'Red rangelims: {rangelims_red}')
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
 
@@ -310,6 +313,8 @@ def tasseled_cap(bands):
     # irrespective of sensor and collection, provided it is SREF
 
 def VegMask(NDVI, MIN_NDVI = 0.1):
+    print(f'Min NDVI value before mask: {np.nanmin(np.where(NDVI == -9999, np.nan, NDVI))}')
+    print(f'Min NDVI threshold: {MIN_NDVI}')
     mask = np.zeros_like(NDVI)
     mask = np.where(NDVI > MIN_NDVI, 1, mask)
     print(f"\tVegetation mask created: valid data where NDVI > {MIN_NDVI}")
@@ -353,7 +358,7 @@ def main():
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
     # Feb 2023
-    parser.add_argument("--rangelims_red", type=float, nargs=2, action='append', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
+    parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
@@ -599,11 +604,11 @@ def main():
                                                   start_year-1, start_year-1, start_month_day, end_month_day, \
                                                   max_cloud, local_json=None)
         stack = np.where(stack==-9999, fill_stack, stack)
-    
-    print('\nApply a common mask across all layers of stack...')
-    print(f"Stack shape pre-mask:\t\t{stack.shape}")
-    stack[:, np.any(stack == -9999, axis=0)] = -9999 
-    print(f"Stack shape post-mask:\t\t{stack.shape}")
+    if True:
+        print('\nApply a common mask across all layers of stack...')
+        print(f"Stack shape pre-mask:\t\t{stack.shape}")
+        stack[:, np.any(stack == -9999, axis=0)] = -9999 
+        print(f"Stack shape post-mask:\t\t{stack.shape}")
 
     # write COG to disk
     write_cog(stack, 
