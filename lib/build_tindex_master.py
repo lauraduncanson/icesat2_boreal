@@ -1,5 +1,6 @@
 import os
 import rasterio
+os.environ['USE_PYGEOS'] = '0'
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import box
@@ -8,12 +9,6 @@ import argparse
 import s3fs
 import ExtractUtils
 
-try:
-    from maap.maap import MAAP
-    HAS_MAAP = True
-except ImportError:
-    print('NASA MAAP is unavailable')
-    HAS_MAAP = False
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
@@ -101,12 +96,14 @@ def main():
     parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
     parser.add_argument("-d_min", "--dps_day_min", type=int, default=1, help = "Specify the first day of the DPS output")
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
-    parser.add_argument("-alg_name", type=str, choices=['do_HLS_stack_3-1-2_ubuntu','do_landsat_stack_3-1-2_ubuntu',
-                                                        'do_topo_stack_3-1-5_ubuntu','run_extract_filter_atl08_ubuntu',
-                                                        'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu',
-                                                        'run_boreal_biomass_quick_v2_ubuntu','run_build_stack_ubuntu'], 
-                        default='run_boreal_biomass_v5_ubuntu', help="The MAAP algorithm name used to produce output for the tindex")
+    # parser.add_argument("-alg_name", type=str, choices=['do_HLS_stack_3-1-2_ubuntu','do_landsat_stack_3-1-2_ubuntu',
+    #                                                     'do_topo_stack_3-1-5_ubuntu','run_extract_filter_atl08_ubuntu',
+    #                                                     'run_tile_atl08_ubuntu','run_boreal_biomass_v5_ubuntu','run_boreal_biomass_quick_ubuntu',
+    #                                                     'run_boreal_biomass_quick_v2_ubuntu','run_build_stack_ubuntu'], 
+    #                     default='run_boreal_biomass_v5_ubuntu', help="The MAAP algorithm name used to produce output for the tindex")
+    parser.add_argument("-alg_name", type=str, default=None, help="The MAAP algorithm name used to produce output for the tindex")
     parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
+    parser.add_argument("--user", type=str, default=None, help="Username under which DPS output exists")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
     parser.add_argument("-s", "--ends_with_str", type=str, default=".tif", help="String indicating ending pattern of files of interest.")
@@ -127,6 +124,16 @@ def main():
     
     s3 = s3fs.S3FileSystem(anon=True)
     
+    # This isnt working in new ADE
+    # try:
+    #     from maap.maap import MAAP
+    #     maap = MAAP()
+    #     HAS_MAAP = True
+    # except ImportError:
+    #     print('NASA MAAP is unavailable')
+    #     HAS_MAAP = False
+        
+    HAS_MAAP = True
     if HAS_MAAP:
         bucket = "s3://maap-ops-workspace"
     else:
@@ -142,9 +149,12 @@ def main():
     dps_month = args.dps_month
     dps_month_list = args.dps_month_list
     alg_name = args.alg_name
+    user = args.user
     
     boreal_tile_index_path = args.boreal_tile_index_path
-    
+    if alg_name is None:
+        print('You need to specify the name of a registered MAAP algorithm')
+        os._exit(1)
     if HAS_MAAP and dps_month is None and dps_month_list is None:
         print('You need to specify either a -dps_month or a -dps_month_list')
         os._exit(1)
@@ -179,32 +189,32 @@ def main():
         if HAS_MAAP:
             
             if "LC" in TYPE:
-                user = 'nathanmthomas'
+                if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_cog.tif"
         
             if "HLS" in TYPE:
-                user = 'nathanmthomas'
+                if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
-                user = 'nathanmthomas'
+                if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_dps.tif"
             if "Topo" in TYPE:
-                user = 'nathanmthomas'
+                if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_stack.tif"
             if "ATL08" in TYPE:
-                user = 'lduncanson'
+                if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
-                user = 'lduncanson'
+                if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".csv"
             if "AGB" in TYPE or 'HT' in TYPE:
-                user = 'lduncanson'
+                if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
                 
