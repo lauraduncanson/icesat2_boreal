@@ -2,6 +2,10 @@ import pandas as pd
 import geopandas
 import rasterio as rio
 from rasterio.crs import CRS
+from rasterio.plot import show_hist, show
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import imshow
+
 import os
 import numpy as np
 
@@ -617,3 +621,26 @@ def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_
     print(f"Wrote MS comp {MSCOMP_TYPE} params table: {OUTPUT_FN}")
     
     return OUTPUT_FN
+
+def map_image_band(cog_fn, band_num=13, vmin=0.20, vmax=0.45):
+    
+    with rio.open(cog_fn) as dataset:
+
+        fig, ax = plt.subplots(figsize=(5, 5))
+
+        # use imshow so that we have something to map the colorbar to
+        image_hidden = ax.imshow(dataset.read(band_num), 
+                                 cmap='nipy_spectral', 
+                                 vmin=vmin, 
+                                 vmax=vmax)
+
+        # plot on the same axis with rio.plot.show
+        image = show(dataset.read(band_num), 
+                              transform=dataset.transform, 
+                              ax=ax, 
+                              cmap='nipy_spectral', 
+                              vmin=vmin, 
+                              vmax=vmax)
+
+        # add colorbar using the now hidden image
+        fig.colorbar(image_hidden, ax=ax)

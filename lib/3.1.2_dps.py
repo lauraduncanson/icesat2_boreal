@@ -47,19 +47,31 @@ def get_json(s3path, output):
     return catalog
 
 def GetBandLists(inJSON, bandnum, comp_type):
-    if comp_type=='HLS':
-        bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
-    elif comp_type=='LS8':
-        bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
-    else:
-        print("comp type not recognized")
-        os._exit(1)
-    #bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
+    
     BandList = []
     with open(inJSON) as f:
         response = json.load(f)
+        
     for i in range(len(response['features'])):
+        
+        # Get the HLS product type and the product-specific bands from each feature of the JSON
+        product_type = response['features'][i]['id'].split('.')[1]
+        if comp_type=='HLS':
+            if product_type=='L30':
+                bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
+            elif product_type=='S30':
+                bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B8A', 6:'B11', 7:'B12',8:'Fmask'})
+            else:
+                print("HLS product type not recognized: Must be L30 or S30.")
+                os._exit(1)
+        elif comp_type=='LS8':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
+        else:
+            print("comp type not recognized")
+            os._exit(1)
+            
         try:
+            #print(f'GetBandLists: {comp_type} {product_type} {bands[bandnum]}')
             getBand = response['features'][i]['assets'][bands[bandnum]]['href']
             # check 's3' is at position [:2]
             if getBand.startswith('s3', 0, 2):
@@ -68,10 +80,44 @@ def GetBandLists(inJSON, bandnum, comp_type):
             print(e)
                 
     BandList.sort()
+    #print(BandList)
     return BandList
 
-def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False):
-    '''Read a window of data from the raster matching the tile bbox'''
+# Please look at the HLS user guide for more details. 
+# https://lpdaac.usgs.gov/documents/1326/HLS_User_Guide_V2.pdf
+HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}
+
+def HLS_MASK(ma_fmask, 
+             MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], 
+             HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
+    # This function takes the HLS Fmask layer as a masked array and exports the desired mask image array. 
+    # The mask_list assigns the QA conditions you would like to mask.
+    # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
+    
+    # TODO: test this change in input. Changed from a path to a masked array (ma), because a 
+    #arr = read_img(mask_img_path)
+    arr = ma_fmask.data
+    msk = np.zeros_like(arr)#.astype(np.bool)
+    for m in MASK_LIST:
+        if m in HLS_QA_BIT.keys():
+            msk += (arr & (1 << HLS_QA_BIT[m]) ) #<--added parantheses 
+        if m == 'aerosol_high':
+            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
+        if m == 'aerosol_moderate':
+            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (0 << HLS_QA_BIT['aerosol_l']))
+        if m == 'aerosol_low':
+            msk += (arr & (0 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
+            
+    #ma_fmask.mask *= msk > 0 # With *, this will be the intersection of the various bit masks
+    ma_fmask.mask += msk > 0 # With +, this will be the union of the various bit masks
+    return ma_fmask
+
+def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False, do_mask=False):
+    '''Read a window of data from the raster matching the tile bbox
+    Return a masked array for the window (subset) of the input file
+    or
+    Return the image crs and transform (incl_trans=True).
+    Note: could be renamed to Get_MaskArray_Subset() '''
     #print(file)
     
     with COGReader(file) as cog:
@@ -84,21 +130,40 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     if comp_type=="HLS":
         #print("HLS")
         #print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
-        return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
+        if do_mask:
+            # Returns the integer Fmask whose bits can be converted to a datamask
+            return (np.squeeze(img.as_masked().astype(int)) )
+        else:
+            return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
+        
     elif comp_type=="LS8":
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
     else:
         print("composite type not recognized")
         os._exit(1)
 
-def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type):
-    '''Calculate NDVI for each source scene'''
+def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1]):
+    '''Calculate NDVI for each source scene
+    Mask out pixels above or below the red band reflectance range limit values'''
+    
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs)
+    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+    
+    #
+    # HLS masking
+    #
+    fmaskarr = HLS_MASK(fmaskarr)
+    
+    #print(f'printing fmaskarr data:\n{fmaskarr.data}')
+    #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
-    return np.ma.array(np.where(((fmaskarr==1) | (REDarr>0.1) | (REDarr<0.01)), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    
+    print(f'Min, max Red value before mask: {REDarr.min()}, {REDarr.max()}')
+    print(f'Red rangelims: {rangelims_red}')
+    return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    
 
 def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width, comp_type):
     '''Calculate NDVI for each source scene'''
@@ -247,10 +312,12 @@ def tasseled_cap(bands):
     # which in turn are from/built from: Crist 1985. These are sensor non-specific so should be applicable
     # irrespective of sensor and collection, provided it is SREF
 
-def VegMask(NDVI):
+def VegMask(NDVI, MIN_NDVI = 0.1):
+    print(f'Min NDVI value before mask: {np.nanmin(np.where(NDVI == -9999, np.nan, NDVI))}')
+    print(f'Min NDVI threshold: {MIN_NDVI}')
     mask = np.zeros_like(NDVI)
-    mask = np.where(NDVI > 0.1, 1, mask)
-    print("\tVeg Mask Created")
+    mask = np.where(NDVI > MIN_NDVI, 1, mask)
+    print(f"\tVegetation mask created: valid data where NDVI > {MIN_NDVI}")
     return mask
 
 def get_pixel_coords(arr, transform):
@@ -271,6 +338,7 @@ def renew_session(comp_type):
     return aws_session   
 
 def main():
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg", help="The filename of the stack's set of vector tiles")
     parser.add_argument("-n", "--in_tile_num", type=int, help="The id of a tile that will define the bounds of the raster stacking")
@@ -289,15 +357,42 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
-    # TODO
-    parser.add_argument("-hls", "--hls_product", choices=['S30', 'L30','SL30'], nargs="?", type=str, default='L30', help="Specify the HLS product; SL30 is our name for a combined HLS composite")
+    # Feb 2023
+    parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
+    parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
+    parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
+    parser.add_argument('--search_only', dest='search_only', action='store_true', help='Only perform search and return response json. No composites made.')
+    parser.set_defaults(search_only=False)
+    #parser.add_argument("-bnames", "--bandnames_list", nargs="+", default='Blue Green Red NIR SWIR SWIR2 NDVI SAVI MSAVI NDMI EVI NBR NBR2 TCB TCG TCW ValidMask Xgeo Ygeo JulianDate yearDate', help="List of bandnames for composite.")
     args = parser.parse_args()    
     
-    #print(args.start_month_day)
+    '''
+    Build multi-spectral (ms) composites with scenes from queries of:
+    (a) An endpoint of the USGS Landsat-8 archive
+    (b) An endpoint of the v 2.0 of the HLS S30, L30 archive
+    
+    The ms composite will have the following bands:
+    
+    'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2': surface reflectance values for ms composite obs.
+    'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2' : indices calc'd from the surface reflectance values of the ms composite obs.
+    'TCB', 'TCG', 'TCW' : tasseled cap values from the ms composite obs.
+    'ValidMask' : a mask identifing valid vegetation obs.
+    'Xgeo' : x coordinate
+    'Ygeo' : y coordinate
+    'JulianDate' : day-of-year of ms composite obs.
+    'yearDate' : year of ms composite obs.
+    
+    Note: 
+    HLS info:
+    https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/harmonized-landsat-sentinel-2-hls-overview/  
 
-    # EXAMPLE CALL
-    # python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
+    EXAMPLE CALL
+    python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
+    '''
+    
+    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
     tile_n = args.in_tile_num
@@ -353,28 +448,28 @@ def main():
     else:
         master_json = args.json_file
     
+    if args.search_only:
+        print(f"Search only mode. Master JSON written: {master_json}")
+        os._exit(1)
     
-    blue_bands = GetBandLists(master_json, 2, args.composite_type)
+    blue_bands = GetBandLists(master_json, 2, args.composite_type)#, product_type=args.hls_product)
     print(f"\nTotal # of scenes for composite:\t\t{len(blue_bands)}")
     if len(blue_bands) == 0:
             print("\nNo scenes to build a composite. Exiting.\n")
             os._exit(1)  
     #print(f"Example path to a band:\t\t {blue_bands[0]}")
-    green_bands = GetBandLists(master_json, 3, args.composite_type)
-    red_bands = GetBandLists(master_json, 4, args.composite_type)
-    nir_bands = GetBandLists(master_json, 5, args.composite_type)
-    swir_bands = GetBandLists(master_json, 6, args.composite_type)
-    swir2_bands = GetBandLists(master_json, 7, args.composite_type)
+    green_bands = GetBandLists(master_json, 3, args.composite_type)#, product_type=args.hls_product)
+    red_bands =   GetBandLists(master_json, 4, args.composite_type)#, product_type=args.hls_product)
+    nir_bands =   GetBandLists(master_json, 5, args.composite_type)#, product_type=args.hls_product)
+    swir_bands =  GetBandLists(master_json, 6, args.composite_type)#, product_type=args.hls_product)
+    swir2_bands = GetBandLists(master_json, 7, args.composite_type)#, product_type=args.hls_product)
     
     if args.composite_type=='HLS':
-        fmask_bands = GetBandLists(master_json, 8, args.composite_type)
-    
-    #print("# of files per band:\t\t", len(blue_bands))
-    #print(blue_bands[0])
-    
-    
-    ## create NDVI layers
-    ## Loopsover lists of bands and calculates NDVI
+        fmask_bands = GetBandLists(master_json, 8, args.composite_type)#, product_type=args.hls_product)
+        #print(f'Printing a single fmask band filename for testing:\n{fmask_bands[0]}')
+  
+    ## Create NDVI layers
+    ## Loops over lists of bands and calculates NDVI
     ## creates a new list of NDVI images, one per input scene
     print('Creating NDVI stack...')
     print(args.composite_type)
@@ -394,7 +489,7 @@ def main():
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
         #print(in_crs)
         if args.composite_type=='HLS':
-            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
+            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
         elif args.composite_type=='LS8':
             NDVIstack = [CreateNDVIstack_LS8(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
         
@@ -461,29 +556,6 @@ def main():
     with rio.Env(aws_session):
         print('Creating Year Date Comp')
         YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
-          
-    # with rio.Env(aws_session):
-    #     print('Creating Blue Composite')
-    #     BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating Green Composite')
-    #     GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating Red Composite')
-    #     RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating NIR Composite')
-    #     NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating SWIR Composite')
-    #     SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating SWIR2 Composite')
-    #     SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-    #     print('Creating NDVI Composite')
-    #     NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
-    #     if args.composite_type == 'HLS':
-    #         print('Creating Julian Date Comp')
-    #         JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
-    #     elif args.composite == 'LS8':
-    #         JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
-    #     print('Creating Year Date Comp')
-    #     YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     
     # calculate covars
     print("Generating covariates")
@@ -500,19 +572,23 @@ def main():
     NBR2 = calcNBR2(SWIRComp, SWIR2Comp)
     #print("TCB")
     TCB, TCG, TCW = tasseled_cap(np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp], [0, 1, 2]))
+    
     print("Calculating X and Y pixel center coords...")
-    ValidMask = VegMask(NDVIComp)
+    ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
     Xgeo, Ygeo = get_pixel_coords(ValidMask, crs_transform)
     
     # Stack bands together
     print("\nCreating raster stack...\n")
+    # These must correspond with the bandnames
     stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARComp], [0, 1, 2]) 
     
     #assign band names
-    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    # ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    #bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
-    #outdir = '/projects/tmp/Landsat'
+
     outdir = args.output_dir
     start_season = args.start_month_day[0:2] + args.start_month_day[2:]
     end_season = args.end_month_day[0:2] + args.end_month_day[2:]
@@ -528,11 +604,11 @@ def main():
                                                   start_year-1, start_year-1, start_month_day, end_month_day, \
                                                   max_cloud, local_json=None)
         stack = np.where(stack==-9999, fill_stack, stack)
-    
-    print('\nApply a common mask across all layers of stack...')
-    print(f"Stack shape pre-mask:\t\t{stack.shape}")
-    stack[:, np.any(stack == -9999, axis=0)] = -9999 
-    print(f"Stack shape post-mask:\t\t{stack.shape}")
+    if True:
+        print('\nApply a common mask across all layers of stack...')
+        print(f"Stack shape pre-mask:\t\t{stack.shape}")
+        stack[:, np.any(stack == -9999, axis=0)] = -9999 
+        print(f"Stack shape post-mask:\t\t{stack.shape}")
 
     # write COG to disk
     write_cog(stack, 

@@ -58,4 +58,5 @@ python ${basedir}/../../lib/3.1.2_dps.py \
 --max_cloud ${9} \
 --composite_type ${10} \
 --shape ${11} \
+--hls_product ${12} \
 --output_dir ${OUTPUTDIR}
