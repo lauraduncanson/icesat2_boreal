@@ -125,15 +125,16 @@ def main():
     s3 = s3fs.S3FileSystem(anon=True)
     
     # This isnt working in new ADE
-    # try:
-    #     from maap.maap import MAAP
-    #     maap = MAAP()
-    #     HAS_MAAP = True
-    # except ImportError:
-    #     print('NASA MAAP is unavailable')
-    #     HAS_MAAP = False
+    try:
+        from maap.maap import MAAP
+        maap = MAAP()
+        HAS_MAAP = True
+        print('NASA MAAP')
+    except ImportError:
+        print('NASA MAAP is unavailable')
+        HAS_MAAP = False
         
-    HAS_MAAP = True
+    #HAS_MAAP = True
     if HAS_MAAP:
         bucket = "s3://maap-ops-workspace"
     else:
