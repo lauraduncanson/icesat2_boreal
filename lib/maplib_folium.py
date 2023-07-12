@@ -149,9 +149,11 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         #GeoJson(boreal, name="Boreal extent", style_function=lambda x:boreal_style).add_to(m1)
 
     # Map the Layers
-    Map_Figure=Figure(width=map_width,height=map_height)
+    #Map_Figure=Figure(width=map_width,height=map_height)
+    Map_Figure=Figure()
     #------------------
     m1 = Map(
+        width=map_width,height=map_height,
         #tiles="Stamen Toner",
         tiles='',
         location=(60, 5),
