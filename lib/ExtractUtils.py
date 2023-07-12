@@ -37,7 +37,7 @@ except ImportError:
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
     if '/my-' in url:
-        if type is 'public':
+        if type == 'public':
             replacement_str = f's3://maap-ops-workspace/shared/{user}'
         else:
             replacement_str = f's3://maap-ops-workspace/{user}'
@@ -346,6 +346,30 @@ def BUILD_TABLE_JOBSTATUS(submit_results_df):
     
     NUM_FAILS = job_status_df[job_status_df['wps:Status'] =='Failed'].shape[0]
     NUM_SUCCEEDS = job_status_df[job_status_df['wps:Status'] =='Succeeded'].shape[0]
+    print(f"Count succeeded jobs:\t{NUM_SUCCEEDS}")
+    print(f"Count failed jobs:\t{NUM_FAILS}")
+    if NUM_FAILS > 0:
+        print(f"% of failed jobs:\t{round(NUM_FAILS / ( NUM_FAILS + NUM_SUCCEEDS ), 4) * 100}\n")
+    else:
+        print(f"% of failed jobs:\tNothing has failed...yet\n")
+    
+    return job_status_df
+
+def BUILD_TABLE_JOBSTATUS_V2(submit_results_df, status_col = 'status'):
+    import xmltodict
+    
+    # If jobs failed to submit, then they have a NaN for jobid, which makes the merge (join) fail
+    submit_results_df = submit_results_df.fillna('')
+    
+    job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
+    job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='job_id')
+    
+    print(f'Count total jobs:\t{len(job_status_df)}')
+    print(f"Count pending jobs:\t{job_status_df[job_status_df[status_col] =='Accepted'].shape[0]}")
+    print(f"Count running jobs:\t{job_status_df[job_status_df[status_col] =='Running'].shape[0]}")
+    
+    NUM_FAILS = job_status_df[job_status_df[status_col] =='Failed'].shape[0]
+    NUM_SUCCEEDS = job_status_df[job_status_df[status_col] =='Succeeded'].shape[0]
     print(f"Count succeeded jobs:\t{NUM_SUCCEEDS}")
     print(f"Count failed jobs:\t{NUM_FAILS}")
     if NUM_FAILS > 0:
