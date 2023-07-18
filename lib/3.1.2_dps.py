@@ -21,7 +21,7 @@ import datetime
 from CovariateUtils import get_creds, get_creds_DAAC
 
 from maap.maap import MAAP
-maap = MAAP(maap_host='api.ops.maap-project.org')
+maap = MAAP()
 
 # def get_shape(bbox, res=30):
 #     left, bottom, right, top = bbox
