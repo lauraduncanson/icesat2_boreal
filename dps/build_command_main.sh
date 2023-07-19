@@ -2,7 +2,8 @@
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 #install requirements packages
-mamba env create -f  ${basedir}/env_main.yaml
+#mamba env create -f  ${basedir}/env_main.yaml
+mamba env create -f  ${basedir}/above_env.yml
 pushd ${HOME}
 
 # Do not remove this (PMM Dec 2022)
