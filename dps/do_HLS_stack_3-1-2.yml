@@ -3,7 +3,7 @@ algorithm_name: do_HLS_stack_3-1-2
 algorithm_version: HLS_stack_2023_v1
 build_command: icesat2_boreal/dps/build_command_main.sh
 disk_space: 16GB
-docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/vanilla:dit
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/vanilla:v3.0.1
 inputs:
   config: []
   file:
@@ -61,5 +61,5 @@ inputs:
     name: hls_product
     required: true
 queue: maap-dps-worker-32gb
-repository_url: https://repo.ops.maap-project.org/icesat2_boreal/icesat2_boreal.git
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
 run_command: icesat2_boreal/dps/alg_3-1-2/run.sh
