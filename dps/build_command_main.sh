@@ -7,7 +7,8 @@ pushd ${HOME}
 
 # Do not remove this (PMM Dec 2022)
 source activate icesat2_boreal
-pip install --user -e git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
+
+pip install git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
 source activate base
 pip3 install pyOpenSSL --upgrade
