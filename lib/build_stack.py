@@ -6,6 +6,7 @@ import argparse
 
 import numpy as np
 import geopandas as gpd
+import pandas as pd
 import rasterio as rio
 from rasterio.session import AWSSession 
 from rasterio.warp import * #TODO: limit to specific needed modules
@@ -181,19 +182,29 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     else:
         return(cog_fn)
 
-def build_stack_list(covar_dict_list, stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, 
+def build_stack_list(covar_dict_list, vector_dict,
+                     #stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, 
+                     tile_buffer_m: int, 
+                     #stack_tile_layer: str, 
                      #covar_tile_fn_list, in_covar_s3_col: str, 
                      res: int, 
                      #input_nodata_value: int, tmp_out_path: str, covar_src_name: str, 
                      clip: bool, 
                      #topo_off: bool, 
                      output_dir: str, 
-                     height: None, width: None):
+                     height: None, width: None,
+                     MAKE_DF=False
+                    ):
     '''
     Build a stack of a list of data and export as a multi-band COG
     TODO:  in_covar_s3_col is s3_path for each covar_tile_fn; to vary this by fn, make this var into a list that corresponds with covar_tile_fn_list
     '''
+    stack_tile_fn =   vector_dict['INDEX_FN']
+    in_tile_id_col =  vector_dict['ID_COL_NAME']
+    stack_tile_id =   vector_dict['TILE_NUM']
+    stack_tile_layer = vector_dict['INDEX_LYR']
     
+    ext = "cog.tif" 
     ## Check file list
     #covar_tile_fn_list = fn_list_valid(covar_tile_fn_list)
     
@@ -257,15 +268,15 @@ def build_stack_list(covar_dict_list, stack_tile_fn: str, in_tile_id_col: str, s
                 clip_crs = None
 
             bandnames_list = [covar_src_name]
-            
+            print(f'mosaic shape: {mosaic.shape}')
             stack_bandnames_list.append(covar_src_name)
             stack_tile_mosaic_list.append(mosaic)
             
     # Stack bands together
     print("\nCreating raster stack...\n")
     # These must correspond with the bandnames
-    stack = np.stack(stack_tile_mosaic_list)  
-    
+    stack = np.vstack(stack_tile_mosaic_list)  
+    print(f'stack shape: {stack.shape}')
     # New output COG name 
     cog_fn = os.path.join(output_dir, "_".join(['build_stack', str(stack_tile_id), ext]))
     print(f'Writing stack as cloud-optimized geotiff: {cog_fn}')
@@ -283,7 +294,11 @@ def build_stack_list(covar_dict_list, stack_tile_fn: str, in_tile_id_col: str, s
              )
 
     mosaic=None
-    
+    if MAKE_DF:
+        csv_fn = cog_fn.split('_'+ext)[0] + '.csv'
+        print(f'Writing a dataframe csv: {csv_fn}')
+        # https://gis.stackexchange.com/questions/361318/create-pandas-dataframe-from-raster-image-one-row-per-pixel-with-bands-as-colu
+        pd.DataFrame(stack.reshape([len(covar_dict_list),-1]).T, columns=[d['RASTER_NAME'] for d in covar_dict_list]).to_csv(csv_fn)
     return(cog_fn)
     
 
