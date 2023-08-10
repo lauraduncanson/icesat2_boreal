@@ -3,6 +3,9 @@ set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 #install requirements packages
 mamba env update -f ${basedir}/above_env.yml
+# needed for ee asset export
+mamba install -c conda-forge earthengine-api
+
 pushd ${HOME}
 
 # Do not remove this (PMM Dec 2022)
