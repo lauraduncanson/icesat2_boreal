@@ -315,8 +315,6 @@ def main():
             mscomp_params_table_fn = ExtractUtils.write_mscomp_params_table(f'{args.outdir}/HLS_tindex_master.csv',  
                                        MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", 
                                        cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year'])
-        
-        
         return df
     
 if __name__ == "__main__":
