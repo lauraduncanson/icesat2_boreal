@@ -21,6 +21,9 @@ import sys
 import itertools
 import copy
 
+from multiprocessing import Pool
+from functools import partial
+
 #from notebooks.general.covariateutils import get_index_tile
 #import notebooks.general.CovariateUtils 
 #from CovariateUtils import get_index_tile
@@ -246,20 +249,20 @@ def get_neighbors(input_gdf, input_id_field, input_id):
     
     return neighbors
 
-def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
-    '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
-    import rasterstats
-    # Use join
-    out_gdf = in_gdf.reset_index(drop=True).join(
-                                                pd.DataFrame(
-                                                    rasterstats.zonal_stats(
-                                                        vectors=in_gdf['geometry'], 
-                                                        raster=vrt_fn, 
-                                                        stats=STATS_LIST
-                                                    )
-                                                )
-                                            )
-    return out_gdf
+# def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
+#     '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
+#     import rasterstats
+#     # Use join
+#     out_gdf = in_gdf.reset_index(drop=True).join(
+#                                                 pd.DataFrame(
+#                                                     rasterstats.zonal_stats(
+#                                                         vectors=in_gdf['geometry'], 
+#                                                         raster=vrt_fn, 
+#                                                         stats=STATS_LIST
+#                                                     )
+#                                                 )
+#                                             )
+#     return out_gdf
 
 def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
                     boreal_tile_index_path = '/projects/my-public-bucket/boreal_tiles_v003.gpkg',
@@ -481,11 +484,20 @@ def get_tile_matches_gdf(tindex_master_fn,
     
     return tile_index_matches_gdf
 
-def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
+def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/shared-buckets/montesano/databank/arc/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
     
     '''Plot a gdf (in 4326) on a world map'''
     import shapely
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    fig, ax = plt.subplots(1, 1, figsize=(25,4))
+    #divider = make_axes_locatable(ax)
+    #cax = divider.append_axes("bottom", size="5%", pad=0.1)
+    
     gdf = gdf.to_crs("EPSG:4326")
+    
+    #legend_kwds={"orientation": "horizontal"}
     
     # Get world
     world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
@@ -495,15 +507,19 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
     
     world_clip = geopandas.clip(world, poly_gdf)
-    ax = world_clip.plot(color='gray')
+    ax = world_clip.plot(color='gray', ax=ax)
     
     # Get some boundary_layer
     boundary_layer = geopandas.read_file(boundary_layer_fn)
     ax = boundary_layer.boundary.plot(color='black', ax=ax)
     if DO_TYPE:
-        print(gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True,  ax=ax, figsize=(25,10)))
+        print(gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, 
+                       #legend_kwds=legend_kwds, 
+                       #legend_kwds={"orientation": "horizontal"},
+                       #cax=cax,
+                       ax=ax))
     else:
-        print(gdf.plot(color='orange', ax=ax, figsize=(25,10)))
+        print(gdf.plot(color='orange', ax=ax))
 
 
 def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', SHOW_MAP=True):
@@ -599,7 +615,7 @@ def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_sc
     
     return df
 
-def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
+def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", NCPU=25, mscomp_num_scenes_glob_str="master*.json", cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
     
     # Combine these cols to get run_type
     params_cols_list = cols_list[1:]
@@ -608,7 +624,13 @@ def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_
     list_s3_paths = tindex.s3_path.to_list()
     
     # Concatenate all single-row data frames of MScomp input params into one
-    df = pd.concat([build_json_mscomp_df(s3_path, mscomp_input_glob_str, mscomp_num_scenes_glob_str, cols_list) for s3_path in list_s3_paths])#.reset_index(drop=True)
+    if True:
+        df_list = [build_json_mscomp_df(s3_path, mscomp_input_glob_str, mscomp_num_scenes_glob_str, cols_list) for s3_path in list_s3_paths]#.reset_index(drop=True)
+    else:
+        with Pool(processes=NCPU) as pool:
+            df_list = pool.map(partial(build_json_mscomp_df, mscomp_input_glob_str=mscomp_input_glob_str, mscomp_num_scenes_glob_str=mscomp_num_scenes_glob_str, params_cols_list=cols_list), list_s3_paths )
+    
+    df = pd.concat(df_list)
     
     df['run_type'] = df[params_cols_list].apply(
                                                 lambda x: '_'.join(x.dropna().astype(str)),
