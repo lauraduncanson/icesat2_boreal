@@ -35,21 +35,47 @@ class Curler(object):
 
 
 
-def download_image_by_asset_path(asset_path, output_folder, region=None, idx=None):
+def download_image_by_asset_path(asset_path, output_folder, region=None, idx=None, theshval=0, ndval=-9999):
     """
         Downloads an individual image, given its asset path, and saves it to output_folder.
         Returns a list of the downloaded image or images
     """
     ### Get the download URL from EE
     image = ee.Image(asset_path)  # this approach comes from https://github.com/google/earthengine-api/blob/master/python/examples/py/Image/download.py
+    
+    # Gentle modification to handle masking
+    # Masking is needed for the edge subtiles of a given GEE asset tile
+    # these edge subtiles will feature a row of partially masked pixels where they abut the asset tile edge. 
+    # making a data mask, then setting nodata to -9999 results in these edge values turning to 0 - outside the dynamice range - they would otherwise by within it, i think
+    
+    data_mask = image.select(1).gt(theshval)
+    imageMasked_data = image.updateMask(data_mask)
+    
+    # Unmask image: where the mask exists, set values to somewhere outside the valid range
+    imageMasked_ndval = imageMasked_data.unmask(ndval)
+    
+    # After unmasking of ndval, 0's are now present (whereas prior to it, they were disquised as data values from partial masks
+    # Would like to remove this threshval = 0
+    # 0 appears at the edge of each image only adjacent to the ndval, it seems
+    #
+    # But no success
+    #
+    # Unmask image: where the theshval exists.. <-- this doesnt remove 0's..
+    #imageMasked = imageMasked_ndval.unmask(theshval)
+    
+    # Mask again with an updated data_mask <-- this doesnt remove 0's either..
+    data_mask = imageMasked_ndval.select(1).gt(theshval)
+    imageMasked = imageMasked_ndval.updateMask(data_mask)
+    
+    # Note: invalid 0's remain in image, along with -9999. Both of these values are nodata. They need to be handled downstream.
     if region is not None:
-        path = image.getDownloadUrl({
+        path = imageMasked.getDownloadUrl({
             #'scale': 30,
-            #'crs': 'EPSG:3310',
+            #'crs': crs, #'EPSG:3310',
             'region': region
         })
     else:
-        path = image.getDownloadUrl({
+        path = imageMasked.getDownloadUrl({
             #'scale': 30,
             #'crs': 'EPSG:3310',
             #'region': '[[-120, 35], [-119, 35], [-119, 34], [-120, 34]]'
@@ -57,8 +83,9 @@ def download_image_by_asset_path(asset_path, output_folder, region=None, idx=Non
     
     ### Do some name management things
     output_name = os.path.split(asset_path)[1]
+    
     if idx is not None:
-        output_name = f'{output_name}-{idx}'
+        output_name = f'{output_name}-subtile{int(idx):06}'
     zipfile = output_name + ".zip"
     download_path = os.path.join(output_folder, zipfile)  # comes as a zip file with a .tfw
     
