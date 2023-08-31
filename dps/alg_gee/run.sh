@@ -33,8 +33,8 @@ cp ${INPUT1} .config/earthengine/
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
 
-python ${basedir}/../../lib/export_gee_to_maap.py \
---in_tile_num ${1} \
---dims ${2} \
+python ${basedir}/../../lib/do_gee_download_by_subtile.py \
+--subtile_loc ${1} \
+--tile_loc ${2} \
 --asset_path ${3} \
 --out_dir ${OUTPUTDIR}
