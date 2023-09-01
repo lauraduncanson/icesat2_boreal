@@ -13,9 +13,6 @@ source activate icesat2_boreal
 # needed for ee asset export
 mamba install --name icesat2_boreal -c conda-forge earthengine-api
 
-# needed to s3 copy ee credentials file to local worker
-mamba install -c conda-forge awscli
-
 pip install git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
 source activate base
