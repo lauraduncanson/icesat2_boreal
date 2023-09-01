@@ -19,10 +19,14 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 # TODO: Fragile relying on alphabetical order
 
 # DPS notebook used to submit this job will make a new credentials file and place it in the private bucket on s3 at the 
-INPUT1='credentials'
-
+# use a notebook to authenticate a new creds file and copy to my-private-bucket/GEE/credentials
+#
+#INPUT1='credentials'
+#mkdir -p .config/earthengine/
+#cp ${INPUT1} .config/earthengine/
+INPUT1='s3://maap-ops-workspace/montesano/GEE/credentials'
 mkdir -p .config/earthengine/
-cp ${INPUT1} .config/earthengine/
+aws s3 cp ${INPUT1} .config/earthengine/
 
 ## Hard coded args for each run (if any; usually just output dir)
 
