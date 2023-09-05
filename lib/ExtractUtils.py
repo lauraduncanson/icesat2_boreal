@@ -513,13 +513,15 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     boundary_layer = geopandas.read_file(boundary_layer_fn)
     ax = boundary_layer.boundary.plot(color='black', ax=ax)
     if DO_TYPE:
-        print(gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, 
+        ax = gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, 
                        #legend_kwds=legend_kwds, 
                        #legend_kwds={"orientation": "horizontal"},
                        #cax=cax,
-                       ax=ax))
+                       ax=ax)
     else:
-        print(gdf.plot(color='orange', ax=ax))
+        #print(gdf.plot(color='orange', ax=ax))
+        ax = gdf.plot(color='orange', ax=ax)
+    return ax
 
 
 def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', SHOW_MAP=True):
@@ -595,25 +597,29 @@ def build_mosaic_json(
         
     return out_mosaic_json_fn, tile_index_matches_gdf
 
-def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list):
+def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list, DEBUG=False):
     
     '''Build a single-row data frame of the input multi-spec compositing parameters for each tile'''
     # Make sure you have the right version of s3fs... https://github.com/dask/dask/issues/5152
     
     dir_tile = os.path.split(s3_path)[0]
-    
-    # Find the json file with the MS comp input params
-    f = s3.glob(os.path.join(dir_tile, mscomp_input_glob_str))[0]
-    #print(f)
-    df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[params_cols_list]
-    df['json_path'] = s3_path
-    
-    # Find the json file with the metadata for each scene; get count of scenes used for this composite
-    f = s3.glob(os.path.join(dir_tile, mscomp_num_scenes_glob_str))[0]
-    scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
-    df['num_scenes'] = len(scene_metadata_list)
-    
-    return df
+    try:
+        # Find the json file with the MS comp input params
+        f = s3.glob(os.path.join(dir_tile, mscomp_input_glob_str))[0]
+        if DEBUG: print(f)
+        df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[params_cols_list]
+        df['json_path'] = s3_path
+
+        # Find the json file with the metadata for each scene; get count of scenes used for this composite
+        f = s3.glob(os.path.join(dir_tile, mscomp_num_scenes_glob_str))[0]
+        scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
+        df['num_scenes'] = len(scene_metadata_list)
+
+        return df
+    except IndexError as e:
+        if DEBUG: print(e)
+        print(f'Seems like output*context.json for {dir_tile} doesnt exist. Delete output and redo tile.')
+        
 
 def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", NCPU=25, mscomp_num_scenes_glob_str="master*.json", cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
     

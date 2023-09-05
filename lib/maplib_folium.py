@@ -52,7 +52,7 @@ def local_to_s3(url, user = 'nathanmthomas', type='public'):
         replacement_str = f's3://maap-ops-workspace/{user}'
     return url.replace(f'/projects/my-{type}-bucket', replacement_str)
 
-def GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style):
+def GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style={'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0}):
     boreal_tile_index_layer = GeoJson(
             data=boreal_tile_index[~boreal_tile_index.tile_num.isin(tiles_remove)].to_crs("EPSG:4326").to_json(),
             style_function=lambda x:boreal_tiles_style,
@@ -95,7 +95,8 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
                     SHOW_WIDGETS=False,
                     TOPO_OPACITY=0.15,
                     map_width=1000, map_height=500,
-                    ADD_TILELAYER = None
+                    ADD_TILELAYER = None,
+                    HLS_TILELAYER_LIST = None
                    ):
     
     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
@@ -242,7 +243,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             )
         )
 
-    if len(tile_index_check) > 0:
+    if tile_index_check is not None and len(tile_index_check) > 0:
         tile_index_check_layer = GeoJson(
                 data=tile_index_check,
                 style_function=lambda x:dps_check_style,
@@ -379,9 +380,14 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         worldcover_tiles_layer.add_to(m1)
     
     # Add the additional tile layer to map with its colorbar
-    if ADD_TILELAYER is not None:
-        ADD_TILELAYER["layer"].add_to(m1)
+    if HLS_TILELAYER_LIST is not None:
+        for TILELAYER in HLS_TILELAYER_LIST:
+            TILELAYER.add_to(m1)
+        # Just need to add the colorbar once    
         m1.add_child(colormap_ADDED_TILELAYER)
+    # if ADD_TILELAYER is not None:
+    #     ADD_TILELAYER["layer"].add_to(m1)
+    #     m1.add_child(colormap_ADDED_TILELAYER)
         
     # Overlay topo last with an opacity     
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
@@ -407,7 +413,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     boreal_tile_index_layer.add_to(m1)
     tile_matches_layer.add_to(m1)
 
-    if len(tile_index_check) > 0:
+    if tile_index_check is not None and len(tile_index_check) > 0:
         tile_index_check_layer.add_to(m1)
     #tile_matches_n_obs.add_to(m1)    
 
