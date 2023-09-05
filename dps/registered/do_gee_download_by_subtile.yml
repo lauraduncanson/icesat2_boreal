@@ -6,7 +6,11 @@ disk_space: 8GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/vanilla:v3.0.1
 inputs:
   config: []
-  file: []
+  file:
+  - default: s3://maap-ops-workspace/montesano/GEE/credentials
+    description: a recent credentials file created with ee.Authenticate() in a notebook
+    name: creds_fn
+    required: true
   positional:
   - default: ''
     description: ''
