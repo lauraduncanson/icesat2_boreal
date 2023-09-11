@@ -36,7 +36,9 @@ cp ${INPUT1} ${PWD}/.config/earthengine/
 mkdir -p .config/earthengine/
 cp ${INPUT1} .config/earthengine/
 
-
+# Or maybe here?
+mkdir -p ~/.config/earthengine/
+cp ${INPUT1} ~/.config/earthengine/
 
 ## Hard coded args for each run (if any; usually just output dir)
 
