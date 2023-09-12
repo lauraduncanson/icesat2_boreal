@@ -42,6 +42,9 @@ chmod 644 /root/.config/earthengine/
 cp ${INPUT1} /root/.config/earthengine/
 chmod 644 /root/.config/earthengine/credentials
 
+echo "Check if creds file is readable"
+ls -lht /root/.config/earthengine/*
+
 ## Hard coded args for each run (if any; usually just output dir)
 
 # Work dir is always from where your script is called
