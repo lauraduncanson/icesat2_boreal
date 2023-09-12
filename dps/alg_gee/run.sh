@@ -37,8 +37,10 @@ mkdir -p .config/earthengine/
 cp ${INPUT1} .config/earthengine/
 
 # Or maybe here?
-mkdir -p ~/.config/earthengine/
+mkdir -p /root/.config/earthengine/
+chmod 644 /root/.config/earthengine/
 cp ${INPUT1} /root/.config/earthengine/
+chmod 644 /root/.config/earthengine/credentials
 
 ## Hard coded args for each run (if any; usually just output dir)
 
