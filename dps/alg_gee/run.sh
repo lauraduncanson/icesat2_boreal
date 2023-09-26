@@ -36,14 +36,25 @@ cp ${INPUT1} ${PWD}/.config/earthengine/
 mkdir -p .config/earthengine/
 cp ${INPUT1} .config/earthengine/
 
-# Or maybe here?
-mkdir -p /root/.config/earthengine/
-chmod 644 /root/.config/earthengine/
-cp ${INPUT1} /root/.config/earthengine/
-chmod 644 /root/.config/earthengine/credentials
+## Or maybe here?
+#mkdir -p /root/.config/earthengine/
+#chmod 644 /root/.config/earthengine/
+#cp ${INPUT1} /root/.config/earthengine/
+#chmod 644 /root/.config/earthengine/credentials
+#
+#echo "Check if creds file is readable"
+#ls -lht /root/.config/earthengine/*
+
+# HOME directory is getting set to /root by the metrics collector script causing the creds file to not be found (sujen)
+# so, do this
+export HOME=/home/ops
+mkdir -p $HOME/.config/earthengine/
+chmod 644 $HOME/.config/earthengine/
+cp ${INPUT1} $HOME/.config/earthengine/
+chmod 644 $HOME/.config/earthengine/credentials
 
 echo "Check if creds file is readable"
-ls -lht /root/.config/earthengine/*
+ls -lht $HOME/.config/earthengine/*
 
 ## Hard coded args for each run (if any; usually just output dir)
 
