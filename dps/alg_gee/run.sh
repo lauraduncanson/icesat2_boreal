@@ -49,7 +49,7 @@ cp ${INPUT1} .config/earthengine/
 # so, do this
 export HOME=/home/ops
 mkdir -p $HOME/.config/earthengine/
-chmod 644 $HOME/.config/earthengine/
+##chmod 644 $HOME/.config/earthengine/
 cp ${INPUT1} $HOME/.config/earthengine/
 chmod 644 $HOME/.config/earthengine/credentials
 
