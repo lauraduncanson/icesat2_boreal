@@ -12,7 +12,7 @@ import botocore
 import boto3
 from pystac_client import Client
 from maap.maap import MAAP
-maap = MAAP(maap_host='api.ops.maap-project.org')
+maap = MAAP(maap_host='api.maap-project.org')
 
 '''TODO: the bands var may need to be a dict, with the band names dependent on whether S30 or L30'''
 def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s3_path="s3://"):
