@@ -21,7 +21,7 @@ from typing import List
 try:
     from maap.maap import MAAP
     # create MAAP class
-    maap = MAAP(maap_host='api.ops.maap-project.org')
+    maap = MAAP(maap_host='api.maap-project.org')
     HAS_MAAP = True
 except ImportError:
     print('NASA MAAP is unavailable')
