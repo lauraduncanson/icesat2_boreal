@@ -26,11 +26,11 @@ inputs:
     required: true
   - default: ''
     description: ''
-    name: asset_path
+    name: tile_size_m
     required: true
   - default: ''
     description: ''
-    name: tile_size_m
+    name: asset_path
     required: true
   - default: ''
     description: ''
