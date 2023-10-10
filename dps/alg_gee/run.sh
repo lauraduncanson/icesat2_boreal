@@ -67,6 +67,8 @@ OUTPUTDIR="${PWD}/output"
 
 python ${basedir}/../../lib/do_gee_download_by_subtile.py \
 --subtile_loc ${1} \
---tile_loc ${2} \
---asset_path ${3} \
+--id_num ${2} \
+--id_col ${3} \
+--tile_size_m ${4} \
+--asset_path ${5} \
 --out_dir ${OUTPUTDIR}

@@ -1,6 +1,6 @@
 algorithm_description: Exporting of GEE asset tiles by subtile to MAAP
 algorithm_name: do_gee_download_by_subtile
-algorithm_version: EXPORT_GEE_v1
+algorithm_version: EXPORT_GEE_v2
 build_command: icesat2_boreal/dps/build_command_main.sh
 disk_space: 8GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/vanilla:v3.0.1
@@ -18,11 +18,19 @@ inputs:
     required: true
   - default: ''
     description: ''
-    name: tile_loc
+    name: id_num
+    required: true
+  - default: ''
+    description: ''
+    name: id_col
     required: true
   - default: ''
     description: ''
     name: asset_path
+    required: true
+  - default: ''
+    description: ''
+    name: tile_size_m
     required: true
   - default: ''
     description: ''
