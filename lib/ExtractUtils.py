@@ -498,6 +498,7 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     gdf = gdf.to_crs("EPSG:4326")
     
     #legend_kwds={"orientation": "horizontal"}
+    legend_kwds={'bbox_to_anchor': (1.3, 1)}
     
     # Get world
     world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
@@ -507,20 +508,27 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
     
     world_clip = geopandas.clip(world, poly_gdf)
-    ax = world_clip.plot(color='gray', ax=ax)
+    ax = world_clip.plot(color='whitesmoke', ax=ax, ec='grey', linewidth=0.1)
     
     # Get some boundary_layer
     boundary_layer = geopandas.read_file(boundary_layer_fn)
-    ax = boundary_layer.boundary.plot(color='black', ax=ax)
+    ax = boundary_layer.boundary.plot(color='black', ax=ax, linewidth=0.1)
+    
     if DO_TYPE:
-        ax = gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, 
+        ax = gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, linewidth=0.1, 
                        #legend_kwds=legend_kwds, 
-                       #legend_kwds={"orientation": "horizontal"},
                        #cax=cax,
-                       ax=ax)
+                       ax=ax
+                     )
     else:
         #print(gdf.plot(color='orange', ax=ax))
-        ax = gdf.plot(color='orange', ax=ax)
+        ax = gdf.plot(color='orange',
+                      #legend_kwds=legend_kwds,
+                      ax=ax
+                     )
+        
+    #ax.legend(loc='lower left')
+              
     return ax
 
 
