@@ -26,21 +26,43 @@ def get_gee_assets(asset_path):
 
     return collection_items_df
 
-def create_fishnet(collection_items_df, asset_num, dims, DEBUG=False):
+#def create_fishnet(collection_items_df, asset_num, dims, DEBUG=False):
+def create_fishnet(asset, dims, DEBUG=False):
     
-    in_crs = 'BOUNDCRS[SOURCECRS[PROJCRS["unnamed",BASEGEOGCRS["GRS 1980(IUGG, 1980)",DATUM["unknown",ELLIPSOID["GRS80",6378137,298.257222101,LENGTHUNIT["metre",1,ID["EPSG",9001]]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]]],CONVERSION["unnamed",METHOD["Albers Equal Area",ID["EPSG",9822]],PARAMETER["Latitude of 1st standard parallel",50,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8823]],PARAMETER["Latitude of 2nd standard parallel",70,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8824]],PARAMETER["Latitude of false origin",40,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8821]],PARAMETER["Longitude of false origin",180,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8822]],PARAMETER["Easting at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8826]],PARAMETER["Northing at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8827]]],CS[Cartesian,2],AXIS["easting",east,ORDER[1],LENGTHUNIT["Meter",1]],AXIS["northing",north,ORDER[2],LENGTHUNIT["Meter",1]]]],TARGETCRS[GEOGCRS["WGS 84",DATUM["World Geodetic System 1984",ELLIPSOID["WGS 84",6378137,298.257223563,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1],ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],ID["EPSG",4326]]],ABRIDGEDTRANSFORMATION["Transformation from GRS 1980(IUGG, 1980) to WGS84",METHOD["Position Vector transformation (geog2D domain)",ID["EPSG",9606]],PARAMETER["X-axis translation",0,ID["EPSG",8605]],PARAMETER["Y-axis translation",0,ID["EPSG",8606]],PARAMETER["Z-axis translation",0,ID["EPSG",8607]],PARAMETER["X-axis rotation",0,ID["EPSG",8608]],PARAMETER["Y-axis rotation",0,ID["EPSG",8609]],PARAMETER["Z-axis rotation",0,ID["EPSG",8610]],PARAMETER["Scale difference",1,ID["EPSG",8611]]]]'
+    in_crs = 'BOUNDCRS[SOURCECRS[PROJCRS["unnamed",BASEGEOGCRS["GRS 1980(IUGG,\
+    1980)",DATUM["unknown",ELLIPSOID["GRS80",6378137,298.257222101,\
+    LENGTHUNIT["metre",1,ID["EPSG",9001]]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]]],CONVERSION["unnamed",METHOD["Albers Equal Area",ID["EPSG",9822]],\
+    PARAMETER["Latitude of 1st standard parallel",50,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8823]],\
+    PARAMETER["Latitude of 2nd standard parallel",70,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8824]],PARAMETER["Latitude of false origin",40,\
+    ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8821]],PARAMETER["Longitude of false origin",180,ANGLEUNIT["degree",0.0174532925199433],\
+    ID["EPSG",8822]],PARAMETER["Easting at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8826]],PARAMETER["Northing at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8827]]],CS[Cartesian,2],\
+    AXIS["easting",east,ORDER[1],LENGTHUNIT["Meter",1]],AXIS["northing",north,ORDER[2],LENGTHUNIT["Meter",1]]]],\
+    TARGETCRS[GEOGCRS["WGS 84",DATUM["World Geodetic System 1984",ELLIPSOID["WGS 84",6378137,298.257223563,LENGTHUNIT["metre",1]]],\
+    PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1]\
+    ,ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],\
+    ID["EPSG",4326]]],ABRIDGEDTRANSFORMATION["Transformation from GRS 1980(IUGG, 1980) to WGS84",METHOD["Position Vector transformation (geog2D domain)",ID["EPSG",9606]],\
+    PARAMETER["X-axis translation",0,ID["EPSG",8605]],PARAMETER["Y-axis translation",0,ID["EPSG",8606]],PARAMETER["Z-axis translation",0,ID["EPSG",8607]],\
+    PARAMETER["X-axis rotation",0,ID["EPSG",8608]],PARAMETER["Y-axis rotation",0,ID["EPSG",8609]],PARAMETER["Z-axis rotation",0,ID["EPSG",8610]],PARAMETER["Scale difference",1,ID["EPSG",8611]]]]'
     
     try:
-        asset = collection_items_df.iloc[asset_num]
-        print('\tasset id =', asset['id'])
+        # Replace tile loc with 
+        #asset = collection_items_df.iloc[asset_num]
+        
+        asset = pd.concat([asset.drop(['bands'], axis=1), asset['bands'].apply(pd.Series)], axis=1)
+        asset = pd.concat([asset.drop([0], axis=1), asset[0].apply(pd.Series)], axis=1)
 
-        rows = asset['bands'][0]['dimensions'][0]
-        cols = asset['bands'][0]['dimensions'][1]
+        #rows = asset['bands'][0][0]['dimensions'][0]
+        #cols = asset['bands'][0][0]['dimensions'][1]
+        rows, cols = asset['dimensions'].iloc[0]
     
-        print('\trows =', rows, 'cols = ', cols)
+        if False:
+            print(f'\tasset id = {list(asset.id.iloc[0])[0]} (rows={rows}, cols={cols})')
+        #print('\trows =', rows, 'cols = ', cols)
     
-        minx = (asset['bands'][0]['crs_transform'][2])
-        miny = (asset['bands'][0]['crs_transform'][5])
+        #minx = (asset['bands'][0][0]['crs_transform'][2])
+        #miny = (asset['bands'][0][0]['crs_transform'][5])
+        minx = asset['crs_transform'].iloc[0][2]
+        miny = asset['crs_transform'].iloc[0][5]
         maxx = minx + (cols*30)
         maxy = miny - (rows*30)
     
@@ -74,16 +96,26 @@ def create_fishnet(collection_items_df, asset_num, dims, DEBUG=False):
         raise e
     
     return fishnet
-        
-def do_gee_download_by_subtile(SUBTILE_LOC, TILELOC, ASSET_PATH, 
+
+# TODO: use an id field 'AGG_TILE_NUM'
+# replace TILE_LOC with id number of id field
+def do_gee_download_by_subtile(SUBTILE_LOC, 
+                               #TILELOC,
+                               ID_NUM,
+                               ID_COL,
+                               ASSET_PATH,
+                               TILE_SIZE_M,
                                #fishnet, asset_df, 
                                OUTDIR):
     '''
     A wrapper of a gently modified ee_download.download_image_by_asset_path that downloads a subtile (based on a vector 'fishnet') of a GEE asset tile
     
     SUBTILE_LOC : the index number of the subtile that, with the fishnet, will define the subtile region of the GEE asset tile in which to download the data
-    TILELOC     : the index of the GEE asset tile
+    # TILELOC     : the index of the GEE asset tile
+    ID_NUM      : the id in the column name in the asset df indicating the GEE asset tile to import
+    ID_COL      : the column used to identify the tile
     ASSET_PATH  : The GEE path to the image collection where the assets are stored
+    TILE_SIZE_M : the dim in meters of 1 side of a subtile (too big, asset transfer fails; too small, too many subtiles are created)
     OUTDIR      : the main ouput dir for this TILELOC into which many subdirs based on SUBTILE_LOC will be created
     
     ASSET_PATH gives you the following:
@@ -95,7 +127,13 @@ def do_gee_download_by_subtile(SUBTILE_LOC, TILELOC, ASSET_PATH,
     
     # Use the GEE assett collection path (specifies the image collection in which the GEE asset tiles are stored) to make df and fishnet
     asset_df = get_gee_assets(ASSET_PATH)
-    ASSET_TILE_NAME = os.path.basename(asset_df.id.to_list()[TILELOC])
+    # Explode 'properties' field dict into multiple columns to get GEE metadata info nicely into columns of asset_df
+    # this is needed to have ID_COL available in the data frame
+    asset_df = pd.concat([asset_df.drop(['properties'], axis=1), asset_df['properties'].apply(pd.Series)], axis=1)
+    
+    # Replace this
+    #ASSET_TILE_NAME = os.path.basename(asset_df.id.to_list()[TILELOC])
+    ASSET_TILE_NAME = asset_df[asset_df[ID_COL] == ID_NUM]['system:index'].to_list()[0]
     
     # Make asset tile subdir
     OUTDIR_TILE = os.path.join(OUTDIR, ASSET_TILE_NAME)
@@ -105,11 +143,14 @@ def do_gee_download_by_subtile(SUBTILE_LOC, TILELOC, ASSET_PATH,
     
     # Hard-coded tile size
     # TODO: make into an argument for flexibility - too large and asset download will fail - too small and you have too many subtiles
-    TILE_SIZE_M = 500
-    print(f'\n\tSubtile {SUBTILE_LOC} for tile loc {TILELOC} to subdir: {OUTDIR_TILE}')
-    fishnet_df = create_fishnet(asset_df, TILELOC, TILE_SIZE_M)
+    #TILE_SIZE_M = 500
+    
+    #print(f'\n\tSubtile {SUBTILE_LOC} for tile loc {TILELOC} to subdir: {OUTDIR_TILE}')
+    print(f'\n\tSubtile {SUBTILE_LOC} for {ID_COL} # {ID_NUM} ({ASSET_TILE_NAME}) to subdir: {OUTDIR_TILE}')
+    #fishnet_df = create_fishnet(asset_df, TILELOC, TILE_SIZE_M)
+    fishnet_df = create_fishnet(asset_df[asset_df[ID_COL] == ID_NUM], TILE_SIZE_M)
     fishnet_df['subtile'] = fishnet_df.index
-    fishnet_df['tile'] = TILELOC
+    fishnet_df['tile'] = ID_NUM
     
     try:
         
@@ -123,7 +164,7 @@ def do_gee_download_by_subtile(SUBTILE_LOC, TILELOC, ASSET_PATH,
         # We want to submit to DPS this...
         #print('Fetching..')
         downloaded_image_fn = ee_download.download_image_by_asset_path(
-                                asset_path = asset_df.iloc[TILELOC]['id'],
+                                asset_path = asset_df[asset_df[ID_COL] == ID_NUM]['id'].iloc[0], #asset_df.iloc[TILELOC]['id'],
                                 output_folder = OUTDIR,
                                 region = region_4326,
                                 #crs = fishnet.crs,
@@ -159,13 +200,17 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--subtile_loc", type=int, required=True, help="The subtile index number provided by a fishnet over the GEE asset tile.")
-    parser.add_argument("--tile_loc", type=int, required=True, help="The tile index number of the GEE asset tile to import (based on df index (.iloc[x]) not tile id number)")
+    #parser.add_argument("--tile_loc", type=int, required=True, help="The tile index number of the GEE asset tile to import (based on df index (.iloc[x]) not tile id number)")
+    parser.add_argument("--id_num", type=int, required=True, help="The id in the column name in the asset df indicating the GEE asset tile to import")
+    parser.add_argument("--id_col", type=str, required=True, help="The column name in the asset df indicating the GEE asset tile numbers")
     parser.add_argument("--asset_path", type=str, required=True, default='projects/foreststructure/Circumboreal/S1_Composites_albers', help="The GEE path to the image collection where the assets are stored.")
+    parser.add_argument("--tile_size_m", type=int, required=True, default=500, help="The dim in meters of 1 side of a subtile")
     parser.add_argument("--out_dir", type=str, required=True, help="The path where the subtile tifs will be imported")
     
     args = parser.parse_args()
     
-    fails = do_gee_download_by_subtile(args.subtile_loc, args.tile_loc, args.asset_path, args.out_dir)
+    #fails = do_gee_download_by_subtile(args.subtile_loc, args.tile_loc, args.asset_path, args.out_dir)
+    fails = do_gee_download_by_subtile(args.subtile_loc, args.id_num, args.id_col, args.asset_path, args.tile_size_m, args.out_dir)
     
     return fails
 

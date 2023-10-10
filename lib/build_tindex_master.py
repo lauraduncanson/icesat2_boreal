@@ -43,7 +43,7 @@ def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path')
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
-def handle_duplicates(df, FOCAL_FIELD_NAME, TYPE: str, RETURN_DUPS):
+def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
         ######
         # Handle duplicate tiles (or files, if ATL08) by sorting and keeping the latest
         
@@ -51,22 +51,24 @@ def handle_duplicates(df, FOCAL_FIELD_NAME, TYPE: str, RETURN_DUPS):
         df.sort_values(by=['local_path'], ascending=False, inplace=True)
                 
         # Check
-        dropped  = df[df.duplicated(subset=[FOCAL_FIELD_NAME], keep='first')]
+        dropped  = df[df.duplicated(subset=FOCAL_FIELD_NAME_LIST, keep='first')]
         if len(dropped) > 0:
             dropped.loc[:,'status'] = 'dropped'
             # TODO: These arent handled correctly at the moment. 
-            retained = df[df.duplicated(subset=[FOCAL_FIELD_NAME], keep='last')]
+            retained = df[df.duplicated(subset=FOCAL_FIELD_NAME_LIST, keep='last')]
             retained.loc[:,'status'] = 'retained'
 
         else:
             print('\nNo duplicates found.\n')
         
         # Drop duplicates, keeping the latest version of the tile
-        df = df.drop_duplicates(subset=[FOCAL_FIELD_NAME], keep='first')
+        df = df.drop_duplicates(subset=FOCAL_FIELD_NAME_LIST, keep='first')
         
-        if FOCAL_FIELD_NAME == 'tile_num':
+        if 'tile_num' in FOCAL_FIELD_NAME_LIST:
             # Make sure the tile_num field is int (not object)
             df['tile_num'] = df['tile_num'].astype(str).astype(int)
+        if 'subtile_num' in FOCAL_FIELD_NAME_LIST:
+            df['subtile_num'] = df['subtile_num'].apply(pd.to_numeric, downcast='signed', errors='coerce')               
         
         num_without_duplicates = df.shape[0]
         print(f"# of duplicate tiles: {dropped.shape[0]}")
@@ -90,7 +92,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
     parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
@@ -189,6 +191,11 @@ def main():
         
         if HAS_MAAP:
             
+            if "S1" in TYPE:
+                if user is None: user = 'montesano'
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.VH_median_summer*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                ends_with_str = ".tif"
+            
             if "LC" in TYPE:
                 if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
@@ -254,9 +261,22 @@ def main():
         df['s3_path'] = [f's3://{f}' for f in df[col_name].tolist()]
         df['local_path'] = [s3_to_local(f, user=user) for f in df[col_name].tolist()]
         df['file'] = [os.path.basename(f) for f in df[col_name].tolist()]
-        print(df.head()) 
+        if DEBUG:
+            print(df.head()) 
         
         # Get the tile num from the file string, which is in different places
+        if 'S1' in TYPE:
+            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+            df['subtile_num'] = df['file'].str.split('-subtile', expand=True)[1].str.strip('*.tif')
+            df['tile_num'] = df['tile_num'].astype(str).astype(int)
+            if DEBUG:
+                print(f'Writing TEST tindex master csv: {out_tindex_fn}')
+                df.to_csv(out_tindex_fn, mode='w+')
+                # Make sure the tile_num field is int (not object)
+                df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
+                df['subtile_num'] = df['subtile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
+                print(df[['tile_num','subtile_num']].head)
+                print(df.info())
         if 'LC' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
         if 'AGB' or 'HT' in TYPE:
@@ -289,26 +309,41 @@ def main():
             df = df_existing.append(df)
             
         if TYPE == 'ATL08':
-            focal_field_name = 'file'
+            focal_field_name_list = ['file']
+        elif TYPE == 'S1':
+            focal_field_name_list = ['tile_num','subtile_num'] 
         else:
-            focal_field_name = 'tile_num'
-            
-        if args.RETURN_DUPS:    
-            df, dropped = handle_duplicates(df, focal_field_name, TYPE, args.RETURN_DUPS)
-            print(f'Writing duplicates csv: {out_tindex_fn}')
-            dropped.to_csv(os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv', mode='w+')
-        else:
-            df = handle_duplicates(df, focal_field_name, TYPE, args.RETURN_DUPS)
+            focal_field_name_list = ['tile_num']
+
+        COLS_LIST_BUILD_MOSIAC_JSON = ['tile_num','s3_path','local_path']
         
+        if TYPE == 'S1': 
+            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+            #df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0').astype(str).astype(int)
+            COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
+            print(f"df shape : {df.shape}")
+
+        if TYPE != 'S1_':
+            if args.RETURN_DUPS:    
+                df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
+                out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
+                print(f'Writing duplicates csv: {out_tindex_dups_fn}')
+                dropped.to_csv(out_tindex_dups_fn, mode='w+')
+            else:
+                df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
+        
+
+            
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn, mode='w+')
         
-        print(f'Building tindex master json and mosaic json...')
-        mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
-                           out_tindex_fn, 
-                           boreal_tile_index_path = boreal_tile_index_path, 
-                           BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619], # tiles touching the anti-meridian are annoying
-                           cols_list = ['tile_num','s3_path','local_path'])
+        if TYPE != 'S1':
+            print(f'Building tindex master json and mosaic json...')
+            mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
+                               out_tindex_fn, 
+                               boreal_tile_index_path = boreal_tile_index_path, 
+                               BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619], # tiles touching the anti-meridian are annoying
+                               cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
         
         if 'HLS'in TYPE:
             print(f'Writing MS composite parameters table...')
