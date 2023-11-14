@@ -21,6 +21,9 @@ import sys
 import itertools
 import copy
 
+from multiprocessing import Pool
+from functools import partial
+
 #from notebooks.general.covariateutils import get_index_tile
 #import notebooks.general.CovariateUtils 
 #from CovariateUtils import get_index_tile
@@ -37,7 +40,7 @@ except ImportError:
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
     if '/my-' in url:
-        if type is 'public':
+        if type == 'public':
             replacement_str = f's3://maap-ops-workspace/shared/{user}'
         else:
             replacement_str = f's3://maap-ops-workspace/{user}'
@@ -246,20 +249,20 @@ def get_neighbors(input_gdf, input_id_field, input_id):
     
     return neighbors
 
-def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
-    '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
-    import rasterstats
-    # Use join
-    out_gdf = in_gdf.reset_index(drop=True).join(
-                                                pd.DataFrame(
-                                                    rasterstats.zonal_stats(
-                                                        vectors=in_gdf['geometry'], 
-                                                        raster=vrt_fn, 
-                                                        stats=STATS_LIST
-                                                    )
-                                                )
-                                            )
-    return out_gdf
+# def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
+#     '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
+#     import rasterstats
+#     # Use join
+#     out_gdf = in_gdf.reset_index(drop=True).join(
+#                                                 pd.DataFrame(
+#                                                     rasterstats.zonal_stats(
+#                                                         vectors=in_gdf['geometry'], 
+#                                                         raster=vrt_fn, 
+#                                                         stats=STATS_LIST
+#                                                     )
+#                                                 )
+#                                             )
+#     return out_gdf
 
 def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
                     boreal_tile_index_path = '/projects/my-public-bucket/boreal_tiles_v003.gpkg',
@@ -330,22 +333,22 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
         needed_tindex.plot(column=GROUP_FIELD, legend=True, ax=ax)
         
         return LIST_TILES_NEEDED
-    
-def BUILD_TABLE_JOBSTATUS(submit_results_df):
+
+def BUILD_TABLE_JOBSTATUS(submit_results_df, status_col = 'status'):
     import xmltodict
     
     # If jobs failed to submit, then they have a NaN for jobid, which makes the merge (join) fail
     submit_results_df = submit_results_df.fillna('')
     
-    job_status_df = pd.concat([pd.DataFrame(xmltodict.parse(maap.getJobStatus(job_id).content)).transpose() for job_id in submit_results_df.job_id.to_list()])
-    job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='wps:JobID')
+    job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
+    job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='job_id')
     
     print(f'Count total jobs:\t{len(job_status_df)}')
-    print(f"Count pending jobs:\t{job_status_df[job_status_df['wps:Status'] =='Accepted'].shape[0]}")
-    print(f"Count running jobs:\t{job_status_df[job_status_df['wps:Status'] =='Running'].shape[0]}")
+    print(f"Count pending jobs:\t{job_status_df[job_status_df[status_col] =='Accepted'].shape[0]}")
+    print(f"Count running jobs:\t{job_status_df[job_status_df[status_col] =='Running'].shape[0]}")
     
-    NUM_FAILS = job_status_df[job_status_df['wps:Status'] =='Failed'].shape[0]
-    NUM_SUCCEEDS = job_status_df[job_status_df['wps:Status'] =='Succeeded'].shape[0]
+    NUM_FAILS = job_status_df[job_status_df[status_col] =='Failed'].shape[0]
+    NUM_SUCCEEDS = job_status_df[job_status_df[status_col] =='Succeeded'].shape[0]
     print(f"Count succeeded jobs:\t{NUM_SUCCEEDS}")
     print(f"Count failed jobs:\t{NUM_FAILS}")
     if NUM_FAILS > 0:
@@ -481,11 +484,21 @@ def get_tile_matches_gdf(tindex_master_fn,
     
     return tile_index_matches_gdf
 
-def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/my-public-bucket/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
+def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/shared-buckets/montesano/databank/arc/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
     
     '''Plot a gdf (in 4326) on a world map'''
     import shapely
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    fig, ax = plt.subplots(1, 1, figsize=(25,4))
+    #divider = make_axes_locatable(ax)
+    #cax = divider.append_axes("bottom", size="5%", pad=0.1)
+    
     gdf = gdf.to_crs("EPSG:4326")
+    
+    #legend_kwds={"orientation": "horizontal"}
+    legend_kwds={'bbox_to_anchor': (1.3, 1)}
     
     # Get world
     world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
@@ -495,15 +508,28 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
     
     world_clip = geopandas.clip(world, poly_gdf)
-    ax = world_clip.plot(color='gray')
+    ax = world_clip.plot(color='whitesmoke', ax=ax, ec='grey', linewidth=0.1)
     
     # Get some boundary_layer
     boundary_layer = geopandas.read_file(boundary_layer_fn)
-    ax = boundary_layer.boundary.plot(color='black', ax=ax)
+    ax = boundary_layer.boundary.plot(color='black', ax=ax, linewidth=0.1)
+    
     if DO_TYPE:
-        print(gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True,  ax=ax, figsize=(25,10)))
+        ax = gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, linewidth=0.1, 
+                       #legend_kwds=legend_kwds, 
+                       #cax=cax,
+                       ax=ax
+                     )
     else:
-        print(gdf.plot(color='orange', ax=ax, figsize=(25,10)))
+        #print(gdf.plot(color='orange', ax=ax))
+        ax = gdf.plot(color='orange',
+                      #legend_kwds=legend_kwds,
+                      ax=ax
+                     )
+        
+    #ax.legend(loc='lower left')
+              
+    return ax
 
 
 def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', SHOW_MAP=True):
@@ -579,27 +605,31 @@ def build_mosaic_json(
         
     return out_mosaic_json_fn, tile_index_matches_gdf
 
-def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list):
+def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list, DEBUG=False):
     
     '''Build a single-row data frame of the input multi-spec compositing parameters for each tile'''
     # Make sure you have the right version of s3fs... https://github.com/dask/dask/issues/5152
     
     dir_tile = os.path.split(s3_path)[0]
-    
-    # Find the json file with the MS comp input params
-    f = s3.glob(os.path.join(dir_tile, mscomp_input_glob_str))[0]
-    #print(f)
-    df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[params_cols_list]
-    df['json_path'] = s3_path
-    
-    # Find the json file with the metadata for each scene; get count of scenes used for this composite
-    f = s3.glob(os.path.join(dir_tile, mscomp_num_scenes_glob_str))[0]
-    scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
-    df['num_scenes'] = len(scene_metadata_list)
-    
-    return df
+    try:
+        # Find the json file with the MS comp input params
+        f = s3.glob(os.path.join(dir_tile, mscomp_input_glob_str))[0]
+        if DEBUG: print(f)
+        df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[params_cols_list]
+        df['json_path'] = s3_path
 
-def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
+        # Find the json file with the metadata for each scene; get count of scenes used for this composite
+        f = s3.glob(os.path.join(dir_tile, mscomp_num_scenes_glob_str))[0]
+        scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
+        df['num_scenes'] = len(scene_metadata_list)
+
+        return df
+    except IndexError as e:
+        if DEBUG: print(e)
+        print(f'Seems like output*context.json for {dir_tile} doesnt exist. Delete output and redo tile.')
+        
+
+def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", NCPU=25, mscomp_num_scenes_glob_str="master*.json", cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
     
     # Combine these cols to get run_type
     params_cols_list = cols_list[1:]
@@ -608,7 +638,13 @@ def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_
     list_s3_paths = tindex.s3_path.to_list()
     
     # Concatenate all single-row data frames of MScomp input params into one
-    df = pd.concat([build_json_mscomp_df(s3_path, mscomp_input_glob_str, mscomp_num_scenes_glob_str, cols_list) for s3_path in list_s3_paths])#.reset_index(drop=True)
+    if True:
+        df_list = [build_json_mscomp_df(s3_path, mscomp_input_glob_str, mscomp_num_scenes_glob_str, cols_list) for s3_path in list_s3_paths]#.reset_index(drop=True)
+    else:
+        with Pool(processes=NCPU) as pool:
+            df_list = pool.map(partial(build_json_mscomp_df, mscomp_input_glob_str=mscomp_input_glob_str, mscomp_num_scenes_glob_str=mscomp_num_scenes_glob_str, params_cols_list=cols_list), list_s3_paths )
+    
+    df = pd.concat(df_list)
     
     df['run_type'] = df[params_cols_list].apply(
                                                 lambda x: '_'.join(x.dropna().astype(str)),
