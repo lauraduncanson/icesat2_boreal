@@ -21,6 +21,7 @@ import sys
 import itertools
 import copy
 
+import multiprocessing
 from multiprocessing import Pool
 from functools import partial
 
@@ -657,6 +658,87 @@ def write_mscomp_params_table(tindex_fn, MSCOMP_TYPE = 'HLS', mscomp_input_glob_
     print(f"Wrote MS comp {MSCOMP_TYPE} params table: {OUTPUT_FN}")
     
     return OUTPUT_FN
+
+def json_features_count_append(f, df):
+
+    # Get master*json from file
+    f = s3.glob(os.path.dirname(f) + '/master*.json')[0]
+    
+    scene_metadata_list = pd.read_json('s3://' + f, typ='series').features
+    df['num_scenes'] = len(scene_metadata_list)
+    
+    return df
+
+def json_to_df(f, cols = ['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
+    
+    df = pd.read_json('s3://' + f, typ='series').to_frame().transpose()[cols] 
+    df['json_path'] = f
+    
+    df = json_features_count_append(f, df)
+    
+    return df
+
+def write_mscomp_table(tindex_fn,
+                       MS_COMP_NAME='HLS_H30_2023',
+                       RETURN_DF=False,
+                       mscomp_input_glob_str="output*context.json", 
+                       mscomp_num_scenes_glob_str="master*.json", 
+                       cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']):
+    
+    MSCOMP_TYPE = MS_COMP_NAME.split('_')[0]
+    YEAR = MS_COMP_NAME.split('_')[2]
+    
+    print(f'Get the list of {MSCOMP_TYPE} composite metadata jsons...')
+    tindex = pd.read_csv(tindex_fn)
+    list_s3_paths = tindex.s3_path.to_list()
+       
+    # Get the top dir from the first item + MSCOMP_TYPE
+    dir_top = list_s3_paths[0].split(MS_COMP_NAME)[0] + MS_COMP_NAME
+
+    print(f'Top search dir: {dir_top}')
+    
+
+    # Search in the top dir for the json files
+    json_f_list = ['s3://' + x for x in s3.glob(dir_top + '/**/*/' + mscomp_input_glob_str)]   
+    print(f'# of jsons : {len(json_f_list)}')
+    
+    # Find the output*context.json files associated with dups and remove them from json_f_list
+    # 
+    tindex_dup_fn = tindex_fn.split('.csv')[0] + '_duplicates.csv'
+    if os.path.exists(tindex_dup_fn):
+        # Get the list of dirs
+        #..from the json list
+        json_f_list_dirs = [os.path.dirname(x) for x in json_f_list]
+        #..from the dups tiles list
+        tindex_dups = pd.read_csv(tindex_dup_fn)
+        list_s3_paths_dups = tindex_dups.s3_path.to_list()
+        list_s3_paths_dups_dirs = [os.path.dirname(x) for x in list_s3_paths_dups]
+        # Remove items of dirs from dups list that occur in json_f_list, creating new json_f_list 
+        json_f_list = [json_f_list[i] for i, x in enumerate(json_f_list_dirs) if x not in list_s3_paths_dups_dirs]
+        print(f'# of jsons after removing duplicate output: {len(json_f_list)}')
+        
+    print(f'Multiprocess {MSCOMP_TYPE} composite metadata json reads across workers and concat to dataframe...')
+
+    with multiprocessing.get_context('spawn').Pool(processes=30) as pool:
+        df_list = pool.map(partial(json_to_df, cols=cols_list), json_f_list)
+    df = pd.concat(df_list).reset_index(drop=True)
+    
+    # Combine these cols to get run_type
+    params_cols_list = cols_list[1:]
+    df['run_type'] = df[params_cols_list].apply(
+                                                lambda x: '_'.join(x.dropna().astype(str)),
+                                                axis=1
+                                            )
+    OUTPUT_FN = os.path.join(os.path.dirname(tindex_fn), f'{MSCOMP_TYPE}_input_params.csv')
+    df.rename(columns={'in_tile_num': 'tile_num'}, inplace=True)
+    df.to_csv(OUTPUT_FN)
+    
+    print(f"Wrote MS comp {MSCOMP_TYPE} params table: {OUTPUT_FN}")
+    
+    if RETURN_DF:
+        return df
+    else:
+        return OUTPUT_FN
 
 def map_image_band(cog_fn, band_num=13, vmin=0.20, vmax=0.45):
     
