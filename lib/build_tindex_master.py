@@ -8,6 +8,12 @@ import subprocess
 import argparse
 import s3fs
 import ExtractUtils
+import warnings
+import datetime
+
+from pandarallel import pandarallel
+
+pandarallel.initialize(nb_workers=30, progress_bar=False)
 
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
@@ -43,20 +49,28 @@ def get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn, col_name='local_path')
     all_atl08_csvs_df.to_csv(csv_list_fn)
     return(all_atl08_csvs_df)
 
+def modification_date(filename):
+    t = os.path.getmtime(filename)
+    return datetime.datetime.fromtimestamp(t)
+
 def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
         ######
         # Handle duplicate tiles (or files, if ATL08) by sorting and keeping the latest
         
         # Sort (descending; newest first)
-        df.sort_values(by=['local_path'], ascending=False, inplace=True)
+        #df.sort_values(by=['local_path'], ascending=False, inplace=True)
+        df['creation time'] = df['local_path'].parallel_apply(modification_date) 
+        df.sort_values(by=['creation time'], ascending=False, inplace=True ) # if ascending=False, then latest is on top, so you can keep='first'
                 
         # Check
         dropped  = df[df.duplicated(subset=FOCAL_FIELD_NAME_LIST, keep='first')]
         if len(dropped) > 0:
-            dropped.loc[:,'status'] = 'dropped'
+            ##dropped.loc[:,'status'] = 'dropped'
+            dropped['status'] = 'dropped'
             # TODO: These arent handled correctly at the moment. 
             retained = df[df.duplicated(subset=FOCAL_FIELD_NAME_LIST, keep='last')]
-            retained.loc[:,'status'] = 'retained'
+            ##retained.loc[:,'status'] = 'retained'
+            retained['status'] = 'retained'
 
         else:
             print('\nNo duplicates found.\n')
@@ -73,7 +87,7 @@ def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
         num_without_duplicates = df.shape[0]
         print(f"# of duplicate tiles: {dropped.shape[0]}")
         print(f"Final # of tiles: {num_without_duplicates}")
-        print(f"df shape : {df.head()}")
+        #print(f"df shape : {df.head()}")
         
         if RETURN_DUPS:
             return df, dropped
@@ -104,7 +118,8 @@ def main():
     #                                                     'run_boreal_biomass_quick_v2_ubuntu','run_build_stack_ubuntu'], 
     #                     default='run_boreal_biomass_v5_ubuntu', help="The MAAP algorithm name used to produce output for the tindex")
     parser.add_argument("-alg_name", type=str, default=None, help="The MAAP algorithm name used to produce output for the tindex")
-    parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
+    #parser.add_argument("--maap_version", type=str, default='master', help="The version of MAAP")
+    parser.add_argument("--dps_identifier", type=str, default='master', help="A substring of the full DPS output path that helps identify the specific output subdir")
     parser.add_argument("--user", type=str, default=None, help="Username under which DPS output exists")
     parser.add_argument("-o", "--outdir", type=str, default="/projects/my-public-bucket/DPS_tile_lists", help="Ouput dir for csv list of DPS'd tiles")
     parser.add_argument("--seg_str_atl08", type=str, default="_30m", help="String indicating segment length from ATL08 rebinning")
@@ -125,6 +140,9 @@ def main():
     args = parser.parse_args()
     
     s3 = s3fs.S3FileSystem(anon=True)
+    
+    # This filters out seemingly inconsequential pandas warnings produced during handle_duplicates() that I dont know how to otherwise remove
+    warnings.filterwarnings('ignore')
     
     # This isnt working in new ADE
     try:
@@ -177,7 +195,7 @@ def main():
     for TYPE in TYPE_LIST:
         
         print("\nBuilding a list of tiles:")
-        print(f"MAAP version:\t\t{args.maap_version}")
+        print(f"DPS ID:\t\t{args.dps_identifier}")
         print(f"Type:\t\t{TYPE}")
         print(f"Year:\t\t{args.dps_year}")
         print(f"Month:\t\t{dps_month_list}")
@@ -193,37 +211,37 @@ def main():
             
             if "S1" in TYPE:
                 if user is None: user = 'montesano'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.VH_median_summer*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.VH_median_summer*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
             
             if "LC" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_cog.tif"
             if "HLS" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/**/*.tif"]
+                #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_dps.tif"
             if "Topo" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = "_stack.tif"
             if "ATL08" in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".csv"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.maap_version}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
                 
         else:
@@ -346,10 +364,19 @@ def main():
                                cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
         
         if 'HLS'in TYPE:
+            DPS_IDENTIFIER_STR = args.dps_identifier
+            print(f'DPS Identifier: {DPS_IDENTIFIER_STR}')
+            MS_COMP_NAME = DPS_IDENTIFIER_STR.split('/')[-1]
             print(f'Writing MS composite parameters table...')
-            mscomp_params_table_fn = ExtractUtils.write_mscomp_params_table(f'{args.outdir}/HLS_tindex_master.csv',  
-                                       MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", 
-                                       cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year'])
+            # mscomp_params_table_fn = ExtractUtils.write_mscomp_params_table(f'{args.outdir}/HLS_tindex_master.csv',  
+            #                            MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", 
+            #                            cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year'])
+            ExtractUtils.write_mscomp_table(f'{args.outdir}/HLS_tindex_master.csv', RETURN_DF=False,
+                                            MS_COMP_NAME = MS_COMP_NAME, 
+                                            mscomp_input_glob_str="output*context.json",
+                                            mscomp_num_scenes_glob_str="master*.json", 
+                                           cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']
+                                           )
         return df
     
 if __name__ == "__main__":
