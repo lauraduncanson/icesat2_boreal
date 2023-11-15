@@ -81,8 +81,8 @@ def main():
     ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
     print(ATL08_filt_tindex_master.info())
 
-    focal_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist() #[0]
-    
+    focal_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
+
     if out_dir is None:
         # Get the focal tile's ATL08 filt CSV name to use to make out_csv_fn
         out_dir = os.path.split(focal_csv_fn)[0]
@@ -99,7 +99,7 @@ def main():
     
     # Add the focal tile fn to list
     ATL08_filt_csv_s3_fn_list = [focal_csv_fn] + ATL08_filt_csv_s3_fn_list
-    
+
     # Read these ATL08 filtered CSVs into a single df
     atl08 = pd.concat([pd.read_csv(f, storage_options={'anon':True}) for f in ATL08_filt_csv_s3_fn_list], sort=False)
     
