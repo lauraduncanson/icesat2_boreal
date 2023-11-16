@@ -3,7 +3,7 @@ algorithm_name: run_boreal_biomass_map
 algorithm_version: boreal_agb_2023_v2
 build_command: icesat2_boreal/dps/build_command_main.sh
 disk_space: 40GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/jupyterlab3/r:v3.0.1
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/r:v3.0.1
 inputs:
   config: []
   file:

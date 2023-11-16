@@ -1091,7 +1091,8 @@ print(predict_var)
     print(rsq)
     #calc rsq only over local data
     rsq_local <- summary(local_model)$r.squared
-    print('rsq_local:')
+    print('r
+max_iters <- sq_local:')
     print(rsq_local)
     
     na_data <- which(is.na(local_model$predicted==TRUE))

@@ -648,7 +648,7 @@ mapBoreal<-function(rds_models,
             #b_min <- (nrow-20)
             b_max <- (nrow-10)
             baseline_var <- mean(sd[0:b_max], na.rm=TRUE)
-            print('baseline_var:')
+        itersrint('baseline_var:')
             print(baseline_var)
             
             last_var <- mean(sd[0:nrow], na.rm=TRUE)
