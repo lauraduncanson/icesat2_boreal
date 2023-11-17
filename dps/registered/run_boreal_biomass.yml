@@ -1,4 +1,4 @@
-algorithm_description: Map aboveground biomass final output
+ algorithm_description: Map aboveground biomass final output
 algorithm_name: run_boreal_biomass_map
 algorithm_version: boreal_agb_2023_v2
 build_command: icesat2_boreal/dps/build_command_main.sh
