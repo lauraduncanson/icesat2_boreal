@@ -385,9 +385,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
             TILELAYER.add_to(m1)
         # Just need to add the colorbar once    
         m1.add_child(colormap_ADDED_TILELAYER)
-    # if ADD_TILELAYER is not None:
-    #     ADD_TILELAYER["layer"].add_to(m1)
-    #     m1.add_child(colormap_ADDED_TILELAYER)
+    if ADD_TILELAYER is not None:
+        ADD_TILELAYER["layer"].add_to(m1)
+        m1.add_child(colormap_ADDED_TILELAYER)
         
     # Overlay topo last with an opacity     
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
