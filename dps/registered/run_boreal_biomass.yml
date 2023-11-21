@@ -1,0 +1,117 @@
+algorithm_description: Map aboveground biomass final output
+algorithm_name: run_boreal_biomass_map
+algorithm_version: boreal_agb_2023_v2
+build_command: icesat2_boreal/dps/build_command_main.sh
+disk_space: 40GB
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/r:v3.0.1
+inputs:
+  config: []
+  file:
+  - default: ''
+    description: tindex file
+    name: in_atl08_fn_url
+    required: true
+  - default: ''
+    description: topo file
+    name: in_topo_fn_url
+    required: true
+  - default: ''
+    description: landsat file
+    name: in_landsat_fn_url
+    required: true
+  - default: ''
+    description: landcover file
+    name: in_lc_fn_url
+    required: true
+  - default: ''
+    description: atl08 file
+    name: in_atl08_sample_url
+    required: true
+  - default: ''
+    description: tile gpkg
+    name: in_tile_fn_url
+    required: true
+  - default: ''
+    description: boreal shapefile
+    name: boreal_vect
+    required: true
+  positional:
+  - default: ''
+    description: tindex file pos
+    name: in_atl08_fn
+    required: true
+  - default: ''
+    description: topo file pos
+    name: in_topo_fn
+    required: true
+  - default: ''
+    description: landsat file pos
+    name: in_landsat_fn
+    required: true
+  - default: ''
+    description: landcover file pos
+    name: in_lc_fn
+    required: true
+  - default: ''
+    description: true or false to run masking
+    name: DO_SLOPE_VALID_MASK
+    required: true
+  - default: ''
+    description: atl08 boreal-wide sample csv
+    name: in_atl08_sample_fn
+    required: true
+  - default: ''
+    description: tile number to run
+    name: in_tile_num
+    required: true
+  - default: ''
+    description: tile filename
+    name: in_tile_fn
+    required: true
+  - default: ''
+    description: layer to use for merge_neighbors
+    name: in_tile_field
+    required: true
+  - default: ''
+    description: 'number of iterations to run for uncertainty '
+    name: iters
+    required: true
+  - default: ''
+    description: how many subtiles to preserve memory
+    name: ppside
+    required: true
+  - default: ''
+    description: earliest DOY for filtering
+    name: minDOY
+    required: true
+  - default: ''
+    description: latest DOY for filtering
+    name: maxDOY
+    required: true
+  - default: ''
+    description: max sun angle for filtering
+    name: max_sol_el
+    required: true
+  - default: ''
+    description: true/false to relax filters to ensure sufficient training data
+    name: expand_training
+    required: true
+  - default: ''
+    description: percent in-tile vs boreal-wide for training models
+    name: local_train_perc
+    required: true
+  - default: ''
+    description: min sample size required for models
+    name: min_n
+    required: true
+  - default: ''
+    description: filename for boreal vector
+    name: boreal_vect_fn
+    required: true
+  - default: ''
+    description: AGB or Ht to map
+    name: predict_var
+    required: true
+queue: maap-dps-worker-32gb
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
+run_command: icesat2_boreal/dps/alg_3-4/run_boreal_biomass.sh
