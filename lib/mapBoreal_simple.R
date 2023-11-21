@@ -765,6 +765,7 @@ mapBoreal<-function(rds_models,
                     DO_MASK=FALSE,
                     boreal_poly=boreal_poly,
                     predict_var){
+  browser()
     print('new')
     print(predict_var)
     # Get tile num
@@ -873,7 +874,21 @@ mapBoreal<-function(rds_models,
         tile_data <- tile_data[tile_sample_ids,]
     }
 
-    all_train_data <- rbind(tile_data, broad_data)
+    #sample from broad data to complete sample size
+    n_broad <- n_tile - nrow(tile_data)
+    if(n_broad > 1){
+        broad_samp_ids <- seq(1,n_broad)
+        broad_sample_ids <- sample(broad_samp_ids, n_broad, replace=FALSE)
+        broad_data <- broad_data[broad_sample_ids,]
+    }
+
+    if(local_train_perc<100){
+        all_train_data <- rbind(tile_data, broad_data)
+    }
+    if(local_train_perc==100){
+        all_train_data <- tile_data
+    }
+    
     #remove first col
     all_train_data <- all_train_data[,-1]
     
@@ -1136,6 +1151,24 @@ min_n <- args[14]
 boreal_vect <- args[15]
 predict_var <- args[16]
 
+#for debugging replace args with hard paths
+data_table_file <- '/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/tile_atl08/2022/11/30/19/22/04/120959/atl08_005_30m_filt_topo_landsat_20221130_1216.csv'
+topo_stack_file <- '/projects/shared-buckets/nathanmthomas/alg_34_testing/Copernicus_1216_covars_cog_topo_stack.tif'
+l8_stack_file <- '/projects/shared-buckets/nathanmthomas/alg_34_testing/HLS_1216_06-15_09-01_2019_2021.tif'
+LC_mask_file <- '/projects/shared-buckets/nathanmthomas/alg_34_testing/esa_worldcover_v100_2020_1216_cog.tif'
+DO_MASK_WITH_STACK_VARS <- 'TRUE'
+data_sample_file <- '/projects/my-private-bucket/boreal_train_data_v11.csv'
+iters <- 1
+ppside <- 2
+minDOY <- 130
+maxDOY <- 250
+max_sol_el <- 5
+expand_training <- 'TRUE'
+local_train_perc <- 100
+min_n <- 5000
+boreal_vect <- '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg'
+predict_var <- 'AGB'
+
 ppside <- as.double(ppside)
 minDOY <- as.double(minDOY)
 maxDOY <- as.double(maxDOY)
@@ -1152,7 +1185,7 @@ print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
 # loading packages and functions
 #----------------------------------------------#
 library(randomForest)
-library(rgdal)
+#library(rgdal)
 library(data.table)
 library(ggplot2)
 library(rlist)
