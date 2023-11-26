@@ -26,3 +26,4 @@ dependencies:
   #- cogeo_mosaic==6.2.0
   - r-rockchalk
   - r-terra
+  - r-randomForest
