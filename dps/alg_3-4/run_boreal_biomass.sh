@@ -55,8 +55,8 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 echo $MERGED_ATL08_CSV
 echo $ATL08_SAMPLE_CSV
 
-#source activate base
-#conda install --name base -c conda-forge r-rockchalk --solver=libmamba
+source activate base
+conda install -c conda-forge r-rockchalk 
 #mamba install r-rockchalk
 
 # Run mapBoreal with merged CSV as input
