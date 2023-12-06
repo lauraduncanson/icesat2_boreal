@@ -341,7 +341,8 @@ def BUILD_TABLE_JOBSTATUS(submit_results_df, status_col = 'status'):
     # If jobs failed to submit, then they have a NaN for jobid, which makes the merge (join) fail
     submit_results_df = submit_results_df.fillna('')
     
-    job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
+    #job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
+    job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[submit_result.status]}) for job_id in submit_results_df.job_id.to_list()])
     job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='job_id')
     
     print(f'Count total jobs:\t{len(job_status_df)}')

@@ -3,7 +3,7 @@ algorithm_name: run_build_stack_LC
 algorithm_version: master
 build_command: icesat2_boreal/dps/build_command_main.sh
 disk_space: 10GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/vanilla:v3.0.1
+docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/pangeo:main
 inputs:
   config: []
   file:
