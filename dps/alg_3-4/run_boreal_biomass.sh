@@ -56,7 +56,6 @@ echo $MERGED_ATL08_CSV
 echo $ATL08_SAMPLE_CSV
 
 source activate base
-mamba install --name base -c conda-forge r-rockchalk
 
 # Run mapBoreal with merged CSV as input
 Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var}
