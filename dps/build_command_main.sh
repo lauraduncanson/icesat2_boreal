@@ -16,5 +16,5 @@ mamba install --name icesat2_boreal -c conda-forge earthengine-api
 pip install git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
 source activate base
-conda install -c conda-forge r-rockchalk
+conda install -c conda-forge r-rockchalk --solver=libmamba
 pip3 install pyOpenSSL --upgrade
