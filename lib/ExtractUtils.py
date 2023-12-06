@@ -31,9 +31,9 @@ from functools import partial
 
 try:
     from maap.maap import MAAP
-    # create MAAP class
-    maap = MAAP(maap_host='api.ops.maap-project.org')
+    maap = MAAP()
     HAS_MAAP = True
+    print('NASA MAAP')
 except ImportError:
     print('NASA MAAP is unavailable')
     HAS_MAAP = False

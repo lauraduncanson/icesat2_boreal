@@ -59,6 +59,8 @@ def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
         
         # Sort (descending; newest first)
         #df.sort_values(by=['local_path'], ascending=False, inplace=True)
+        #
+        # Note - this requires the run come from the 'user' workspace - doesnt work across users, because requires access to my-private-bucket to access file's modification time...NOT IDEAL.
         df['creation time'] = df['local_path'].parallel_apply(modification_date) 
         df.sort_values(by=['creation time'], ascending=False, inplace=True ) # if ascending=False, then latest is on top, so you can keep='first'
                 
