@@ -298,9 +298,11 @@ def main():
                 print(df[['tile_num','subtile_num']].head)
                 print(df.info())
         if 'LC' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
-        if 'AGB' or 'HT' in TYPE:
+            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip(ends_with_str)
+            if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
+        if 'AGB' in TYPE or 'HT' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
+            if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'Topo' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
         if 'Landsat' in TYPE:
@@ -322,7 +324,8 @@ def main():
                 df['tile_num'] =  'NA'
                     
         num_with_duplicates = df.shape[0]
-        
+        if DEBUG: print(df.head())
+            
         if args.tindex_append:
             print(f'Appending to existing tindex...')
             df_existing = pd.read_csv(out_tindex_fn)
@@ -334,7 +337,9 @@ def main():
             focal_field_name_list = ['tile_num','subtile_num'] 
         else:
             focal_field_name_list = ['tile_num']
-
+            
+        if DEBUG: print(f'Focal field names: {focal_field_name_list}')
+            
         COLS_LIST_BUILD_MOSIAC_JSON = ['tile_num','s3_path','local_path']
         
         if TYPE == 'S1': 
@@ -342,7 +347,8 @@ def main():
             #df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0').astype(str).astype(int)
             COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
             print(f"df shape : {df.shape}")
-
+        if DEBUG: print(df.head())
+            
         if TYPE != 'S1_':
             if args.RETURN_DUPS:    
                 df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
@@ -351,8 +357,7 @@ def main():
                 dropped.to_csv(out_tindex_dups_fn, mode='w+')
             else:
                 df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
-        
-
+        if DEBUG: print(df.head())
             
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn, mode='w+')
