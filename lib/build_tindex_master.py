@@ -15,7 +15,6 @@ from pandarallel import pandarallel
 
 pandarallel.initialize(nb_workers=30, progress_bar=False)
 
-
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
     if type == 'public':
@@ -53,7 +52,7 @@ def modification_date(filename):
     t = os.path.getmtime(filename)
     return datetime.datetime.fromtimestamp(t)
 
-def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
+def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS, RETURN_CREATION_TIME=True):
         ######
         # Handle duplicate tiles (or files, if ATL08) by sorting and keeping the latest
         
@@ -61,8 +60,9 @@ def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS):
         #df.sort_values(by=['local_path'], ascending=False, inplace=True)
         #
         # Note - this requires the run come from the 'user' workspace - doesnt work across users, because requires access to my-private-bucket to access file's modification time...NOT IDEAL.
-        df['creation time'] = df['local_path'].parallel_apply(modification_date) 
-        df.sort_values(by=['creation time'], ascending=False, inplace=True ) # if ascending=False, then latest is on top, so you can keep='first'
+        if RETURN_CREATION_TIME:
+            df['creation time'] = df['local_path'].parallel_apply(modification_date) 
+            df.sort_values(by=['creation time'], ascending=False, inplace=True ) # if ascending=False, then latest is on top, so you can keep='first'
                 
         # Check
         dropped  = df[df.duplicated(subset=FOCAL_FIELD_NAME_LIST, keep='first')]
@@ -348,27 +348,31 @@ def main():
             COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
             print(f"df shape : {df.shape}")
         if DEBUG: print(df.head())
-            
-        if TYPE != 'S1_':
-            if args.RETURN_DUPS:    
-                df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
-                out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
-                print(f'Writing duplicates csv: {out_tindex_dups_fn}')
-                dropped.to_csv(out_tindex_dups_fn, mode='w+')
-            else:
-                df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS)
+        
+        RETURN_CREATION_TIME = True
+        if args.RETURN_DUPS:    
+            df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
+            out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
+            print(f'Writing duplicates csv: {out_tindex_dups_fn}')
+            dropped.to_csv(out_tindex_dups_fn, mode='w+')
+        else:
+            df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
         if DEBUG: print(df.head())
             
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn, mode='w+')
         
         if TYPE != 'S1':
-            print(f'Building tindex master json and mosaic json...')
-            mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
-                               out_tindex_fn, 
-                               boreal_tile_index_path = boreal_tile_index_path, 
-                               BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619], # tiles touching the anti-meridian are annoying
-                               cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
+            BAD_TILES_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619] # These boreal tiles cross the dateline...
+        else:
+            BAD_TILES_LIST = [] # No bad tiles for S1 comps identified yet...
+            
+        print(f'Building tindex master json and mosaic json...')
+        mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
+                           out_tindex_fn, 
+                           boreal_tile_index_path = boreal_tile_index_path, 
+                           BAD_TILE_LIST = BAD_TILES_LIST, # tiles touching the anti-meridian are annoying
+                           cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
         
         if 'HLS'in TYPE:
             DPS_IDENTIFIER_STR = args.dps_identifier

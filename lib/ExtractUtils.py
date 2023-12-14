@@ -1,5 +1,7 @@
 import pandas as pd
+import shapely
 import geopandas
+import json
 import rasterio as rio
 from rasterio.crs import CRS
 from rasterio.plot import show_hist, show
@@ -478,10 +480,16 @@ def get_tile_matches_gdf(tindex_master_fn,
     tindex_master = pd.read_csv(tindex_master_fn)
     
     boreal_tile_index = geopandas.read_file(boreal_tile_index_path)
-    boreal_tile_index["tile_num"] = boreal_tile_index["tile_num"].astype(int)    
+    boreal_tile_index["tile_num"] = boreal_tile_index["tile_num"].astype(int) 
+    JOIN_COL_LIST = ["tile_num"]
+    if 'subtile_num' in boreal_tile_index.columns:
+        boreal_tile_index["subtile_num"] = boreal_tile_index["subtile_num"].astype(int) 
+        JOIN_COL_LIST = ['subtile_num', 'tile_num']
 
     # Select the rows we have results for
-    tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', on='tile_num')
+    # left_on=['A_c1','c2'], right_on = ['B_c1','c2']
+    #tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', on='tile_num')
+    tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', left_on=JOIN_COL_LIST, right_on=JOIN_COL_LIST)
     tile_index_matches_gdf = tile_index_matches_gdf[tile_index_matches_gdf['s3_path'].notna()]
     
     return tile_index_matches_gdf
@@ -533,14 +541,33 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
               
     return ax
 
+def make_gdf_from_json(json_fn):
+    
+    #s3 = s3fs.S3FileSystem(anon=False)
+    f = s3.open(json_fn, 'rb')
+    data = json.load(f)
+    
+    # Build GDF
+    return geopandas.GeoDataFrame.from_features(data["features"]).set_crs(4326)
+
+def show_tiles_map(tile_index_matches_gdf, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson'):
+    
+    world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+
+    # Create a custom polygon
+    polygon = shapely.geometry.Polygon([(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)])
+    poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
+
+    world_clip = geopandas.clip(world, poly_gdf)
+    ax = world_clip.plot(color='gray')
+
+    boreal = geopandas.read_file(boreal_fn)
+    ax = boreal.boundary.plot(color='black', ax=ax)
+    tile_index_matches_gdf.plot(color='orange', ax=ax, figsize=(25,10))
 
 def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson', SHOW_MAP=True):
     
     '''Return a json of the set of vector tiles (a geodataframe) that hold the matches with the output in a tindex master csv '''
-    
-    import shapely
-    import geopandas
-    import json
 
     tile_matches_geojson_fn = tindex_master_fn.replace('.csv', '.json')
     
@@ -548,29 +575,18 @@ def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/pro
     #tile_index_matches_gdf = gpd.read_file(tile_footprints_fn)
     
     # Corrections were made to ensure GeoJSON *_tindex_master.json was set correctly to 4326
-    tile_matches_geojson_string = tile_index_matches_gdf.to_crs("EPSG:4326")
+    tile_index_matches_gdf = tile_index_matches_gdf.to_crs("EPSG:4326")
 
     #Write copy to disk for debug 
-    tile_matches_geojson_string.to_file(tile_matches_geojson_fn, driver='GeoJSON')
+    tile_index_matches_gdf.to_file(tile_matches_geojson_fn, driver='GeoJSON')
     
     if SHOW_MAP:
-        world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+        show_tiles_map(tile_index_matches_gdf)
 
-        # Create a custom polygon
-        polygon = shapely.geometry.Polygon([(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)])
-        poly_gdf = geopandas.GeoDataFrame([1], geometry=[polygon], crs=world.crs)
-        #poly_gdf.plot()
-        world_clip = geopandas.clip(world, poly_gdf)
-        ax = world_clip.plot(color='gray')
-
-        boreal = geopandas.read_file(boreal_fn)
-        ax = boreal.boundary.plot(color='black', ax=ax)
-        tile_matches_geojson_string.plot(color='orange', ax=ax, figsize=(25,10))
-
-    tile_matches_geojson_string = tile_matches_geojson_string.to_json()
+    tile_index_matches_gdf = tile_index_matches_gdf.to_json()
 
     # This is formatted nicely (printed)
-    tile_matches_geojson = json.loads(tile_matches_geojson_string)
+    tile_matches_geojson = json.loads(tile_index_matches_gdf)
     
     return(tile_matches_geojson)
 
