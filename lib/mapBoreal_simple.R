@@ -257,7 +257,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
-            #combined_totals <- tile_means
+            combined_totals <- tile_means
             print(str(tile_means))
     }
     return(combined_totals)
