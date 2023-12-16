@@ -1,5 +1,5 @@
 import os
-
+import subprocess
 os.environ['USE_PYGEOS'] = '0'
 import geopandas as gpd
 import pandas as pd
@@ -14,6 +14,8 @@ import ee_download
 import argparse
 import zipfile
 import glob
+import rasterio
+from osgeo import gdal
 
 def get_gee_assets(asset_path):
     
@@ -97,6 +99,59 @@ def create_fishnet(asset, dims, DEBUG=False):
     
     return fishnet
 
+import rasterio
+from rasterio.enums import Resampling
+from rasterio.merge import merge
+from rasterio.transform import from_origin
+import numpy as np
+import rasterio
+
+def create_multiband_geotiff(output_path, band_names, single_band_geotiffs):
+    """
+    Create a multiband geotiff from a list of single band geotiffs.
+
+    Parameters:
+    - output_path (str): Path to the output multiband geotiff file.
+    - band_names (list): List of band names corresponding to the single band geotiffs.
+    - single_band_geotiffs (list): List of paths to single band geotiffs.
+
+    Returns:
+    - None
+    """
+
+    # Open the first single band geotiff to get metadata
+    with rasterio.open(single_band_geotiffs[0]) as src:
+        profile = src.profile.copy()
+        profile.update(count=len(band_names),
+                       crs=src.profile['crs'], interleave='band',
+                       height=src.profile['height'], width=src.profile['width'], dtype=src.profile['dtype']
+                       #, nodata=-9999.0
+                      )
+    profile['blockxsize']=256
+    profile['blockysize']=256
+    profile['predictor']=1 # originally set to 2, which fails with 'int'; 1 tested successfully for 'int' and 'float64'
+    profile['zlevel']=7
+    profile['tiled']=True
+    profile['compress']='deflate'
+
+    # Create a new multiband geotiff
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        for i, band_name in enumerate(band_names, 1):
+            # Ensure that the single band geotiffs have the same shape, data type, and projection
+            with rasterio.open(single_band_geotiffs[i-1]) as src_band:
+                if src_band.shape[0] != profile['height'] or src_band.shape[1] != profile['width']:
+                    raise ValueError(f"Shape of {single_band_geotiffs[i-1]} does not match the expected shape.")
+                # if src_band.dtype != profile['dtype']:
+                #     raise ValueError(f"Data type of {single_band_geotiffs[i-1]} does not match the expected data type.")
+                # if src_band.crs != profile['crs']:
+                #     raise ValueError(f"Projection of {single_band_geotiffs[i-1]} does not match the expected projection.")
+
+                # Read and write each band to the new multiband geotiff
+                dst.write(src_band.read(1), indexes=i)
+                dst.set_band_description(i, band_name)
+
+    print(f"Multiband geotiff created successfully at: {output_path}")
+
 # TODO: use an id field 'AGG_TILE_NUM'
 # replace TILE_LOC with id number of id field
 def do_gee_download_by_subtile(SUBTILE_LOC, 
@@ -108,7 +163,8 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
                                #fishnet, asset_df, 
                                OUTDIR):
     '''
-    A wrapper of a gently modified ee_download.download_image_by_asset_path that downloads a subtile (based on a vector 'fishnet') of a GEE asset tile
+    A wrapper of a gently modified ee_download.download_image_by_asset_path that downloads a subtile (based on a vector 'fishnet') of a GEE asset tile.
+    Stacks all bands into a multi-band geotiff
     
     SUBTILE_LOC : the index number of the subtile that, with the fishnet, will define the subtile region of the GEE asset tile in which to download the data
     # TILELOC     : the index of the GEE asset tile
@@ -185,10 +241,23 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
             print(f'\tSUBTILE_LOC: {SUBTILE_LOC} : extracted tifs to {out_subdir}')
         os.remove(downloaded_image_fn)
         
-        for tif_fn in glob.glob(out_subdir + '/*.tif'):
+        tif_fn_orig_list = glob.glob(out_subdir + '/*.tif')
+        for tif_fn in tif_fn_orig_list:
             # Rename by appending subtile string
             tif_fn_new = os.path.splitext(tif_fn)[0] + f'-subtile{subtile_str}.tif'
             os.rename(tif_fn, tif_fn_new)
+            
+        tif_fn_new_list = glob.glob(out_subdir + '/*.tif')  
+        # Use rasterio to set band descriptions
+        # Use part of orig filename as descriptions of tri-seasonal composites
+        descriptions = [fn.split('.')[1].replace('.tif','') for fn in tif_fn_orig_list]  
+        stack_tif_fn = os.path.join(out_subdir, os.path.basename(out_subdir) + '.tif')
+
+        create_multiband_geotiff(stack_tif_fn, descriptions, tif_fn_new_list)
+    
+        for tif_fn in tif_fn_new_list:
+            os.remove(tif_fn)
+    
             
     except Exception as e:
         raise e
