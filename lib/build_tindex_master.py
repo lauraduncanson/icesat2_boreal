@@ -214,8 +214,8 @@ def main():
         if HAS_MAAP:
             
             if "S1" in TYPE:
-                if user is None: user = 'montesano'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.VH_median_summer*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                if user is None: user = 'montesano' # *.VH_median_summer
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
                 ends_with_str = ".tif"
             
             if "LC" in TYPE:
@@ -288,7 +288,8 @@ def main():
         
         # Get the tile num from the file string, which is in different places
         if 'S1' in TYPE:
-            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+            #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('-', expand=True)[0]
             df['subtile_num'] = df['file'].str.split('-subtile', expand=True)[1].str.strip('*.tif')
             df['tile_num'] = df['tile_num'].astype(str).astype(int)
             if DEBUG:
@@ -345,7 +346,7 @@ def main():
         COLS_LIST_BUILD_MOSIAC_JSON = ['tile_num','s3_path','local_path']
         
         if TYPE == 'S1': 
-            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+            #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
             #df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0').astype(str).astype(int)
             COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
             print(f"df shape : {df.shape}")

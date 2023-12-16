@@ -105,6 +105,7 @@ from rasterio.merge import merge
 from rasterio.transform import from_origin
 import numpy as np
 import rasterio
+from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 
 def create_multiband_geotiff(output_path, band_names, single_band_geotiffs):
     """
@@ -141,16 +142,75 @@ def create_multiband_geotiff(output_path, band_names, single_band_geotiffs):
             with rasterio.open(single_band_geotiffs[i-1]) as src_band:
                 if src_band.shape[0] != profile['height'] or src_band.shape[1] != profile['width']:
                     raise ValueError(f"Shape of {single_band_geotiffs[i-1]} does not match the expected shape.")
-                # if src_band.dtype != profile['dtype']:
-                #     raise ValueError(f"Data type of {single_band_geotiffs[i-1]} does not match the expected data type.")
-                # if src_band.crs != profile['crs']:
-                #     raise ValueError(f"Projection of {single_band_geotiffs[i-1]} does not match the expected projection.")
 
                 # Read and write each band to the new multiband geotiff
                 dst.write(src_band.read(1), indexes=i)
                 dst.set_band_description(i, band_name)
 
     print(f"Multiband geotiff created successfully at: {output_path}")
+
+def create_multiband_cog(output_path, band_names, single_band_geotiffs, tile_gdf, input_nodata_value: int):
+    """
+    Create a multiband COG from a list of single band geotiffs.
+
+    Parameters:
+    - output_path (str): Path to the output multiband geotiff file.
+    - band_names (list): List of band names corresponding to the single band geotiffs.
+    - single_band_geotiffs (list): List of paths to single band geotiffs.
+
+    Returns:
+    - None
+    """
+
+    # Open the first single band geotiff to get metadata
+    with rasterio.open(single_band_geotiffs[0]) as src:
+        profile = src.profile.copy()
+        profile.update(count=len(band_names),
+                       crs=src.profile['crs'], interleave='band',
+                       height=src.profile['height'], width=src.profile['width'], dtype=src.profile['dtype']
+                       #, nodata=-9999.0
+                      )
+    profile['blockxsize']=256
+    profile['blockysize']=256
+    profile['predictor']=1 # originally set to 2, which fails with 'int'; 1 tested successfully for 'int' and 'float64'
+    profile['zlevel']=7
+    profile['tiled']=True
+    profile['compress']='deflate'
+
+    # Create a new multiband geotiff
+    array_list = []
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        for i, band_name in enumerate(band_names, 1):
+            # Ensure that the single band geotiffs have the same shape, data type, and projection
+            with rasterio.open(single_band_geotiffs[i-1]) as src_band:
+                if src_band.shape[0] != profile['height'] or src_band.shape[1] != profile['width']:
+                    raise ValueError(f"Shape of {single_band_geotiffs[i-1]} does not match the expected shape.")
+
+                # Read and write each band to the new multiband geotiff
+                dst.write(src_band.read(1), indexes=i)
+                dst.set_band_description(i, band_name)
+                # Build array list for use in write_cog()
+                array_list.append(src_band.read(1))
+    # Stack
+    # move axis of the stack so bands is first
+    stack = np.transpose(array_list, [0,1,2])
+    
+    # TODO: to be safe out_crs should be read from the gdal dataset
+    if os.path.exists(output_path):
+        print('Removing existing geotiff before writing COG version...')
+        os.remove(output_path)
+    write_cog(stack, 
+              output_path, 
+              profile['crs'], 
+              profile['transform'],
+              band_names, 
+              # clip_geom = tile_gdf,      # Using this caused memory crashes (maybe feeding wrong gdf?) not needed now anyway.
+              # clip_crs = profile['crs'],
+              # resolution = (res, res),
+              input_nodata_value = input_nodata_value,
+              align = False)               # Keep as False so clip_geom not needed
+
+    print(f"Multiband COG created successfully at: {output_path}")
 
 # TODO: use an id field 'AGG_TILE_NUM'
 # replace TILE_LOC with id number of id field
@@ -161,7 +221,8 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
                                ASSET_PATH,
                                TILE_SIZE_M,
                                #fishnet, asset_df, 
-                               OUTDIR):
+                               OUTDIR,
+                               INPUT_NODATA_VALUE: int=-9999):
     '''
     A wrapper of a gently modified ee_download.download_image_by_asset_path that downloads a subtile (based on a vector 'fishnet') of a GEE asset tile.
     Stacks all bands into a multi-band geotiff
@@ -173,6 +234,7 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
     ASSET_PATH  : The GEE path to the image collection where the assets are stored
     TILE_SIZE_M : the dim in meters of 1 side of a subtile (too big, asset transfer fails; too small, too many subtiles are created)
     OUTDIR      : the main ouput dir for this TILELOC into which many subdirs based on SUBTILE_LOC will be created
+    INPUT_NODATA_VALUE : needs to be an int
     
     ASSET_PATH gives you the following:
         fishnet : a vector fishnet based on the GEE asset tile bounds that defines the subtile regions
@@ -252,12 +314,13 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
         # Use part of orig filename as descriptions of tri-seasonal composites
         descriptions = [fn.split('.')[1].replace('.tif','') for fn in tif_fn_orig_list]  
         stack_tif_fn = os.path.join(out_subdir, os.path.basename(out_subdir) + '.tif')
+        
+        #create_multiband_geotiff(stack_tif_fn, descriptions, tif_fn_new_list)
+        create_multiband_cog(stack_tif_fn, descriptions, tif_fn_new_list, fishnet_df, input_nodata_value=INPUT_NODATA_VALUE)
 
-        create_multiband_geotiff(stack_tif_fn, descriptions, tif_fn_new_list)
-    
+        # Remove individual geotiffs
         for tif_fn in tif_fn_new_list:
             os.remove(tif_fn)
-    
             
     except Exception as e:
         raise e
