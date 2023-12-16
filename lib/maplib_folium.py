@@ -402,10 +402,10 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         topo_tiles_layer.add_to(m1)
         
     # Add custom basemaps
-    basemaps['basemap_gray'].add_to(m1)
     basemaps['Google Terrain'].add_to(m1)
     basemaps['Imagery'].add_to(m1)
     basemaps['ESRINatGeo'].add_to(m1)
+    basemaps['basemap_gray'].add_to(m1)
 
     ecoboreal_layer.add_to(m1)
 

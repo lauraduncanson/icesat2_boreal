@@ -139,6 +139,8 @@ def main():
     parser.set_defaults(RETURN_DUPS=False)
     parser.add_argument('--tindex_append', dest='tindex_append', action='store_true', help='Append data frame to existing tindex master csv')
     parser.set_defaults(tindex_append=False)
+    parser.add_argument('--WRITE_TINDEX_MATCHES_GDF', dest='WRITE_TINDEX_MATCHES_GDF', action='store_true', help='Write a tindex gpkg from master json needed to build stack')
+    parser.set_defaults(WRITE_TINDEX_MATCHES_GDF=False)
     args = parser.parse_args()
     
     s3 = s3fs.S3FileSystem(anon=True)
@@ -351,6 +353,7 @@ def main():
         
         RETURN_CREATION_TIME = True
         if args.RETURN_DUPS:    
+            if TYPE == 'S1': RETURN_CREATION_TIME=False # This might help reduce time of run?
             df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
             out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
             print(f'Writing duplicates csv: {out_tindex_dups_fn}')
@@ -373,6 +376,10 @@ def main():
                            boreal_tile_index_path = boreal_tile_index_path, 
                            BAD_TILE_LIST = BAD_TILES_LIST, # tiles touching the anti-meridian are annoying
                            cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
+        if args.WRITE_TINDEX_MATCHES_GDF:
+            out_tindex_matches_gdf_fn = os.path.splitext(out_tindex_fn)[0] +  '.gpkg'
+            print(f'Writing tindex matches from master json to gpkg: {out_tindex_matches_gdf_fn}')
+            tindex_matches_gdf.to_file(out_tindex_matches_gdf_fn, mode='w')
         
         if 'HLS'in TYPE:
             DPS_IDENTIFIER_STR = args.dps_identifier
