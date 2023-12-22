@@ -14,7 +14,7 @@ from rasterio.merge import merge
 from rasterio.crs import CRS
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
-from rio_tiler.io import COGReader
+from rio_tiler.io import COGReader, Reader
 
 from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
@@ -78,9 +78,11 @@ def fn_list_valid(fn_list):
     print('%i output fn' % len(out_list))
     return out_list 
 
-# def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
-#     with COGReader(src_path) as cog:
-#         return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+# import warnings
+# warnings.filterwarnings('error')
+# def NotCOGReader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+#     with Reader(src_path) as src:
+#         return src.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
 
 # def get_shape(bbox, res=30):
 #     left, bottom, right, top = bbox
@@ -89,7 +91,7 @@ def fn_list_valid(fn_list):
 #     return height,width
 #     #return 3000, 3000
 
-def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, clip: bool, topo_off: bool, output_dir: str, height: None, width: None):
+def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, bandnames_list: list, clip: bool, topo_off: bool, output_dir: str, height: None, width: None):
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
@@ -120,14 +122,17 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         print('Getting output height and width from input shape arg...')
         
     print(f"{height} x {width}")
-    
-    img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+
+
+    img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width)
+
     mosaic = (img[0].as_masked())
     out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
 
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
     #
+    #covar_src_name = os.path.splitext(os.path.basename(covar_tile_fn))[0] # now an arg
     if (not os.path.isdir(tmp_out_path)): os.mkdir(tmp_out_path)
     tileid = '_'.join([covar_src_name, str(stack_tile_id)])
     ext = "cog.tif" 
@@ -147,8 +152,8 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
 
     if not topo_off:
         bandnames_list = ["elevation"]
-    else:
-        bandnames_list = [covar_src_name]
+    #else:
+    #   bandnames_list = covar_src_name_list
 
     write_cog(mosaic, 
               cog_fn, 
@@ -186,7 +191,7 @@ def build_stack_list(covar_dict_list, vector_dict,
                      #stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, 
                      tile_buffer_m: int, 
                      #stack_tile_layer: str, 
-                     #covar_tile_fn_list, in_covar_s3_col: str, 
+                     #covar_tile_fn, in_covar_s3_col: str, 
                      res: int, 
                      #input_nodata_value: int, tmp_out_path: str, covar_src_name: str, 
                      clip: bool, 
@@ -226,7 +231,7 @@ def build_stack_list(covar_dict_list, vector_dict,
             
             # these used to be indiv args; now come from input dict
             covar_tile_fn = covar_dict['COVAR_TILE_FN']
-            covar_src_name = covar_dict['RASTER_NAME']
+            covar_src_name = covar_dict['RASTER_NAME'] # incomlpete - should update to make this a list to accomodate multiband covar files [0] # Changed to 1st element of input list
             in_covar_s3_col = covar_dict['IN_COVAR_S3_COL']
             input_nodata_value = covar_dict['NODATA_VAL']
 
@@ -323,6 +328,8 @@ def main():
     parser.add_argument("--in_covar_s3_col", type=str, default="s3", help="The column name that holds the s3 path of each s3 COG")
     parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/tmp", help="The tmp out path for the clipped covar cog before covar calcs")
     parser.add_argument("-name", "--covar_src_name", type=str, default="Copernicus", help="Name to identify the general source of the covariate data")
+# https://stackoverflow.com/questions/15753701/how-can-i-pass-a-list-as-a-command-line-argument-with-argparse
+    parser.add_argument("--bandnames_list", type=str, nargs='+', action='store', default=['elevation'], help="List of names to identify the bandnames")
     parser.add_argument('--topo_off', dest='topo_off', action='store_true', help='Topo stack creation is a special case. Turn off topo stack covar extraction.')
     parser.set_defaults(topo_off=False)
     parser.add_argument('--clip', dest='clip', action='store_true', help='Clip to geom of feature id (tile or polygon)')
@@ -363,6 +370,7 @@ def main():
     input_nodata_value = args.input_nodata_value
     in_covar_s3_col = args.in_covar_s3_col
     tmp_out_path = args.tmp_out_path
+    bandnames_list = args.bandnames_list
     covar_src_name = args.covar_src_name
     topo_off = args.topo_off
     clip = args.clip
@@ -379,6 +387,7 @@ def main():
                 input_nodata_value,
                 tmp_out_path,
                 covar_src_name,
+                bandnames_list,
                 clip, 
                 topo_off,
                 output_dir,
