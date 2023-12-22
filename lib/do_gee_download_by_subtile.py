@@ -28,23 +28,44 @@ def get_gee_assets(asset_path):
 
     return collection_items_df
 
+def create_polygon_from_coordinates(coordinates, crs='EPSG:4326'):
+    """
+    Create a polygon from a list of input coordinates and return it as a GeoDataFrame.
+
+    Parameters:
+    - coordinates (list of tuples): List of input coordinates (e.g., [(x1, y1), (x2, y2), ...]).
+    - crs (str): Coordinate reference system. Default is EPSG:4326 (WGS84).
+
+    Returns:
+    - geopandas.GeoDataFrame: GeoDataFrame containing the created polygon.
+    """
+    # Create a Shapely Polygon from the input coordinates
+    polygon = Polygon(coordinates)
+
+    # Create a GeoDataFrame with the polygon
+    gdf = gpd.GeoDataFrame(geometry=[polygon], crs=crs)
+
+    return gdf
+
 #def create_fishnet(collection_items_df, asset_num, dims, DEBUG=False):
 def create_fishnet(asset, dims, DEBUG=False):
     
-    in_crs = 'BOUNDCRS[SOURCECRS[PROJCRS["unnamed",BASEGEOGCRS["GRS 1980(IUGG,\
-    1980)",DATUM["unknown",ELLIPSOID["GRS80",6378137,298.257222101,\
-    LENGTHUNIT["metre",1,ID["EPSG",9001]]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]]],CONVERSION["unnamed",METHOD["Albers Equal Area",ID["EPSG",9822]],\
-    PARAMETER["Latitude of 1st standard parallel",50,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8823]],\
-    PARAMETER["Latitude of 2nd standard parallel",70,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8824]],PARAMETER["Latitude of false origin",40,\
-    ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8821]],PARAMETER["Longitude of false origin",180,ANGLEUNIT["degree",0.0174532925199433],\
-    ID["EPSG",8822]],PARAMETER["Easting at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8826]],PARAMETER["Northing at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8827]]],CS[Cartesian,2],\
-    AXIS["easting",east,ORDER[1],LENGTHUNIT["Meter",1]],AXIS["northing",north,ORDER[2],LENGTHUNIT["Meter",1]]]],\
-    TARGETCRS[GEOGCRS["WGS 84",DATUM["World Geodetic System 1984",ELLIPSOID["WGS 84",6378137,298.257223563,LENGTHUNIT["metre",1]]],\
-    PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1]\
-    ,ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],\
-    ID["EPSG",4326]]],ABRIDGEDTRANSFORMATION["Transformation from GRS 1980(IUGG, 1980) to WGS84",METHOD["Position Vector transformation (geog2D domain)",ID["EPSG",9606]],\
-    PARAMETER["X-axis translation",0,ID["EPSG",8605]],PARAMETER["Y-axis translation",0,ID["EPSG",8606]],PARAMETER["Z-axis translation",0,ID["EPSG",8607]],\
-    PARAMETER["X-axis rotation",0,ID["EPSG",8608]],PARAMETER["Y-axis rotation",0,ID["EPSG",8609]],PARAMETER["Z-axis rotation",0,ID["EPSG",8610]],PARAMETER["Scale difference",1,ID["EPSG",8611]]]]'
+    # in_crs = 'BOUNDCRS[SOURCECRS[PROJCRS["unnamed",BASEGEOGCRS["GRS 1980(IUGG,\
+    # 1980)",DATUM["unknown",ELLIPSOID["GRS80",6378137,298.257222101,\
+    # LENGTHUNIT["metre",1,ID["EPSG",9001]]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]]],CONVERSION["unnamed",METHOD["Albers Equal Area",ID["EPSG",9822]],\
+    # PARAMETER["Latitude of 1st standard parallel",50,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8823]],\
+    # PARAMETER["Latitude of 2nd standard parallel",70,ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8824]],PARAMETER["Latitude of false origin",40,\
+    # ANGLEUNIT["degree",0.0174532925199433],ID["EPSG",8821]],PARAMETER["Longitude of false origin",180,ANGLEUNIT["degree",0.0174532925199433],\
+    # ID["EPSG",8822]],PARAMETER["Easting at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8826]],PARAMETER["Northing at false origin",0,LENGTHUNIT["Meter",1],ID["EPSG",8827]]],CS[Cartesian,2],\
+    # AXIS["easting",east,ORDER[1],LENGTHUNIT["Meter",1]],AXIS["northing",north,ORDER[2],LENGTHUNIT["Meter",1]]]],\
+    # TARGETCRS[GEOGCRS["WGS 84",DATUM["World Geodetic System 1984",ELLIPSOID["WGS 84",6378137,298.257223563,LENGTHUNIT["metre",1]]],\
+    # PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1]\
+    # ,ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],\
+    # ID["EPSG",4326]]],ABRIDGEDTRANSFORMATION["Transformation from GRS 1980(IUGG, 1980) to WGS84",METHOD["Position Vector transformation (geog2D domain)",ID["EPSG",9606]],\
+    # PARAMETER["X-axis translation",0,ID["EPSG",8605]],PARAMETER["Y-axis translation",0,ID["EPSG",8606]],PARAMETER["Z-axis translation",0,ID["EPSG",8607]],\
+    # PARAMETER["X-axis rotation",0,ID["EPSG",8608]],PARAMETER["Y-axis rotation",0,ID["EPSG",8609]],PARAMETER["Z-axis rotation",0,ID["EPSG",8610]],PARAMETER["Scale difference",1,ID["EPSG",8611]]]]'
+
+    in_crs = 'PROJCS["unnamed",GEOGCS["GRS 1980(IUGG, 1980)",DATUM["unknown",SPHEROID["GRS80",6378137,298.257222101],TOWGS84[0,0,0,0,0,0,0]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["standard_parallel_1",50],PARAMETER["standard_parallel_2",70],PARAMETER["latitude_of_center",40],PARAMETER["longitude_of_center",180],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["Meter",1],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
     
     try:
         # Replace tile loc with 
@@ -60,13 +81,15 @@ def create_fishnet(asset, dims, DEBUG=False):
         if False:
             print(f'\tasset id = {list(asset.id.iloc[0])[0]} (rows={rows}, cols={cols})')
         #print('\trows =', rows, 'cols = ', cols)
-    
+        if DEBUG:
+            print(asset['crs_transform'])
         #minx = (asset['bands'][0][0]['crs_transform'][2])
         #miny = (asset['bands'][0][0]['crs_transform'][5])
         minx = asset['crs_transform'].iloc[0][2]
         miny = asset['crs_transform'].iloc[0][5]
-        maxx = minx + (cols*30)
-        maxy = miny - (rows*30)
+        res = asset['crs_transform'].iloc[0][0]
+        maxx = minx + (cols*res)
+        maxy = miny - (rows*res)
     
         if DEBUG:
             print('\tbbox Albers=', minx, miny, maxx, maxy)
@@ -82,7 +105,7 @@ def create_fishnet(asset, dims, DEBUG=False):
         geom_array = []
 
         # Polygon Size
-        square_size = dims*30
+        square_size = dims*res
         while y <= maxY:
             while x <= maxX:
                 geom = geometry.Polygon([(x,y), (x, y+square_size), (x+square_size, y+square_size), (x+square_size, y), (x, y)])
@@ -98,6 +121,177 @@ def create_fishnet(asset, dims, DEBUG=False):
         raise e
     
     return fishnet
+
+import geopandas as gpd
+from shapely.geometry import MultiPolygon, Polygon, LineString
+from shapely.ops import unary_union
+
+def create_date_line_polygon(buffer_distance=0.00001):
+    """
+    Create a polygon representing the international date line buffered by a given distance.
+
+    Parameters:
+    - buffer_distance (float): Distance to buffer the international date line. Default is 0.00005 dd - about 5m in the boreal.
+
+    Returns:
+    - geopandas.GeoDataFrame: GeoDataFrame with the buffered international date line polygon.
+    """
+    # Create a LineString representing the international date line
+    date_line = LineString([(-180, -89.99), (-180, 89.99)])
+
+    # Buffer the line to create a polygon
+    date_line_polygon = date_line.buffer(buffer_distance)
+
+    # Create a GeoDataFrame with the buffered polygon
+    gdf_date_line = gpd.GeoDataFrame(geometry=[date_line_polygon], crs='EPSG:4326')
+
+    return gdf_date_line
+
+def split_polygon(polygon, crs):
+    """
+    Split a polygon by the international date line.
+
+    Parameters:
+    - polygon (shapely.geometry.Polygon): Polygon to be split.
+
+    Returns:
+    - List of shapely.geometry.Polygon: List of split polygons.
+    """
+    date_line = create_date_line_polygon().to_crs(crs).geometry[0]
+    
+    parts = []
+    if polygon.intersects(date_line):
+        # Split the polygon
+        parts = list(polygon.difference(date_line).geoms) 
+    else:
+        parts.append(polygon)
+
+    return parts
+
+def split_polygons_by_dateline_poly(gdf, tile_num_col='tile_num', DO_BOREAL_TILES_COLS=False):
+    """
+    Split polygons in a GeoDataFrame by the international date line.
+
+    Parameters:
+    - gdf (geopandas.GeoDataFrame): GeoDataFrame with polygons to be split.
+
+    Returns:
+    - geopandas.GeoDataFrame: GeoDataFrame with split polygons.
+    """
+    # Ensure the GeoDataFrame has a valid geometry column
+    if 'geometry' not in gdf.columns or gdf['geometry'].isna().any():
+        raise ValueError("The GeoDataFrame must have a valid 'geometry' column with polygons.")
+
+    # Split polygons by the international date line
+    split_polygons = []
+    centroid_gdf_list = []
+    tile_num_list = []
+    if 'tile_group' in gdf.columns and 'tile_version' in gdf.columns: DO_BOREAL_TILES_COLS = True
+    if DO_BOREAL_TILES_COLS:
+        tile_group_list = []
+        tile_version_list = []
+    for _, row in gdf.iterrows():
+        original_polygon = row['geometry']
+        tile_num = row[tile_num_col]
+        centroid_gdf = gpd.GeoDataFrame(data=[row], geometry=[row['geometry'].centroid], crs=gdf.crs) # this will help carry through attributes
+        if original_polygon.geom_type == 'Polygon':
+            # Handle a single Polygon
+            split_parts = split_polygon(original_polygon, crs=gdf.crs)
+        elif original_polygon.geom_type == 'MultiPolygon':
+            # Handle MultiPolygon
+            split_parts = [split_polygon(part, crs=gdf.crs) for part in original_polygon]
+        else:
+            raise ValueError(f"Unsupported geometry type: {original_polygon.geom_type}")
+
+        split_polygons.extend(split_parts)
+        centroid_gdf_list.append(centroid_gdf)
+        for part in split_parts:
+            if tile_num in tile_num_list:
+                # New split polys are scaled by 100 from original tile_num values
+                tile_num = tile_num * 100
+            tile_num_list.append(tile_num)
+            
+            if DO_BOREAL_TILES_COLS:
+                tile_group_list.append(row['tile_group'])
+                tile_version_list.append(row['tile_version'])
+
+    # Create a new GeoDataFrame with split polygons
+    gdf_split = gpd.GeoDataFrame(geometry=split_polygons, crs=gdf.crs)
+    gdf_split = gpd.sjoin(gdf_split, pd.concat(centroid_gdf_list), how='left')
+    gdf_split[tile_num_col] = tile_num_list
+    if DO_BOREAL_TILES_COLS:
+        gdf_split['tile_group'] = tile_group_list
+        gdf_split['tile_version'] = tile_version_list
+    return gdf_split
+
+def create_fishnet_new(gdf, cell_size_meters, tile_col_name, subtile_col_name='subtile_num', FIX_DATELINE=False):
+    """
+    Create a fishnet of vector polygons that fully cover each polygon in the input GeoDataFrame.
+
+    Parameters:
+    - gdf (geopandas.GeoDataFrame): Input GeoDataFrame with polygons.
+    - cell_size_meters (float): Size of each grid cell in meters.
+
+    Returns:
+    - geopandas.GeoDataFrame: GeoDataFrame containing the fishnet polygons.
+    """
+    # Ensure the GeoDataFrame has a valid geometry column
+    if 'geometry' not in gdf.columns or gdf['geometry'].isna().any():
+        raise ValueError("The GeoDataFrame must have a valid 'geometry' column with polygons.")
+
+    fishnet_gdf_list = []
+    
+    # Iterate through each polygon in the input GeoDataFrame
+    for _, row in gdf.iterrows():
+        polygon = row['geometry']
+        tile_num = row[tile_col_name]
+        # Get the bounding box of the polygon and extend it to ensure full coverage
+        bounds = polygon.bounds
+        extended_bounds = (
+            bounds[0] - cell_size_meters,
+            bounds[1] - cell_size_meters,
+            bounds[2] + cell_size_meters,
+            bounds[3] + cell_size_meters
+        )
+
+        # Create a fishnet for the current polygon
+        fishnet_cells = create_fishnet_cells(extended_bounds, cell_size_meters)
+
+        # Append the fishnet cells to the fishnet GeoDataFrame
+        fishnet_gdf_tmp = gpd.GeoDataFrame({tile_col_name: [tile_num for i in range(len(fishnet_cells))], subtile_col_name: [i for i in range(len(fishnet_cells))]}, geometry=fishnet_cells, crs=gdf.crs)
+        if FIX_DATELINE:
+            # Fix dateline
+            fishnet_gdf_tmp = split_polygons_by_dateline_poly(fishnet_gdf_tmp, tile_num_col=subtile_col_name)
+        fishnet_gdf_tmp[tile_col_name] = tile_num # this converts NULL to the actual tile num for the new polys resulting from the split
+        fishnet_gdf_list.append(fishnet_gdf_tmp)
+        
+    fishnet_gdf = pd.concat(fishnet_gdf_list)
+    return fishnet_gdf
+
+def create_fishnet_cells(bounds, cell_size):
+    """
+    Create fishnet cells for a given bounding box and cell size.
+
+    Parameters:
+    - bounds (tuple): Bounding box coordinates (minx, miny, maxx, maxy).
+    - cell_size (float): Size of each grid cell.
+
+    Returns:
+    - List of shapely.geometry.Polygon: List of fishnet cells.
+    """
+    minx, miny, maxx, maxy = bounds
+    rows = int((maxy - miny) / cell_size)
+    cols = int((maxx - minx) / cell_size)
+
+    fishnet_cells = []
+    for i in range(rows):
+        for j in range(cols):
+            x = minx + j * cell_size
+            y = miny + i * cell_size
+            cell = Polygon([(x, y), (x + cell_size, y), (x + cell_size, y + cell_size), (x, y + cell_size)])
+            fishnet_cells.append(cell)
+
+    return fishnet_cells
 
 import rasterio
 from rasterio.enums import Resampling
@@ -194,6 +388,16 @@ def create_multiband_cog(output_path, band_names, single_band_geotiffs, tile_gdf
     # Stack
     # move axis of the stack so bands is first
     stack = np.transpose(array_list, [0,1,2])
+
+    if True:
+        print('\nApply a common mask across all layers of stack...')
+        print(f'Masking out the input nodata value {input_nodata_value}...')
+        print(f"Stack shape pre-mask:\t\t{stack.shape}")
+        stack[:, np.any(stack == input_nodata_value, axis=0)] = input_nodata_value 
+        print('Masking out 0 value (appears along some edges of S1 subtiles...')
+        stack[:, np.any(stack == 0, axis=0)] = input_nodata_value
+        print(f"Stack shape post-mask:\t\t{stack.shape}")
+
     
     # TODO: to be safe out_crs should be read from the gdal dataset
     if os.path.exists(output_path):
@@ -222,7 +426,7 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
                                TILE_SIZE_M,
                                #fishnet, asset_df, 
                                OUTDIR,
-                               INPUT_NODATA_VALUE: int=-9999):
+                               INPUT_NODATA_VALUE=-9999.0):
     '''
     A wrapper of a gently modified ee_download.download_image_by_asset_path that downloads a subtile (based on a vector 'fishnet') of a GEE asset tile.
     Stacks all bands into a multi-band geotiff
@@ -265,10 +469,13 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
     
     #print(f'\n\tSubtile {SUBTILE_LOC} for tile loc {TILELOC} to subdir: {OUTDIR_TILE}')
     print(f'\n\tSubtile {SUBTILE_LOC} for {ID_COL} # {ID_NUM} ({ASSET_TILE_NAME}) to subdir: {OUTDIR_TILE}')
-    #fishnet_df = create_fishnet(asset_df, TILELOC, TILE_SIZE_M)
-    fishnet_df = create_fishnet(asset_df[asset_df[ID_COL] == ID_NUM], TILE_SIZE_M)
-    fishnet_df['subtile'] = fishnet_df.index
-    fishnet_df['tile'] = ID_NUM
+
+    if False:
+        fishnet_df = create_fishnet(asset_df[asset_df[ID_COL] == ID_NUM], TILE_SIZE_M)
+        fishnet_df['subtile'] = fishnet_df.index
+        fishnet_df['tile'] = ID_NUM
+    else:
+        fishnet_df = create_fishnet_new(asset_df[asset_df[ID_COL] == ID_NUM], 'agg_tile_num', TILE_SIZE_M)
     
     try:
         
