@@ -1,6 +1,6 @@
 algorithm_description: run the build_stack.py script
 algorithm_name: run_build_stack
-algorithm_version: build_stack_v2023
+algorithm_version: build_stack_v2023_2
 build_command: icesat2_boreal/dps/build_command_3.1.3.sh
 disk_space: 10GB
 docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/pangeo:main
@@ -11,7 +11,7 @@ inputs:
     description: a vector geopackage of polygons that define the tiles of the covar product to be returned to specific tile AOIs
     name: covar_tile_url
     required: true
-  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/nathanmthomas/boreal_tiles_v003.gpkg
+  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004.gpkg
     description: a vector geopackage of polygons that define various AOI tiles you want returned
     name: in_tile_url
     required: true
@@ -36,13 +36,17 @@ inputs:
     description: ''
     name: tile_buffer_m
     required: true
-  - default: boreal_tiles_v003
+  - default: boreal_tiles_v004
     description: the geopackage layer name for the AOIs
     name: in_tile_layer
     required: true
   - default: esa_worldcover_v100_2020
     description: ''
     name: covar_src_name
+    required: true
+  - default: esa_lc_class
+    description: ''
+    name: bandnames_list
     required: true
   - default: s3_path
     description: ''
