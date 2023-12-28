@@ -23,6 +23,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 # In the yaml for this alg, there is a 'required file' passed to submitJob that downloads this creds file using the supplied s3 path.
 # Then, this bash script can access the file like this:
 INPUT1=${PWD}/input/credentials
+ASSET_GDF_FN="${PWD}/input/$2"
 
 # Move to this dir...
 mkdir -p ${PWD}/input/.config/earthengine/
@@ -71,4 +72,5 @@ python ${basedir}/../../lib/do_gee_download_by_subtile.py \
 --id_col ${3} \
 --tile_size_m ${4} \
 --asset_path ${5} \
+--asset_gdf_fn ${ASSET_GDF_FN} \
 --out_dir ${OUTPUTDIR}
