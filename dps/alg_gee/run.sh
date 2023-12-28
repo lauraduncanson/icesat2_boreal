@@ -23,7 +23,8 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 # In the yaml for this alg, there is a 'required file' passed to submitJob that downloads this creds file using the supplied s3 path.
 # Then, this bash script can access the file like this:
 INPUT1=${PWD}/input/credentials
-ASSET_GDF_FN="${PWD}/input/$2"
+gpkg_files=(${PWD}/input/*.gpkg)
+ASSET_GDF_FN=${gpkg_files[0]}
 
 # Move to this dir...
 mkdir -p ${PWD}/input/.config/earthengine/
