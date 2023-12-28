@@ -43,7 +43,8 @@ python ${basedir}/../../lib/build_stack.py \
 --output_dir ${OUTPUTDIR} \
 --topo_off \
 --covar_src_name ${7} \
---in_covar_s3_col ${8} \
---input_nodata_value ${9} \
---shape ${10} \
+--bandnames_list ${8} \
+--in_covar_s3_col ${9} \
+--input_nodata_value ${10} \
+--shape ${11} \
 --clip
