@@ -12,7 +12,7 @@ pushd ${HOME}
 source activate icesat2_boreal
 
 # needed for ee asset export
-mamba install --name icesat2_boreal -c conda-forge earthengine-api
+conda install --name icesat2_boreal -c conda-forge earthengine-api --solver=libmamba
 
 pip install git+https://git@github.com/MAAP-Project/maap-py@v3.1.3
 
