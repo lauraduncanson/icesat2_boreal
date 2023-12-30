@@ -99,7 +99,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     geom_4326_buffered = tile_parts["geom_4326_buffered"]
 
     # Read the covar_tiles index file
-    covar_tiles = gpd.read_file(covar_tile_fn)
+    covar_tiles = gpd.read_file(covar_tile_fn).to_crs(4326)
 
     # intersect with the bbox tile
     covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
