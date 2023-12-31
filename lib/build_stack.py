@@ -78,20 +78,7 @@ def fn_list_valid(fn_list):
     print('%i output fn' % len(out_list))
     return out_list 
 
-# import warnings
-# warnings.filterwarnings('error')
-# def NotCOGReader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
-#     with Reader(src_path) as src:
-#         return src.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
-
-# def get_shape(bbox, res=30):
-#     left, bottom, right, top = bbox
-#     width = int((right-left)/res)
-#     height = int((top-bottom)/res)
-#     return height,width
-#     #return 3000, 3000
-
-def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, bandnames_list: list, clip: bool, topo_off: bool, output_dir: str, height: None, width: None):
+def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, bandnames_list: list, clip: bool, topo_off: bool, output_dir: str, height: None, width: None, band_indexes_list: list):
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
@@ -105,10 +92,10 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
 
     # Get the s3 urls to the granules
-    file_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
-    file_s3.sort()
-    print("The covariate's filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
-
+    files_list_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
+    files_list_s3.sort()
+    print(f"{len(files_list_s3)} covariate filename(s) intersecting the {tile_buffer_m} m buffered bbox for tile id {stack_tile_id}:\n")
+    
     # Create a mosaic from all the images
     in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
     print(f"in_bbox: {in_bbox}")
@@ -123,16 +110,37 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         
     print(f"{height} x {width}")
 
+    #
+    # Mosiac: use rio_tiler to read in a list of files and return a mosaic
+    #
+    
+    # Get the band indexes associated with the band names of interest
+    if band_indexes_list is None:
+        band_indexes_list = list(range(1, len(bandnames_list) + 1)) #[1,2,3,4,7,8]# get_band_indices(files_list_s3[0], bandnames_list)
+    print(f'Band indexes list: {band_indexes_list}')
+    bandnames_list = [bandnames_list[i-1] for i in band_indexes_list]
+    print(bandnames_list)
+    
+    print('\n'.join(files_list_s3))
 
-    img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width)
-
+    # updated call to manage memory and accomodate subsetting by bands (indexes)
+    # works for ~56 files of float COGs with arrays of 9 x ~700 x ~700 to return mosaic COGs with arrays of 9 x 3000 x 3000
+    MAX_FILES = 30
+    NUM_THREADS_MOSAIC = 5
+    if len(files_list_s3) > MAX_FILES:
+        print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
+        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC)
+    else:
+        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list)
+        
     mosaic = (img[0].as_masked())
+    
+    print(f'Stack (mosaic) shape: {mosaic.shape}')
     out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
 
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
     #
-    #covar_src_name = os.path.splitext(os.path.basename(covar_tile_fn))[0] # now an arg
     if (not os.path.isdir(tmp_out_path)): os.mkdir(tmp_out_path)
     tileid = '_'.join([covar_src_name, str(stack_tile_id)])
     ext = "cog.tif" 
@@ -242,9 +250,9 @@ def build_stack_list(covar_dict_list, vector_dict,
             covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
 
             # Get the s3 urls to the granules
-            file_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
-            file_s3.sort()
-            print("The covariate's filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(file_s3))
+            files_list_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
+            files_list_s3.sort()
+            print("The covariate's filename(s) intersecting the {} m buffered bbox for tile id {}:\n".format(str(tile_buffer_m), str(stack_tile_id)), '\n'.join(files_list_s3))
 
             # Create a mosaic from all the images
             in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
@@ -260,7 +268,7 @@ def build_stack_list(covar_dict_list, vector_dict,
 
             print(f"{height} x {width}")
 
-            img = mosaic_reader(file_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
+            img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width) 
             mosaic = (img[0].as_masked())
             out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
             
@@ -308,11 +316,8 @@ def build_stack_list(covar_dict_list, vector_dict,
     
 
 def main():
-    '''Command line script to create topo stacks by vector tile id.
-    python 3.1.5_dps.py --in_tile_fn /projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg --in_tile_num 1793 --tile_buffer_m 150 --in_tile_layer "boreal_tiles_v003" -o /projects/my-private-bucket/3.1.5_test/ --topo_tile_fn /projects/shared-buckets/nathanmthomas/dem30m_tiles.geojson
-
-    example cmd line call: python 3.1.5_dps.py --in_tile_fn '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg' --in_tile_num 18822 --tile_buffer_m 120 --in_tile_layer "boreal_tiles_v003" -o '/projects/tmp/Topo/'
-
+    '''Build COG stacks (multiple bands) for an extent based on a vector polygon.
+       uses rio_tiler to read and mosaic input lists of COGs stored on s3
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--in_tile_fn", type=str, help="The input filename of a set of vector tiles that will define the bounds for stack creation")
@@ -330,6 +335,7 @@ def main():
     parser.add_argument("-name", "--covar_src_name", type=str, default="Copernicus", help="Name to identify the general source of the covariate data")
 # https://stackoverflow.com/questions/15753701/how-can-i-pass-a-list-as-a-command-line-argument-with-argparse
     parser.add_argument("--bandnames_list", type=str, nargs='+', action='store', default=['elevation'], help="List of names to identify the bandnames")
+    parser.add_argument("--band_indexes_list", type=int, nargs='+', action='store', default=None, help="List of indexes (starting from 1) to identify the bands to be subsetted. If None, then all input bands are returned.")
     parser.add_argument('--topo_off', dest='topo_off', action='store_true', help='Topo stack creation is a special case. Turn off topo stack covar extraction.')
     parser.set_defaults(topo_off=False)
     parser.add_argument('--clip', dest='clip', action='store_true', help='Clip to geom of feature id (tile or polygon)')
@@ -371,6 +377,7 @@ def main():
     in_covar_s3_col = args.in_covar_s3_col
     tmp_out_path = args.tmp_out_path
     bandnames_list = args.bandnames_list
+    band_indexes_list = args.band_indexes_list
     covar_src_name = args.covar_src_name
     topo_off = args.topo_off
     clip = args.clip
@@ -392,7 +399,8 @@ def main():
                 topo_off,
                 output_dir,
                 height,
-                width
+                width,
+                band_indexes_list
                )
 
 if __name__ == "__main__":

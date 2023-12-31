@@ -107,9 +107,9 @@ def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 
     
     return tile_parts
 
-def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int, bands: tuple) -> ImageData:
     with COGReader(src_path) as cog:
-        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+        return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width, indexes=bands)
 
 def get_shape(bbox, res=30):
     left, bottom, right, top = bbox
