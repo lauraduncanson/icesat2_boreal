@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
     parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
@@ -216,8 +216,10 @@ def main():
             if "S1" in TYPE:
                 if user is None: user = 'montesano' # *.VH_median_summer
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
-                ends_with_str = ".tif"
-            
+                if TYPE == 'S1_subtile':
+                    ends_with_str = ".tif"
+                else:
+                    ends_with_str = "_cog.tif"
             if "LC" in TYPE:
                 if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
@@ -288,18 +290,21 @@ def main():
         
         # Get the tile num from the file string, which is in different places
         if 'S1' in TYPE:
-            #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
-            df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('-', expand=True)[0]
-            df['subtile_num'] = df['file'].str.split('-subtile', expand=True)[1].str.strip('*.tif')
-            df['tile_num'] = df['tile_num'].astype(str).astype(int)
-            if DEBUG:
-                print(f'Writing TEST tindex master csv: {out_tindex_fn}')
-                df.to_csv(out_tindex_fn, mode='w+')
-                # Make sure the tile_num field is int (not object)
-                df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
-                df['subtile_num'] = df['subtile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
-                print(df[['tile_num','subtile_num']].head)
-                print(df.info())
+            if TYPE == 'S1_subtile':
+                #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
+                df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('-', expand=True)[0]
+                df['subtile_num'] = df['file'].str.split('-subtile', expand=True)[1].str.strip('*.tif')
+                df['tile_num'] = df['tile_num'].astype(str).astype(int)
+                if DEBUG:
+                    print(f'Writing TEST tindex master csv: {out_tindex_fn}')
+                    df.to_csv(out_tindex_fn, mode='w+')
+                    # Make sure the tile_num field is int (not object)
+                    df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
+                    df['subtile_num'] = df['subtile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0')#.astype(str).astype(int)
+                    print(df[['tile_num','subtile_num']].head)
+                    print(df.info())
+            else:
+                df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip(ends_with_str)
         if 'LC' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
@@ -336,7 +341,7 @@ def main():
             
         if TYPE == 'ATL08':
             focal_field_name_list = ['file']
-        elif TYPE == 'S1':
+        elif TYPE == 'S1_subtile':
             focal_field_name_list = ['tile_num','subtile_num'] 
         else:
             focal_field_name_list = ['tile_num']
@@ -345,7 +350,7 @@ def main():
             
         COLS_LIST_BUILD_MOSIAC_JSON = ['tile_num','s3_path','local_path']
         
-        if TYPE == 'S1': 
+        if TYPE == 'S1_subtile': 
             #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
             #df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0').astype(str).astype(int)
             COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
@@ -354,7 +359,7 @@ def main():
         
         RETURN_CREATION_TIME = True
         if args.RETURN_DUPS:    
-            if TYPE == 'S1': RETURN_CREATION_TIME=False # This might help reduce time of run?
+            if TYPE == 'S1_subtile': RETURN_CREATION_TIME=False # This might help reduce time of run?
             df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
             out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
             print(f'Writing duplicates csv: {out_tindex_dups_fn}')
@@ -366,7 +371,7 @@ def main():
         print(f'Writing tindex master csv: {out_tindex_fn}')
         df.to_csv(out_tindex_fn, mode='w+')
         
-        if TYPE != 'S1':
+        if 'S1' not in TYPE:
             BAD_TILES_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619] # These boreal tiles cross the dateline...
         else:
             BAD_TILES_LIST = [] # No bad tiles for S1 comps identified yet...

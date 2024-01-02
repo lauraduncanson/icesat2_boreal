@@ -487,10 +487,9 @@ def get_tile_matches_gdf(tindex_master_fn,
     if 'subtile_num' in boreal_tile_index.columns:
         boreal_tile_index["subtile_num"] = boreal_tile_index["subtile_num"].astype(int) 
         JOIN_COL_LIST = ['subtile_num', 'tile_num']
+        #cols_list.append('subtile_num') # this done so 's3_path' in right and left df's dont convert to s3_path_x, s3_path_y
 
     # Select the rows we have results for
-    # left_on=['A_c1','c2'], right_on = ['B_c1','c2']
-    #tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', on='tile_num')
     tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', left_on=JOIN_COL_LIST, right_on=JOIN_COL_LIST)
     tile_index_matches_gdf = tile_index_matches_gdf[tile_index_matches_gdf['s3_path'].notna()]
     

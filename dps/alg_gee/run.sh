@@ -24,7 +24,9 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 # Then, this bash script can access the file like this:
 INPUT1=${PWD}/input/credentials
 gpkg_files=(${PWD}/input/*.gpkg)
-ASSET_GDF_FN=${gpkg_files[0]}
+#ASSET_GDF_FN=${gpkg_files[0]}
+#ASSET_GDF_FN=${PWD}/input/*v004_agg12.gpkg
+CLEANER_GDF_FN=${PWD}/input/*v004.gpkg
 
 # Move to this dir...
 mkdir -p ${PWD}/input/.config/earthengine/
@@ -72,6 +74,7 @@ python ${basedir}/../../lib/do_gee_download_by_subtile.py \
 --id_num ${2} \
 --id_col ${3} \
 --tile_size_m ${4} \
---asset_path ${5} \
---asset_gdf_fn ${ASSET_GDF_FN} \
+--input_nodata_value ${5} \
+--asset_path ${6} \
+--cleaner_gdf_fn ${CLEANER_GDF_FN} \
 --out_dir ${OUTPUTDIR}

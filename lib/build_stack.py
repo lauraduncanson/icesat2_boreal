@@ -14,6 +14,7 @@ from rasterio.merge import merge
 from rasterio.crs import CRS
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
+from rio_tiler.mosaic.methods import defaults
 from rio_tiler.io import COGReader, Reader
 
 from CovariateUtils import write_cog, get_index_tile, get_shape, reader
@@ -129,7 +130,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     NUM_THREADS_MOSAIC = 5
     if len(files_list_s3) > MAX_FILES:
         print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
-        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC)
+        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
     else:
         img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list)
         

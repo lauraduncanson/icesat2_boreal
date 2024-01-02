@@ -411,6 +411,34 @@ def create_multiband_cog(output_path, band_names, single_band_geotiffs, tile_gdf
 
     print(f"Multiband COG created successfully at: {output_path}")
 
+def clean_asset_gdf(asset_gdf, boreal_tiles):
+    '''Cleans the Asset geodataframe from GEE assets built from 
+        /projects/my-public-bucket/databank/boreal_tiles_v004_agg12/boreal_tiles_v004_agg12_4326.shp 
+        and 
+        /projects/my-public-bucket/databank/boreal_tiles_v004.gpkg
+    '''
+    
+    # Dissolve boreal tiles to contrain extent
+    boreal_tiles_diss = boreal_tiles.dissolve('map_version')[['geometry']].explode(index_parts=True).reset_index()
+
+    # Clip asset gdf by dissolved boreal tiles to reduce asset extent
+    # This only works when projecting to albers - fails in 4326 b/c of dateline tile intersecting itself or something...
+    # !!! THIS PRESERVES OVERLAP
+    asset_gdf_updated = gpd.clip(asset_gdf.to_crs(boreal_tiles_diss.crs), boreal_tiles_diss).explode(index_parts=True)#.reset_index()
+
+    # Dissolve clipped asset gdf, explode, reset index
+    asset_gdf_updated_diss = asset_gdf_updated.dissolve('AGG_TILE_NUM')[['geometry']].explode(index_parts=True).reset_index()
+
+    # Subset to clean out bad geometries
+    # This creates a clean-enoud asset gdf (UK still has issues...)
+    asset_gdf_clean = asset_gdf_updated_diss[~( (asset_gdf_updated_diss.AGG_TILE_NUM == 51) & (asset_gdf_updated_diss.level_1 > 0)  |
+                              (asset_gdf_updated_diss.AGG_TILE_NUM == 52) & (asset_gdf_updated_diss.level_1 == 0) |
+                              (asset_gdf_updated_diss.AGG_TILE_NUM == 67) & (asset_gdf_updated_diss.level_1 < 2)  | 
+                              (asset_gdf_updated_diss.AGG_TILE_NUM == 68) & (asset_gdf_updated_diss.level_1 != 1) |
+                              (asset_gdf_updated_diss.AGG_TILE_NUM == 69)
+                            )]
+    return asset_gdf_clean
+
 # TODO: use an id field 'AGG_TILE_NUM'
 # replace TILE_LOC with id number of id field
 def do_gee_download_by_subtile(SUBTILE_LOC, 
@@ -422,6 +450,7 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
                                #fishnet, asset_df, 
                                OUTDIR,
                                ASSET_GDF_FN=None,
+                               CLEANER_GDF_FN=None,
                                INPUT_NODATA_VALUE=0,
                                GRID_SIZE_M=30
                               ):
@@ -435,7 +464,8 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
     ID_COL      : the column used to identify the tile
     ASSET_PATH  : The GEE path to the image collection where the assets are stored
     TILE_SIZE_M : the dim in meters of 1 side of a subtile (too big, asset transfer fails; too small, too many subtiles are created)
-    ASSET_GDF_FN: input asset gdf filename (this was uploaded to GEE and used to create the GEE aggregate tiles - instead of generating this dynamically from asset_df, which doesnt work nicely)
+    ASSET_GDF_FN: User-supplied input asset gdf filename (this was uploaded to GEE and used to create the GEE aggregate tiles - instead of generating this dynamically from asset_df, which doesnt work nicely)
+    CLEANER_GDF_FN : filename of the vectoed used to clean the dynamically-accessed (from GEE) version of the asset gdf
     OUTDIR      : the main ouput dir for this TILELOC into which many subdirs based on SUBTILE_LOC will be created
     INPUT_NODATA_VALUE : needs to be an int
     GRID_SIZE_M : the size in meters of the gridded data - used with TILE_SIZE_M to calc subtile length for fishnet
@@ -477,7 +507,7 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
     else:
         # New fishnet approach does geo abyss (-180) crossing tiles (aka dateline tiles - a misnomer) correctly
         if ASSET_GDF_FN is None:
-            # Get ASSET_GDF directly from GEE 
+            print('Getting GEE asset geodataframe directly from GEE ...')
             TILE_NUM_LIST = asset_df[ID_COL].to_list()
             input_coordinates_list = [asset_df['system:footprint'][i]['coordinates'] for i, TILE_NUM in enumerate(TILE_NUM_LIST)]
             input_tiles_list = [TILE_NUM for i, TILE_NUM in enumerate(asset_df[ID_COL].to_list())]
@@ -486,11 +516,21 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
             asset_gdf = pd.concat([create_polygon_from_coordinates(input_coordinates) for input_coordinates in input_coordinates_list], ignore_index=True)
             asset_gdf = pd.concat([asset_gdf, pd.DataFrame({ID_COL: input_tiles_list})], axis=1)
         else:
-            # Read GeoDataFrame directly
+            print('Reading user-supplied GEE asset geodataframe ...')
+            # Read GeoDataFrame directly and clean up
             asset_gdf = gpd.read_file(ASSET_GDF_FN)
+            
             if not ID_COL in asset_gdf.columns:
                 # Make an uppcase ID col thats the same as the lower case col - this works if input ID_COL is upper and gdf has lower
                 asset_gdf[ID_COL] = asset_gdf[ID_COL.lower()]
+        
+        if CLEANER_GDF_FN is not None:
+            print(f'Cleaning asset geodataframe with {CLEANER_GDF_FN}')
+            # this only will work with boreal_tiles_v004 and its correpsonding boreal_tiles_v004_agg12 file
+            cleaner_gdf = gpd.read_file(CLEANER_GDF_FN)
+            
+            # Clean the asset gdf
+            asset_gdf = clean_asset_gdf(asset_gdf, cleaner_gdf)
         
         # Now get fishnet    
         fishnet_df = create_fishnet_new(asset_gdf[asset_gdf[ID_COL] == ID_NUM], TILE_SIZE_M * GRID_SIZE_M, ID_COL)
@@ -535,13 +575,13 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
             os.rename(tif_fn, tif_fn_new)
         
         tif_fn_new_list = glob.glob(out_subdir + '/*.tif') 
-        print(tif_fn_orig_list)
-        print(tif_fn_new_list)
+
         # Use rasterio to set band descriptions
         # Use part of orig filename as descriptions of tri-seasonal composites
         descriptions = [fn.split('.')[1].replace('.tif','') for fn in tif_fn_orig_list]  
         stack_tif_fn = os.path.join(out_subdir, os.path.basename(out_subdir) + '.tif')
         print(descriptions)
+        
         #create_multiband_geotiff(stack_tif_fn, descriptions, tif_fn_new_list)
         create_multiband_cog(stack_tif_fn, descriptions, tif_fn_new_list, fishnet_df, input_nodata_value=INPUT_NODATA_VALUE)
 
@@ -559,18 +599,19 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--subtile_loc", type=int, required=True, help="The subtile index number provided by a fishnet over the GEE asset tile.")
-    #parser.add_argument("--tile_loc", type=int, required=True, help="The tile index number of the GEE asset tile to import (based on df index (.iloc[x]) not tile id number)")
     parser.add_argument("--id_num", type=int, required=True, help="The id in the column name in the asset df indicating the GEE asset tile to import")
     parser.add_argument("--id_col", type=str, required=True, help="The column name in the asset df indicating the GEE asset tile numbers")
     parser.add_argument("--asset_path", type=str, required=True, default='projects/foreststructure/Circumboreal/S1_Composites_albers', help="The GEE path to the image collection where the assets are stored.")
-    parser.add_argument("--asset_gdf_fn", type=str, required=True, default='https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004_agg12/boreal_tiles_v004_agg12.gpkg', help="GEE aggregate tiles")
+    parser.add_argument("--asset_gdf_fn", type=str, required=True, default=None, help="User-supplied GEE aggregate tiles filename")
+    parser.add_argument("--cleaner_gdf_fn", type=str, required=True, default='https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004.gpkg', help="Cleaner filename")
     parser.add_argument("--tile_size_m", type=int, required=True, default=500, help="The dim in meters of 1 side of a subtile")
+    parser.add_argument("--input_nodata_value", type=float, required=True, default=-9999, help="No data value for output COGs")
     parser.add_argument("--out_dir", type=str, required=True, help="The path where the subtile tifs will be imported")
     
     args = parser.parse_args()
     
     #fails = do_gee_download_by_subtile(args.subtile_loc, args.tile_loc, args.asset_path, args.out_dir)
-    fails = do_gee_download_by_subtile(args.subtile_loc, args.id_num, args.id_col, args.asset_path, args.tile_size_m, args.out_dir, ASSET_GDF_FN=args.asset_gdf_fn)
+    fails = do_gee_download_by_subtile(args.subtile_loc, args.id_num, args.id_col, args.asset_path, args.tile_size_m, args.out_dir, ASSET_GDF_FN=args.asset_gdf_fn, CLEANER_GDF_FN=args.cleaner_gdf_fn, INPUT_NODATA_VALUE=args.input_nodata_value)
     
     return fails
 
