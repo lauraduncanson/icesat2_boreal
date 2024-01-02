@@ -602,7 +602,7 @@ def main():
     parser.add_argument("--id_num", type=int, required=True, help="The id in the column name in the asset df indicating the GEE asset tile to import")
     parser.add_argument("--id_col", type=str, required=True, help="The column name in the asset df indicating the GEE asset tile numbers")
     parser.add_argument("--asset_path", type=str, required=True, default='projects/foreststructure/Circumboreal/S1_Composites_albers', help="The GEE path to the image collection where the assets are stored.")
-    parser.add_argument("--asset_gdf_fn", type=str, required=True, default=None, help="User-supplied GEE aggregate tiles filename")
+    parser.add_argument("--asset_gdf_fn", type=str, required=False, default=None, help="User-supplied GEE aggregate tiles filename")
     parser.add_argument("--cleaner_gdf_fn", type=str, required=True, default='https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004.gpkg', help="Cleaner filename")
     parser.add_argument("--tile_size_m", type=int, required=True, default=500, help="The dim in meters of 1 side of a subtile")
     parser.add_argument("--input_nodata_value", type=float, required=True, default=-9999, help="No data value for output COGs")
