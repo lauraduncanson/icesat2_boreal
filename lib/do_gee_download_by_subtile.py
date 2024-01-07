@@ -433,10 +433,19 @@ def clean_asset_gdf(asset_gdf, boreal_tiles):
     # This creates a clean-enoud asset gdf (UK still has issues...)
     asset_gdf_clean = asset_gdf_updated_diss[~( (asset_gdf_updated_diss.AGG_TILE_NUM == 51) & (asset_gdf_updated_diss.level_1 > 0)  |
                               (asset_gdf_updated_diss.AGG_TILE_NUM == 52) & (asset_gdf_updated_diss.level_1 == 0) |
-                              (asset_gdf_updated_diss.AGG_TILE_NUM == 67) & (asset_gdf_updated_diss.level_1 < 2)  | 
+                              # Remove and handle special case below                 
+                              #(asset_gdf_updated_diss.AGG_TILE_NUM == 67) & (asset_gdf_updated_diss.level_1 < 2)  |
                               (asset_gdf_updated_diss.AGG_TILE_NUM == 68) & (asset_gdf_updated_diss.level_1 != 1) |
                               (asset_gdf_updated_diss.AGG_TILE_NUM == 69)
                             )]
+    
+    # Handle special case
+    TILES_FOR_67 = [22937,22938] + list(range(23217,23219+1)) + list(range(23497,23501+1)) + list(range(23776,23782+1))  + list(range(24055,24063+1))
+    boreal_tiles_67 = boreal_tiles[boreal_tiles.tile_num.isin(TILES_FOR_67)].dissolve('map_version')[['geometry']]
+    tmp = gpd.overlay(asset_gdf_clean[asset_gdf_clean.AGG_TILE_NUM == 67], boreal_tiles_67, how='intersection').drop('level_1', axis=1).explode().reset_index()
+        
+    asset_gdf_clean = pd.concat([asset_gdf_clean[~(asset_gdf_clean.AGG_TILE_NUM == 67) ], tmp])
+    
     return asset_gdf_clean
 
 # TODO: use an id field 'AGG_TILE_NUM'

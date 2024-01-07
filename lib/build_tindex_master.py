@@ -78,7 +78,7 @@ def handle_duplicates(df, FOCAL_FIELD_NAME_LIST, TYPE: str, RETURN_DUPS, RETURN_
             print('\nNo duplicates found.\n')
         
         # Drop duplicates, keeping the latest version of the tile
-        df = df.drop_duplicates(subset=FOCAL_FIELD_NAME_LIST, keep='first')
+        df = df.drop_duplicates(subset=FOCAL_FIELD_NAME_LIST, keep='first').reset_index(drop=True)
         
         if 'tile_num' in FOCAL_FIELD_NAME_LIST:
             # Make sure the tile_num field is int (not object)
@@ -110,8 +110,9 @@ def main():
         
     parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
+    parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
-    parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of month of the DPS output as a zero-padded string")
+    parser.add_argument("-m_list", "--dps_month_list", nargs='+', type=str, default=None, help="Specify the list of months of the DPS output as a zero-padded string")
     parser.add_argument("-d_min", "--dps_day_min", type=int, default=1, help = "Specify the first day of the DPS output")
     parser.add_argument("-d_max", "--dps_day_max", type=int, default=31, help="")
     # parser.add_argument("-alg_name", type=str, choices=['do_HLS_stack_3-1-2_ubuntu','do_landsat_stack_3-1-2_ubuntu',
@@ -171,6 +172,8 @@ def main():
     
     col_name = args.col_name
     DEBUG = args.DEBUG
+    dps_year = args.dps_year
+    dps_year_list = args.dps_year_list
     dps_month = args.dps_month
     dps_month_list = args.dps_month_list
     alg_name = args.alg_name
@@ -183,9 +186,14 @@ def main():
     if HAS_MAAP and dps_month is None and dps_month_list is None:
         print('You need to specify either a -dps_month or a -dps_month_list')
         os._exit(1)
+    if HAS_MAAP and dps_year is None and dps_year_list is None:
+        print('You need to specify either a -dps_year or a -dps_year_list')
+        os._exit(1)
     
     if dps_month_list is None:
         dps_month_list = [dps_month]
+    if dps_year_list is None:
+        dps_year_list = [dps_year]
 
     if not 's3://' in args.outdir:
         if not os.path.exists(args.outdir):
@@ -201,7 +209,7 @@ def main():
         print("\nBuilding a list of tiles:")
         print(f"DPS ID:\t\t{args.dps_identifier}")
         print(f"Type:\t\t{TYPE}")
-        print(f"Year:\t\t{args.dps_year}")
+        print(f"Year:\t\t{dps_year_list}")
         print(f"Month:\t\t{dps_month_list}")
         print(f"Days:\t\t{args.dps_day_min}-{args.dps_day_max}")
         print("\nOutput dir: ", args.outdir)
@@ -215,14 +223,14 @@ def main():
             
             if "S1" in TYPE:
                 if user is None: user = 'montesano' # *.VH_median_summer
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 if TYPE == 'S1_subtile':
                     ends_with_str = ".tif"
                 else:
                     ends_with_str = "_cog.tif"
             if "LC" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = "_cog.tif"
             if "HLS" in TYPE:
                 if user is None: user = 'nathanmthomas'
@@ -231,23 +239,23 @@ def main():
                 ends_with_str = "_dps.tif"
             if "Landsat" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = "_dps.tif"
             if "Topo" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_stack.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = "_stack.tif"
             if "ATL08" in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*{args.seg_str_atl08}.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".csv"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".tif"
                 
         else:
@@ -354,7 +362,7 @@ def main():
             #df['tile_num'] = df['file'].str.split('_tile', expand=True)[1].str.split('.V', expand=True)[0]
             #df['tile_num'] = df['tile_num'].astype(str).str.replace(r'^[0]*', '', regex=True).fillna('0').astype(str).astype(int)
             COLS_LIST_BUILD_MOSIAC_JSON = ['subtile_num'] + COLS_LIST_BUILD_MOSIAC_JSON
-            print(f"df shape : {df.shape}")
+            print(f"Data frame shape (before handling duplicates): {df.shape}")
         if DEBUG: print(df.head())
         
         RETURN_CREATION_TIME = True
@@ -363,23 +371,23 @@ def main():
             df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
             out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
             print(f'Writing duplicates csv: {out_tindex_dups_fn}')
-            dropped.to_csv(out_tindex_dups_fn, mode='w+')
+            dropped.to_csv(out_tindex_dups_fn, mode='w')
         else:
             df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
         if DEBUG: print(df.head())
             
         print(f'Writing tindex master csv: {out_tindex_fn}')
-        df.to_csv(out_tindex_fn, mode='w+')
+        df.to_csv(out_tindex_fn, mode='w', index_label='index')
         
         if 'S1' not in TYPE:
             BAD_TILES_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619] # These boreal tiles cross the dateline...
         else:
             BAD_TILES_LIST = [] # No bad tiles for S1 comps identified yet...
             
-        print(f'Building tindex master json and mosaic json...')
+        print(f'Building geodataframe of matches, tindex master json, and mosaic json...')
         mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
                            out_tindex_fn, 
-                           boreal_tile_index_path = boreal_tile_index_path, 
+                           vector_tile_index_path = boreal_tile_index_path, 
                            BAD_TILE_LIST = BAD_TILES_LIST, # tiles touching the anti-meridian are annoying
                            cols_list = COLS_LIST_BUILD_MOSIAC_JSON)
         if args.WRITE_TINDEX_MATCHES_GDF:

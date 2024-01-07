@@ -270,7 +270,7 @@ def get_neighbors(input_gdf, input_id_field, input_id):
 #     return out_gdf
 
 def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
-                    boreal_tile_index_path = '/projects/my-public-bucket/boreal_tiles_v003.gpkg',
+                    boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg',
                     GROUP_FIELD = 'tile_group',
                      # The name of the USER sharing the *_tindex_master.csv; need to do this now b/c of pandas change in how s3 reads are done (anon=True)
                     USER = 'nathanmthomas',
@@ -338,15 +338,25 @@ def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
         needed_tindex.plot(column=GROUP_FIELD, legend=True, ax=ax)
         
         return LIST_TILES_NEEDED
-
+    
+def MAKE_DATAFRAME_JOBID(job_id):
+    return pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]})
+                        
 def BUILD_TABLE_JOBSTATUS(submit_results_df, status_col = 'status'):
     import xmltodict
+    from multiprocessing import Pool
+    from functools import partial
     
     # If jobs failed to submit, then they have a NaN for jobid, which makes the merge (join) fail
     submit_results_df = submit_results_df.fillna('')
-    
-    #job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
-    job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[submit_result.status]}) for job_id in submit_results_df.job_id.to_list()])
+    if False:
+        job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[maap.getJobStatus(job_id)]}) for job_id in submit_results_df.job_id.to_list()])
+    else:
+        print('multiprocessing...')
+        with Pool(processes=30) as pool:
+            job_status_df_list = pool.map(partial(MAKE_DATAFRAME_JOBID), submit_results_df.job_id.to_list())
+        job_status_df = pd.concat(job_status_df_list)
+    #job_status_df = pd.concat([pd.DataFrame({'job_id': [job_id], 'status':[submit_result.status]}) for job_id in submit_results_df.job_id.to_list()])
     job_status_df = submit_results_df.merge(job_status_df, how='left', left_on='job_id',  right_on='job_id')
     
     print(f'Count total jobs:\t{len(job_status_df)}')
@@ -470,7 +480,7 @@ def get_raster_zonalstats(ZONAL_STATS_DICT, STATS_LIST = ['max','mean', 'median'
 
 
 def get_tile_matches_gdf(tindex_master_fn, 
-                   boreal_tile_index_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', 
+                   vector_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg', 
                    BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004], 
                    cols_list = ['tile_num','s3_path','local_path']):
     
@@ -481,16 +491,16 @@ def get_tile_matches_gdf(tindex_master_fn,
     
     tindex_master = pd.read_csv(tindex_master_fn)
     
-    boreal_tile_index = geopandas.read_file(boreal_tile_index_path)
-    boreal_tile_index["tile_num"] = boreal_tile_index["tile_num"].astype(int) 
+    vector_tile_index = geopandas.read_file(vector_tile_index_path)
+    vector_tile_index["tile_num"] = vector_tile_index["tile_num"].astype(int) 
     JOIN_COL_LIST = ["tile_num"]
-    if 'subtile_num' in boreal_tile_index.columns:
-        boreal_tile_index["subtile_num"] = boreal_tile_index["subtile_num"].astype(int) 
+    if 'subtile_num' in vector_tile_index.columns:
+        vector_tile_index["subtile_num"] = vector_tile_index["subtile_num"].astype(int) 
         JOIN_COL_LIST = ['subtile_num', 'tile_num']
         #cols_list.append('subtile_num') # this done so 's3_path' in right and left df's dont convert to s3_path_x, s3_path_y
 
     # Select the rows we have results for
-    tile_index_matches_gdf = boreal_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', left_on=JOIN_COL_LIST, right_on=JOIN_COL_LIST)
+    tile_index_matches_gdf = vector_tile_index.merge(tindex_master[~tindex_master['tile_num'].isin(BAD_TILE_LIST)][cols_list], how='right', left_on=JOIN_COL_LIST, right_on=JOIN_COL_LIST)
     tile_index_matches_gdf = tile_index_matches_gdf[tile_index_matches_gdf['s3_path'].notna()]
     
     return tile_index_matches_gdf
@@ -593,7 +603,7 @@ def build_tiles_json(tile_index_matches_gdf, tindex_master_fn, boreal_fn = '/pro
 
 def build_mosaic_json(
                        tindex_master_fn, 
-                       boreal_tile_index_path = '/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', 
+                       vector_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg', 
                        BAD_TILE_LIST = [3540,3634,3728,3823,3916,4004], 
                        cols_list = ['tile_num','s3_path','local_path']):
     
@@ -611,8 +621,23 @@ def build_mosaic_json(
         return feature["properties"]["s3_path"]
     
     # Step 1 get the gdf of the tiles matches to the tindex master csv (from build_tindex_master.py on the dps_output)
-    tile_index_matches_gdf = get_tile_matches_gdf(tindex_master_fn, boreal_tile_index_path = boreal_tile_index_path, BAD_TILE_LIST = BAD_TILE_LIST, cols_list = cols_list)
+    tile_index_matches_gdf = get_tile_matches_gdf(tindex_master_fn, vector_tile_index_path = vector_tile_index_path, BAD_TILE_LIST = BAD_TILE_LIST, cols_list = cols_list)
+    
+    # Check for 'None' type geometries
+    none_geom_gdf = tile_index_matches_gdf[tile_index_matches_gdf['geometry'].isna()]
+    
+    if len(none_geom_gdf) > 0:
+        out_none_geom_csv = os.path.splitext(tindex_master_fn)[0] + '_none_geom.csv'
+        print(f"# records with 'None' type geometry: {len(none_geom_gdf)}\nRemoving them from gdf and writing to csv: {out_none_geom_csv}")
+        none_geom_gdf.to_csv(out_none_geom_csv)
+        
+        # Filter rows where the geometry is not None
+        tile_index_matches_notna_gdf = tile_index_matches_gdf[tile_index_matches_gdf['geometry'].notna()]
+        tile_index_matches_gdf = None
+        tile_index_matches_gdf = tile_index_matches_notna_gdf
+        tile_index_matches_notna_gdf = None
 
+    print(f'Tile index matches geodataframe for json: {tile_index_matches_gdf.shape}')
     # Step 2 get the tiles json rfom the gdf of matched tiles
     tile_matches_geojson = build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True)
 
