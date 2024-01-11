@@ -130,7 +130,7 @@ def main():
     parser.add_argument("-b","--bucket_name", type=str, default=None, help="s3 bucket name for file searching.")
     parser.add_argument("-r", "--root_key", type=str, default=None, help="Root dir for data search")
     parser.add_argument("--col_name", type=str, default="s3_path", help="Column name for the local path of the found files")
-    parser.add_argument("-boreal_tile_index_path", type=str, default='/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg', help='Boreal tiles gpkg')
+    parser.add_argument("-boreal_tile_index_path", type=str, default='/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg', help='Boreal tiles gpkg')
     parser.add_argument('--DEBUG', dest='DEBUG', action='store_true', help='Do debugging')
     parser.set_defaults(DEBUG=False)
     parser.add_argument('-local_dir', type=str, default=None, help='Local testing dir')
@@ -383,7 +383,7 @@ def main():
             BAD_TILES_LIST = [3540,3634,3728,3823,3916,4004,41995,41807,41619] # These boreal tiles cross the dateline...
         else:
             BAD_TILES_LIST = [] # No bad tiles for S1 comps identified yet...
-            
+        BAD_TILES_LIST = []    
         print(f'Building geodataframe of matches, tindex master json, and mosaic json...')
         mosaic_json_fn_local, tindex_matches_gdf = ExtractUtils.build_mosaic_json(
                            out_tindex_fn, 

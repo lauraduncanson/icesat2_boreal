@@ -1,0 +1,65 @@
+algorithm_description: run the build_stack.py script for DEMs without the --topo_off flag
+algorithm_name: run_build_stack
+algorithm_version: build_stack_v2023_2
+build_command: icesat2_boreal/dps/build_command_3.1.3.sh
+disk_space: 10GB
+docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/pangeo:main
+inputs:
+  config: []
+  file:
+  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/copernicus_dem30m_tiles.gpkg
+    description: a vector geopackage of polygons that define the tiles of the DEM product to be returned to specific tile AOIs
+    name: covar_tile_url
+    required: true
+  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004.gpkg
+    description: a vector geopackage of polygons that define various AOI tiles you want returned
+    name: in_tile_url
+    required: true
+  positional:
+  - default: copernicus_dem30m_tiles.gpkg
+    description: ''
+    name: covar_tile_fn
+    required: true
+  - default: ''
+    description: ''
+    name: in_tile_fn
+    required: true
+  - default: tile_num
+    description: ''
+    name: in_tile_id_col
+    required: true
+  - default: ''
+    description: the unique id of a polygon tile (AOI)
+    name: in_tile_num
+    required: true
+  - default: '120'
+    description: ''
+    name: tile_buffer_m
+    required: true
+  - default: boreal_tiles_v004
+    description: the geopackage layer name for the AOIs
+    name: in_tile_layer
+    required: true
+  - default: GLO30
+    description: ''
+    name: covar_src_name
+    required: true
+  - default: ''
+    description: ''
+    name: bandnames_list
+    required: true
+  - default: s3
+    description: ''
+    name: in_covar_s3_col
+    required: true
+  - default: '0'
+    description: ''
+    name: input_nodata_value
+    required: true
+  - default: '3000'
+    description: the shape of the AOI tile if being forced
+    name: shape
+    required: true
+queue: maap-dps-worker-8gb
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
+run_command: icesat2_boreal/dps/alg_3-1-3/run_topo.sh
