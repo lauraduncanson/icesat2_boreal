@@ -1,12 +1,16 @@
 import os
+import rasterio
+#os.environ['USE_PYGEOS'] = '0'
+import geopandas as gpd
+import pandas as pd
 os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
 import boto3
 from typing import List
 import argparse
 
 import numpy as np
-import geopandas as gpd
-import pandas as pd
+
+
 import rasterio as rio
 from rasterio.session import AWSSession 
 from rasterio.warp import * #TODO: limit to specific needed modules
@@ -104,6 +108,8 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
     # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
     if height is None or not topo_off:
+        # Resets height, width based on bbox computerd with tile buffer
+        # Needed to handle topo runs
         print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
         height, width = get_shape(in_bbox, res)
     else:
@@ -151,13 +157,19 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         cog_fn = os.path.join(output_dir, "_".join([tileid, ext]))
     print(f'Writing stack as cloud-optimized geotiff: {cog_fn}')
 
-    if clip:
+    # Don't clip yet if doing a topo run 
+    DO_ALIGN=True
+    if topo_off and clip:
         print("Clipping to feature polygon...")
         clip_geom = tile_parts['geom_orig']
         clip_crs = tile_parts['tile_crs']
     else:
+        # Do not clip and align what
+        # for topo runs that need extra pixels outside of tile_parts['geom_orig'] in order to calc slope, tsri, etc
+        # tile_parts needed for final clip is still passed to write_cog() via make_topo_stack()
         clip_geom = None
         clip_crs = None
+        DO_ALIGN = False
 
     if not topo_off:
         bandnames_list = ["elevation"]
@@ -173,7 +185,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
               resolution=(res, res), 
               clip_geom=clip_geom, 
               clip_crs=clip_crs, 
-              align=True, # manually turn this on for some testing
+              align=DO_ALIGN, # manually turn this on for some testing
               input_nodata_value=input_nodata_value
              )
 
@@ -186,6 +198,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         topo_stack_cog_fn = os.path.join(os.path.splitext(cog_fn)[0] + '_topo_stack.tif')
         if output_dir is not None:
             topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(cog_fn)[0])[1] + '_topo_stack.tif')
+            
         topo_stack, topo_stack_names = make_topo_stack_cog(cog_fn, topo_stack_cog_fn, tile_parts, res)
         print(f"Output topo covariate stack COG: {topo_stack_cog_fn}")
         print(f"Removing tmp file: {cog_fn}")
