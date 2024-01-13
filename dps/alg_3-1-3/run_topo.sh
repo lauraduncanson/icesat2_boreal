@@ -32,5 +32,5 @@ python ${basedir}/../../lib/build_stack.py \
 --bandnames_list ${8} \
 --in_covar_s3_col ${9} \
 --input_nodata_value ${10} \
---shape ${11}# \
+--shape ${11}
 #--clip # not used for topo runs - will be ignored even if this is commented out
