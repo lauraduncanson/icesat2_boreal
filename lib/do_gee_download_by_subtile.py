@@ -152,6 +152,7 @@ def create_fishnet_new(gdf, cell_size_meters, tile_col_name, subtile_col_name='s
             # Fix dateline
             fishnet_gdf_tmp = split_polygons_by_dateline_poly(fishnet_gdf_tmp, tile_num_col=subtile_col_name)
         fishnet_gdf_tmp[tile_col_name] = tile_num # this converts NULL to the actual tile num for the new polys resulting from the split
+        fishnet_gdf_tmp[subtile_col_name] = fishnet_gdf_tmp.index
         fishnet_gdf_list.append(fishnet_gdf_tmp)
         
     fishnet_gdf = pd.concat(fishnet_gdf_list)
@@ -186,7 +187,7 @@ import geopandas as gpd
 from shapely.geometry import MultiPolygon, Polygon, LineString
 from shapely.ops import unary_union
 
-def create_date_line_polygon(buffer_distance=0.00001):
+def create_date_line_polygon(buffer_distance=1e-5):
     """
     Create a polygon representing the international date line buffered by a given distance.
 
@@ -222,7 +223,12 @@ def split_polygon(polygon, crs):
     parts = []
     if polygon.intersects(date_line):
         # Split the polygon
-        parts = list(polygon.difference(date_line).geoms) 
+        try:
+            parts = list(polygon.difference(date_line).geoms) 
+        except:
+            #print('passing...')
+            #parts.append(polygon)
+            pass
     else:
         parts.append(polygon)
 
@@ -338,7 +344,7 @@ def create_multiband_geotiff(output_path, band_names, single_band_geotiffs):
 
     print(f"Multiband geotiff created successfully at: {output_path}")
 
-def create_multiband_cog(output_path, band_names, single_band_geotiffs, tile_gdf, input_nodata_value: float):
+def create_multiband_cog(output_path, band_names, single_band_geotiffs, tile_gdf, input_nodata_value: int):
     """
     Create a multiband COG from a list of single band geotiffs.
 
@@ -446,6 +452,14 @@ def clean_asset_gdf(asset_gdf, boreal_tiles):
         
     asset_gdf_clean = pd.concat([asset_gdf_clean[~(asset_gdf_clean.AGG_TILE_NUM == 67) ], tmp])
     
+    # Some polys could be broken up by remain with same tile nums - fix this by sorting by largest
+    #
+    asset_gdf_clean['area'] = asset_gdf_clean.geometry.area
+    asset_gdf_clean = asset_gdf_clean.sort_values(by='area', ascending=False) # largest is first
+    # Update tile num for all but the largest tile for a given tile num
+    asset_gdf_clean["order"] = asset_gdf_clean.groupby("AGG_TILE_NUM").cumcount()
+    asset_gdf_clean['AGG_TILE_NUM'] = asset_gdf_clean['AGG_TILE_NUM'] + (1000 * asset_gdf_clean['order'] ) 
+    
     return asset_gdf_clean
 
 # TODO: use an id field 'AGG_TILE_NUM'
@@ -542,7 +556,8 @@ def do_gee_download_by_subtile(SUBTILE_LOC,
             asset_gdf = clean_asset_gdf(asset_gdf, cleaner_gdf)
         
         # Now get fishnet    
-        fishnet_df = create_fishnet_new(asset_gdf[asset_gdf[ID_COL] == ID_NUM], TILE_SIZE_M * GRID_SIZE_M, ID_COL)
+        fishnet_df = create_fishnet_new(asset_gdf[asset_gdf[ID_COL] == ID_NUM], TILE_SIZE_M * GRID_SIZE_M, ID_COL, FIX_DATELINE=True
+                                       )
     
     try:
         
