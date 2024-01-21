@@ -152,7 +152,8 @@ def create_fishnet_new(gdf, cell_size_meters, tile_col_name, subtile_col_name='s
             # Fix dateline
             fishnet_gdf_tmp = split_polygons_by_dateline_poly(fishnet_gdf_tmp, tile_num_col=subtile_col_name)
         fishnet_gdf_tmp[tile_col_name] = tile_num # this converts NULL to the actual tile num for the new polys resulting from the split
-        fishnet_gdf_tmp[subtile_col_name] = fishnet_gdf_tmp.index
+        if False:
+            fishnet_gdf_tmp[subtile_col_name] = fishnet_gdf_tmp.index # Maybe this is messing things up?
         fishnet_gdf_list.append(fishnet_gdf_tmp)
         
     fishnet_gdf = pd.concat(fishnet_gdf_list)
