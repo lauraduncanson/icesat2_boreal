@@ -850,6 +850,7 @@ mapBoreal<-function(rds_models,
         
     # Get rid of extra data
     n_avail <- nrow(tile_data)
+    
     if(n_avail > n_tile){
         samp_ids <- seq(1,n_avail)
         tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
@@ -857,7 +858,7 @@ mapBoreal<-function(rds_models,
     }
             
     #combine for fitting
-    broad_data <- read.csv(ice2_30_sample_path)
+    broad_data <- read.csv(ice2_30_sample_path)   
     
     #remove first col of broad_data
     #broad_data <- broad_data[,2:ncol(broad_data)]
@@ -875,19 +876,16 @@ mapBoreal<-function(rds_models,
     }
 
     #sample from broad data to complete sample size
+    #this will work if either there aren't enough local samples for n_min OR if there is forced broad sampling
     n_broad <- n_tile - nrow(tile_data)
     if(n_broad > 1){
         broad_samp_ids <- seq(1,n_broad)
         broad_sample_ids <- sample(broad_samp_ids, n_broad, replace=FALSE)
         broad_data <- broad_data[broad_sample_ids,]
-    }
-
-    if(local_train_perc<100){
         all_train_data <- rbind(tile_data, broad_data)
-    }
-    if(local_train_perc==100){
+    } else {
         all_train_data <- tile_data
-    }
+        }
     
     #remove first col
     all_train_data <- all_train_data[,-1]
