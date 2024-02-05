@@ -1189,7 +1189,7 @@ library(ggplot2)
 library(rlist)
 library(fs)
 library(stringr)
-library(gdalUtils)
+#library(gdalUtils)
 library(rockchalk)
 library(terra)
 # run code
