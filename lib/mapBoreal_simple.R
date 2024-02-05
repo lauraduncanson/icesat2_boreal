@@ -848,14 +848,14 @@ mapBoreal<-function(rds_models,
             tile_data <- tile_data[filter,]
     }
         
-    # Get rid of extra data
+    # Get rid of extra data; only if you want to reduce sample size
     n_avail <- nrow(tile_data)
     
-    if(n_avail > n_tile){
-        samp_ids <- seq(1,n_avail)
-        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
-        tile_data <- tile_data[tile_sample_ids,]
-    }
+    #if(n_avail > n_tile){
+    #    samp_ids <- seq(1,n_avail)
+    #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+    #    tile_data <- tile_data[tile_sample_ids,]
+    #}
             
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)   
