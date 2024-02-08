@@ -231,6 +231,10 @@ def main():
     
     if not os.path.exists(outdir):
         os.makedirs(outdir)
+        
+    # This is a hard-coded current version id needed for successful CMR search of ATL08
+    # added Feb 2024
+    v_ATL08_CMR = 6
     
     in_tile_num = int(in_tile_num)
     print("\nWorking on tile:\t", in_tile_num)
@@ -249,7 +253,12 @@ def main():
         
         print("\nDoing MAAP query by tile bounds to find all intersecting ATL08 ")
         # Get a list of all ATL08 H5 granule names intersecting the tile (this will be a small list)
-        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, id_col=in_tile_id_col, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08)
+        all_atl08_for_tile = ExtractUtils.maap_search_get_h5_list(tile_num=in_tile_num, id_col=in_tile_id_col, tile_fn=in_tile_fn, layer=in_tile_layer, DATE_START=date_start, DATE_END=date_end, YEARS=years_list, version=v_ATL08_CMR)
+        
+        if True:
+            # CMR Searches for ATL08 v005 wont work anymore, but 
+            # our existing c2020 set of ATL08 30m h5 are v005, so replace strings to find what we need for this tile
+            all_atl08_for_tile = [all_atl08_for_tile[i].replace(f'_00{v_ATL08_CMR}_',f'_00{v_ATL08}_') for i in range(len(all_atl08_for_tile))]
          
         if DEBUG:
             # Print ATL08 h5 granules for tile
@@ -265,7 +274,7 @@ def main():
                 os._exit(1)
             all_atl08_csvs_df = get_atl08_csv_list(dps_dir_csv, seg_str, csv_list_fn)
         else:
-            print("\nThis is either a DPS job (for which the CSV has an s3 path, or the CSV exists locally.)")
+            print("\nThis is either a DPS job (for which the CSV has an s3 path) or the CSV exists locally.")
             print(f"\nReading existing list of ATL08 CSVs: {csv_list_fn}")
             all_atl08_csvs_df = pd.read_csv(csv_list_fn)
             
@@ -304,7 +313,7 @@ def main():
         print(in_bounds)
         
         # ** Optimization ** Combined granule read with bounds filtering
-
+        
         atl08 = pd.concat([  FilterUtils.filter_atl08_bounds_clip(pd.read_csv(f), tile['geom_4326']) for f in all_atl08_csvs_FOUND ], sort=False, ignore_index=True)
         
         if len(atl08) > 0:

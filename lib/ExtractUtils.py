@@ -20,7 +20,7 @@ import sys
 #from CovariateUtils import *
 #import CovariateUtils
 sys.path.append('/projects/code/icesat2_boreal/lib')
-import do_gee_download_by_subtile
+#import do_gee_download_by_subtile
 
 import itertools
 import copy
@@ -158,6 +158,58 @@ def maap_search_get_h5_list(tile_num, tile_fn="/projects/shared-buckets/nathanmt
     print("\t\t# ATL08 for tile {}: {}".format(tile_num, len(out_h5_list)) )
     
     return(out_h5_list)
+        
+def extract_value_gdf_s3(r_fn, pt_gdf, bandnames: list, reproject=True, ANON=True, PROFILE_NAME='boreal_pub', TEST=False):
+    """Extract raster band values to the obs of a geodataframe
+        updated of extract_value_gdf() to work on an s3 raster
+    """
+    if ANON:
+        session = rio.env.Env(AWS_NO_SIGN_REQUEST='YES')
+    else:
+        session = rio.env.Env(profile_name=PROFILE_NAME)
+    
+    with session: 
+        with rio.open(r_fn, mode='r') as r_src:
+            print("\tExtracting raster values from: ", r_fn)
+    
+            if reproject:
+                print("\tRe-project points to match raster...")
+                pt_gdf = pt_gdf.to_crs(r_src.crs)
+            if bandnames is None:
+                print('\tGeting bandnames list from raster descriptions...')
+                bandnames = list(r_src.descriptions)
+            for idx, bandname in enumerate(bandnames):
+                bandnum = idx + 1
+                if TEST: print("Read as a numpy masked array...")
+                r = r_src.read(bandnum, masked=True)
+
+                if TEST: print(r.dtype)
+
+                pt_coord = [(pt.x, pt.y) for pt in pt_gdf.geometry]
+
+                # Use 'sample' from rasterio
+                if TEST: print("Create a generator for sampling raster...")
+                pt_sample = r_src.sample(pt_coord, bandnum)
+
+                if TEST:
+                    for i, val in enumerate(r_src.sample(pt_coord, bandnum)):
+                        print("point {} value: {}".format(i, val))
+
+                if TEST: print("Use generator to evaluate (sample)...")
+                pt_sample_eval = np.fromiter(pt_sample, dtype=r.dtype)
+
+                if TEST: print("Deal with no data...")
+                pt_sample_eval_ma = np.ma.masked_equal(pt_sample_eval, r_src.nodata)
+                #pt_gdf[bandname] = pd.Categorical(pt_sample_eval_ma.astype(int).filled(-1))
+                pt_gdf[bandname] = pt_sample_eval_ma.astype(float).filled(np.nan)
+
+                #print('\tDataframe has new raster value column: {}'.format(bandname))
+                r = None
+
+            r_src.close()
+    
+    print('\tReturning {} points with {} new raster value columns: {}'.format(len(pt_gdf), len(bandnames), bandnames))
+    return(pt_gdf)
 
 def extract_value_gdf(r_fn, pt_gdf, bandnames: list, reproject=True, TEST=False):
     """Extract raster band values to the obs of a geodataframe
@@ -806,30 +858,3 @@ def map_image_band(cog_fn, band_num=13, vmin=0.20, vmax=0.45):
         # add colorbar using the now hidden image
         fig.colorbar(image_hidden, ax=ax)
 
-def MAKE_ASSET_TILE_SUBTILES(AGG_TILE_NUM, asset_df, TILE_FIELD_NAME='AGG_TILE_NUM', TILE_SIZE_M=500):
-    '''
-    For an asset tile from GEE, create subtiles of a give size.
-    These subtiles are needed to DPS the asset transfer of GEE SAR S1 6-band yearly triseasonal composites
-    The default tile size works for 6 band of SAR S1 at 30m
-    This can be used to create a mosaic json of the subtiles of the assets transferred from GEE
-    The mosiac json is used to view in notebook maps to check for completeness of DPS runs of these asset transfers
-    '''
-    if False:
-        DPS_ASSET_TILE_LIST = asset_df.index.to_list()
-        ASSET_TILE = DPS_ASSET_TILE_LIST.index(AGG_TILE_NUM+1)
-        DPS_ASSET_TILE_LIST = sorted(asset_df['AGG_TILE_NUM'].to_list()) # this field now available
-        ASSET_TILE = DPS_ASSET_TILE_LIST.index(AGG_TILE_NUM+1)
-    ASSET_TILE = AGG_TILE_NUM
-
-    ASSET_TILE_NAME = os.path.basename(asset_df[asset_df[TILE_FIELD_NAME]==ASSET_TILE].id.to_list()[0])
-
-    # 
-    # Get fishnet of subtiles on the fly to DPS subtile submission
-    #
-    fishnet_df = do_gee_download_by_subtile.create_fishnet(asset_df[asset_df[TILE_FIELD_NAME] == ASSET_TILE], TILE_SIZE_M)
-    fishnet_df['subtile_num'] = fishnet_df.index
-    fishnet_df['tile_num'] = ASSET_TILE
-
-    fishnet_4326 = fishnet_df.to_crs("EPSG:4326")
-    
-    return ASSET_TILE_NAME, fishnet_4326

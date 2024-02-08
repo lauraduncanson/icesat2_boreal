@@ -192,7 +192,12 @@ def filter_atl08_bounds_tile_ept(in_ept_fn, in_tile_fn, in_tile_num, in_tile_lay
     return(out_fn)
 
 def filter_atl08_bounds_clip(atl08_df, in_tile_geom_4326):
-
+    
+    if isinstance(atl08_df, pd.DataFrame):
+        print('is df')
+    else:
+        if atl08_df.endswith('.csv'): atl08_df = pd.read_csv(atl08_df)
+        
     atl08_gdf = gpd.GeoDataFrame(atl08_df, geometry=gpd.points_from_xy(atl08_df.lon, atl08_df.lat), crs='epsg:4326')
     atl08_gdf = gpd.clip(atl08_gdf, in_tile_geom_4326)
     print(f"Bounds clipped {atl08_df.shape[0]} obs. down to {atl08_gdf.shape[0]} obs.")

@@ -64,11 +64,13 @@ def GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style={'
         )
     return boreal_tile_index_layer
 
+
 def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index, 
                     tile_index_matches,  
                     tile_index_check, 
                     MATCH_TILES_NAME='Match tiles', 
                     CHECK_TILES_NAME='Check tiles', 
+                    plots = None,
                     mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
@@ -211,9 +213,9 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         m1.add_child(colormap_tcc2020)
     
     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-        cols_worldcover = ["#006400","#ffbb22","#ffff4c","#f096ff","#fa0000","#b4b4b4","#f0f0f0","#0064c8","#0096a0","#00cf75","#fae6a0"]
-        names_worldcover = ['Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
-        values_worldcover = [10,20,30,40,50,60,70,80,90,95,100]
+        cols_worldcover = ["black","#006400","#ffbb22","#ffff4c","#f096ff","#fa0000","#b4b4b4","#f0f0f0","#0064c8","#0096a0","#00cf75","#fae6a0"]
+        names_worldcover = ['No Data','Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
+        values_worldcover = [0,10,20,30,40,50,60,70,80,90,95,100]
         colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
         colormap_worldcover = cm.StepColormap(colors = cols_worldcover, vmin=min(values_worldcover), vmax=max(values_worldcover), index=values_worldcover, caption = 'ESA Worldcover v1')
         m1.add_child(colormap_worldcover)
@@ -349,28 +351,33 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         tcc2020_tiles_layer.add_to(m1)
         
     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-        # encode the colormap so it works with a mosaic json
+        # encode the colormap so it works with a mosaic json?
         import urllib
         import json
-        colormap_worldcover_dict = [
-                ((0, 10), '#006400'),
-                ((10, 20) , '#ffbb22'),
-                ((20, 30) , '#ffff4c'),
-                ((30, 40) , '#f096ff'),
-                ((40, 50) , '#fa0000'),
-                ((50, 60) , '#b4b4b4'),
-                ((60, 70) , '#f0f0f0'),
-                ((70, 80) , '#0064c8'),
-                ((80, 90) , '#0096a0'),
-                ((90, 95) , '#00cf75'),
-                ((95, 100) , '#fae6a0'),
-                ((100, 255), '#000000')
-            ]
+        # colormap_worldcover_dict = [
+        #         ((0, 10), '#006400'),
+        #         ((10, 20) , '#ffbb22'),
+        #         ((20, 30) , '#ffff4c'),
+        #         ((30, 40) , '#f096ff'),
+        #         ((40, 50) , '#fa0000'),
+        #         ((50, 60) , '#b4b4b4'),
+        #         ((60, 70) , '#f0f0f0'),
+        #         ((70, 80) , '#0064c8'),
+        #         ((80, 90) , '#0096a0'),
+        #         ((90, 95) , '#00cf75'),
+        #         ((95, 100) , '#fae6a0'),
+        #         ((100, 255), '#000000')
+        #     ]
+        colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
         colormap_encode = urllib.parse.urlencode({"colormap": json.dumps(colormap_worldcover_dict)})
+        colormap_worldcover = cm.linear.Set1_09.scale(0, 100).to_step(len(values_worldcover))
         worldcover_tiles_layer = TileLayer(
             #TODO: try this: https://developmentseed.org/titiler/examples/code/tiler_with_custom_colormap/
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&{colormap_encode}",
+            #TODO: get this to work?
             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap={colormap_worldcover_dict}", # <---- THIS IS NOT WORKING
+            #TODO: try this: https://python-visualization.github.io/folium/latest/advanced_guide/colormaps.html
+            
             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
             opacity=1,
             name="Worldcover",
@@ -415,7 +422,29 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
 
     if tile_index_check is not None and len(tile_index_check) > 0:
         tile_index_check_layer.add_to(m1)
+
     #tile_matches_n_obs.add_to(m1)    
+    
+    # Add reference plots
+    if plots is not None and len(plots) > 0:
+        
+        #pal_heightref_cmap = cm.LinearColormap(colors = ['black','#636363','#fc8d59','#fee08b','#ffffbf','#d9ef8b','#91cf60','#1a9850'], vmin=0, vmax=35)
+        pal_heightref_cmap = cm.LinearColormap(colors=['blue','white','red'], vmin=-10, vmax=10)
+        pal_heightref_cmap.caption = 'Forest height from field'
+        for lat, lon, ref_ht, pred_ht, diff_ht, diff_yr in zip(plots.geometry.y, plots.geometry.x, plots.ref_ht, plots.value_ht_L30_2020, plots.diff_ht, plots.diff_yr):
+            plot = CircleMarker(location=[lat, lon],
+                                radius = 10,
+                                weight=0.75,
+                                tooltip=f"Ref ht: {str(round(ref_ht,2))}\nPred. ht: {str(round(pred_ht,2))}m\nDiff: {str(round(diff_ht,2))}m",
+                                fill=True,
+                                #fill_color=getfill(h_can),
+                                color = pal_heightref_cmap(diff_ht),
+                                opacity=1,
+                                    overlay=True,
+                                name="Plots"
+                                
+                   )
+            plot.add_to(m1)
 
     if SHOW_WIDGETS:
         plugins.Geocoder().add_to(m1)
@@ -641,7 +670,8 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     print(round(atl08_gdf.lat.mean(),4), round(atl08_gdf.lon.mean(),4))
 
     # Map the Layers
-    Map_Figure=Figure(width=map_width,height=map_height)
+    #Map_Figure=Figure(width=map_width,height=map_height)
+    Map_Figure=Figure()
     #------------------
     boreal_tile_of_interest_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
     m2 = Map(
@@ -653,7 +683,10 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     )
     Map_Figure.add_child(m2)
     
-    boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_of_interest_gdf, [], {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0})
+    # Add boreal tiles
+    boreal_tiles_index_master_layer = GET_BOREAL_TILE_LAYER(boreal_tindex_master.to_crs(4326), [], {'fillColor': '#e41a1c', 'color': 'black', 'weight' : 0.25, 'opacity': 1, 'fillOpacity': 0})
+    boreal_tiles_index_master_layer.add_to(m2)
+    boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_of_interest_gdf, [], {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 1, 'opacity': 1, 'fillOpacity': 0})
     boreal_tile_index_layer.add_to(m2)
 
     if DO_NIGHT:
@@ -716,10 +749,9 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     
     #plugins.Geocoder().add_to(m2)
     LayerControl().add_to(m2)
-    plugins.Fullscreen().add_to(m2)
-    plugins.MousePosition().add_to(m2)
     
-
+    plugins.MousePosition().add_to(m2)
+    plugins.Fullscreen().add_to(m2)
     
     return m2
 
