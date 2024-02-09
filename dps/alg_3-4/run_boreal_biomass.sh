@@ -2,7 +2,7 @@
 # this is intended for running DPS jobs; the input directory is where four files have been pulled because download=TRUE in the algorithm_config.yaml file
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
-source activate icesat2_boreal
+#source activate icesat2_boreal
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
 #unset PROJ_LIB
@@ -55,7 +55,7 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 echo $MERGED_ATL08_CSV
 echo $ATL08_SAMPLE_CSV
 
-source activate base
+#source activate base
 
 # Run mapBoreal with merged CSV as input
 Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var}
