@@ -24,6 +24,6 @@ dependencies:
   - pycurl==7.45.1
   - rasterstats==0.19.0
   #- cogeo_mosaic==6.2.0
-  - r-rockchalk
-  - r-terra
-  - r-randomForest
+#  - r-rockchalk
+#  - r-terra
+#  - r-randomForest
