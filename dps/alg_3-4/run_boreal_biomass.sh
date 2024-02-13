@@ -31,6 +31,7 @@ local_train_perc=${16}
 min_n=${17}
 boreal_vect_fn=${18}
 predict_var=${19}
+max_n=${18}
 
 TAR_FILE=${basedir}/../../lib/bio_models_noground.tar
 
@@ -60,7 +61,7 @@ echo $ATL08_SAMPLE_CSV
 source activate r
 
 # Run mapBoreal with merged CSV as input
-Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var}
+Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var} ${max_n}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
 #source activate base

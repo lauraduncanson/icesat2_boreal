@@ -2,7 +2,7 @@ algorithm_description: Map aboveground biomass final output
 algorithm_name: run_boreal_biomass_map
 algorithm_version: boreal_agb_2024_v1
 build_command: icesat2_boreal/dps/build_command_agb.sh
-disk_space: 40GB
+disk_space: 80GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/r:v3.1.4
 inputs:
   config: []
@@ -111,6 +111,10 @@ inputs:
   - default: ''
     description: AGB or Ht to map
     name: predict_var
+    required: true
+  - default: ''
+    description: min sample size required for models
+    name: max_n
     required: true
 queue: maap-dps-worker-32gb
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
