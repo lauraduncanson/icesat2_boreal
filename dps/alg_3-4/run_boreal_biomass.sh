@@ -2,7 +2,7 @@
 # this is intended for running DPS jobs; the input directory is where four files have been pulled because download=TRUE in the algorithm_config.yaml file
 # a tar file of biomass models, a data table csv, and two raster stack geotiff files
 
-source activate icesat2_boreal
+#source activate icesat2_boreal
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
 #unset PROJ_LIB
@@ -31,11 +31,14 @@ local_train_perc=${16}
 min_n=${17}
 boreal_vect_fn=${18}
 predict_var=${19}
+max_n=${18}
 
 TAR_FILE=${basedir}/../../lib/bio_models_noground.tar
 
 #unpack biomass models tar
 #tar -xvf input/bio_models.tar
+
+source activate icesat2_boreal
 
 # This will put the *rds in the same dir as the R script
 tar -xf ${TAR_FILE}
@@ -55,10 +58,10 @@ MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1
 echo $MERGED_ATL08_CSV
 echo $ATL08_SAMPLE_CSV
 
-source activate base
+source activate r
 
 # Run mapBoreal with merged CSV as input
-Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var}
+Rscript ${basedir}/../../lib/mapBoreal_simple.R ${MERGED_ATL08_CSV} ${TOPO_TIF} ${LANDSAT_TIF} ${LC_TIF} ${DO_SLOPE_VALID_MASK} ${ATL08_SAMPLE_CSV} ${iters} ${ppside} ${minDOY} ${maxDOY} ${max_sol_el} ${expand_training} ${local_train_perc} ${min_n} ${boreal_vect_fn} ${predict_var} ${max_n}
 
 #convert output to cog - downgraded gdal to 3.3.3 in build_command_main.sh
 #source activate base

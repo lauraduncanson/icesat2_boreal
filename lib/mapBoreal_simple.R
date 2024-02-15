@@ -764,10 +764,9 @@ mapBoreal<-function(rds_models,
                     min_n=3000,
                     DO_MASK=FALSE,
                     boreal_poly=boreal_poly,
-                    predict_var){
-  browser()
-    print('new')
-    print(predict_var)
+                    predict_var,
+                    max_n=3000){
+
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
     print("Modelling and mapping boreal AGB")
@@ -848,14 +847,14 @@ mapBoreal<-function(rds_models,
             tile_data <- tile_data[filter,]
     }
         
-    # Get rid of extra data; only if you want to reduce sample size
+    # Get rid of extra data above max_n
     n_avail <- nrow(tile_data)
     
-    #if(n_avail > n_tile){
-    #    samp_ids <- seq(1,n_avail)
-    #    tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
-    #    tile_data <- tile_data[tile_sample_ids,]
-    #}
+    if(n_avail > max_n){
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_data <- tile_data[tile_sample_ids,]
+    }
             
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)   
@@ -868,7 +867,8 @@ mapBoreal<-function(rds_models,
     #if static broad, use all local train data
     #sample_local <- n_tile
     print(n_tile)
-
+    print('sample_local:')
+    print(n_avail)
     if(sample_local < n_tile){
         samp_ids <- seq(1,sample_local)
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
@@ -1148,6 +1148,7 @@ local_train_perc <- args[13]
 min_n <- args[14]
 boreal_vect <- args[15]
 predict_var <- args[16]
+max_n <- args[17]
 
 #for debugging replace args with hard paths
 #data_table_file <- '/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/tile_atl08/2022/11/30/19/22/04/120959/atl08_005_30m_filt_topo_landsat_20221130_1216.csv'
@@ -1267,4 +1268,5 @@ maps<-mapBoreal(rds_models=rds_models,
                 min_n=min_n,
                 DO_MASK=DO_MASK_WITH_STACK_VARS,
                 boreal_poly=boreal_poly, 
-                predict_var=predict_var)
+                predict_var=predict_var,
+                max_n=max_n)
