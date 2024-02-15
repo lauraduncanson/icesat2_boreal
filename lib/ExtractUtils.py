@@ -701,6 +701,26 @@ def build_mosaic_json(
         
     return out_mosaic_json_fn, tile_index_matches_gdf
 
+def flatten(xss):
+    return [x for xs in xss for x in xs]
+
+def update_mosaic_json(to_mosaic_json_fn, from_mosaic_json_fn):
+    
+    from cogeo_mosaic.utils import get_footprints
+    from cogeo_mosaic.backends import MosaicBackend
+    
+    s3 = s3fs.S3FileSystem(anon=False)
+    
+    f = s3.open(from_mosaic_json_fn, 'rb')
+    from_mosaic_json = json.load(f)
+    tiles_list = flatten(list(from_mosaic_json['tiles'].values()))
+    
+    with MosaicBackend(to_mosaic_json_fn) as mosaic:
+        features = get_footprints(tiles_list) # Get footprint
+        mosaic.update(features) # Update mosaicJSON and upload to S3
+        
+        print(f"Updated {to_mosaic_json_fn} with {len(tiles_list)} tiles.")
+
 def build_json_mscomp_df(s3_path: str, mscomp_input_glob_str: str, mscomp_num_scenes_glob_str: str, params_cols_list: list, DEBUG=False):
     
     '''Build a single-row data frame of the input multi-spec compositing parameters for each tile'''

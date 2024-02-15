@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -228,7 +228,7 @@ def main():
                     ends_with_str = ".tif"
                 else:
                     ends_with_str = "_cog.tif"
-            if "LC" in TYPE:
+            if "LC" in TYPE or '_TP_' in args.dps_identifier:
                 if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = "_cog.tif"
@@ -314,7 +314,18 @@ def main():
             else:
                 df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip(ends_with_str)
         if 'LC' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip(ends_with_str)
+            i=4
+            df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
+        if 'TP' in args.dps_identifier:
+            if 'TREND' in TYPE:
+                i=3
+            elif 'TCC_TP_2020' in args.dps_identifier:
+                # Just temporary to accomodate files named like 'tcc2020_<tile_num>_cog.tif
+                # rerun with output files that look like TCC_TP_2020_<tile_num>_cog.tif to eliminate this logic instance
+                i=1
+            else:
+                i=3
+            df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'AGB' in TYPE or 'HT' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
@@ -325,6 +336,7 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif') 
+        
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
@@ -368,7 +380,10 @@ def main():
         RETURN_CREATION_TIME = True
         if args.RETURN_DUPS:    
             if TYPE == 'S1_subtile': RETURN_CREATION_TIME=False # This might help reduce time of run?
-            df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
+            try:
+                df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
+            except:
+                df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=False)
             out_tindex_dups_fn = os.path.splitext(out_tindex_fn)[0] +  '_duplicates.csv'
             print(f'Writing duplicates csv: {out_tindex_dups_fn}')
             dropped.to_csv(out_tindex_dups_fn, mode='w')

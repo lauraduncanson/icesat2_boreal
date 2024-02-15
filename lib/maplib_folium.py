@@ -753,7 +753,7 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     plugins.MousePosition().add_to(m2)
     plugins.Fullscreen().add_to(m2)
     
-    return m2
+    return (m2, atl08_gdf)
 
 def MAP_LAYER_FOLIUM(LAYER=None, LAYER_COL_NAME=None, fig_w=1000, fig_h=400, lat_start=60, lon_start=-120, zoom_start=8):      
     
