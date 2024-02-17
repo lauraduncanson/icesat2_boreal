@@ -6,6 +6,8 @@
 ###### import this into other notebooks: from mosaiclib import *
 
 boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg'
+MINI_DATELINE_TILES  = [400400,391600,382300,372800,363400,354000,4199500,4180700,4161900]
+LARGE_DATELINE_TILES = [3540,3634,3728,3823,3916,4004,41995,41807,41619]
 
 ######
 ###### Boreal ATL08 granules list (from PhoReal)
