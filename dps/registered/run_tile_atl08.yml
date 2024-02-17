@@ -42,10 +42,6 @@ inputs:
     required: true
   - default: ''
     description: ''
-    name: user_stacks
-    required: true
-  - default: ''
-    description: ''
     name: user_atl08
     required: true
   - default: ''

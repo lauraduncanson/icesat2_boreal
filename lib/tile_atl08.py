@@ -44,7 +44,14 @@ def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path', return
     all_stacks_df = pd.read_csv(stack_list_fn)
     
     # Get the s3 location from the location (local_path) indicated in the tindex master csv
-    all_stacks_df['s3'] = [local_to_s3(local_path, user) for local_path in all_stacks_df[col_name]]
+    if user is None:
+        # Get user specific to each file in row of tindex table: this is safer, in case multiple tables from different users have been concatenated 
+        # user is at position 3 of s3_path
+        USER_POS = 3
+        all_stacks_df['user'] = all_stacks_df['s3_path'].str.split('/', expand=True)[USER_POS]
+        all_stacks_df['s3'] = [local_to_s3(local_path, all_stacks_df.user.to_list()[i]) for i, local_path in enumerate(all_stacks_df[col_name]) ]
+    else:
+        all_stacks_df['s3'] = [local_to_s3(local_path, user) for local_path in all_stacks_df[col_name]]
     
     if return_s3:
         col_name = 's3'
@@ -119,13 +126,13 @@ def main():
     parser = argparse.ArgumentParser()
     #parser.add_argument("-ept", "--in_ept_fn", type=str, help="The input ept of ATL08 observations") 
     parser.add_argument("-in_tile_num", type=int, help="The id number of an input vector tile that will define the bounds for ATL08 subset")
-    parser.add_argument("-in_tile_fn", type=str, default="/projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
-    parser.add_argument("-in_tile_layer", type=str, default="boreal_tiles_v003", help="The layer name of the stack tiles dataset")
+    parser.add_argument("-in_tile_fn", type=str, default="/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg", help="The input filename of a set of vector tiles that will define the bounds for ATL08 subset")
+    parser.add_argument("-in_tile_layer", type=str, default="boreal_tiles_v004", help="The layer name of the stack tiles dataset")
     parser.add_argument("-in_tile_id_col", type=str, default="tile_num", help="The column of the tile layer name of the stack tiles dataset that holds the tile num")
     parser.add_argument("-csv_list_fn", type=str, default=None, help="The file of all CSVs paths")
     parser.add_argument("-topo_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Topo_tindex_master.csv", help="The file of all topo stack paths")
     parser.add_argument("-landsat_stack_list_fn", type=str, default="/projects/shared-buckets/nathanmthomas/DPS_tile_lists/Landsat_tindex_master.csv", help="The file of all Landsat stack paths")
-    parser.add_argument("-user_stacks", type=str, default="nathanmthomas", help="MAAP username for the workspace in which the stacks were built; will help complete the s3 path to tindex master csvs")
+    #parser.add_argument("-user_stacks", type=str, default=None, help="MAAP username for the workspace in which the stacks were built; will help complete the s3 path to tindex master csvs")
     parser.add_argument("-user_atl08", type=str, default="lduncanson", help="MAAP username for the workspace in which the ATL08 csvs were extracted; will help complete the s3 path to tindex master csvs")
     #parser.add_argument("--local", dest='local', action='store_true', help="Dictate whether landsat covars is a run using local paths")
     #parser.set_defaults(local=False)
@@ -360,8 +367,8 @@ def main():
     
     if args.extract_covars and len(atl08_gdf) > 0:
 
-        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path') 
-        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, user=args.user_stacks, col_name='local_path')
+        topo_covar_fn    = get_stack_fn(topo_stack_list_fn, in_tile_num, user=None, col_name='local_path') 
+        landsat_covar_fn = get_stack_fn(landsat_stack_list_fn, in_tile_num, user=None, col_name='local_path')
        
         if topo_covar_fn is not None and landsat_covar_fn is not None:
             print(f'\nExtract covars for {len(atl08_gdf)} ATL08 obs...')
