@@ -857,7 +857,8 @@ mapBoreal<-function(rds_models,
     }
             
     #combine for fitting
-    broad_data <- read.csv(ice2_30_sample_path)   
+    broad_data <- read.csv(ice2_30_sample_path)
+    
     
     #remove first col of broad_data
     #broad_data <- broad_data[,2:ncol(broad_data)]
@@ -880,8 +881,16 @@ mapBoreal<-function(rds_models,
     n_broad <- n_tile - nrow(tile_data)
     if(n_broad > 1){
         broad_samp_ids <- seq(1,n_broad)
+        
+        #subset broad data to be within a certain latitude
+        lat_thresh <- 5
+        min_lat <- min(tile_data$lat)
+        broad_in_lat <- which(broad_data$lat > (min_lat-lat_thresh) & broad_data$lat < (min_lat+lat_thresh))
+        broad_data <- broad_data[broad_in_lat,]
         broad_sample_ids <- sample(broad_samp_ids, n_broad, replace=FALSE)
         broad_data <- broad_data[broad_sample_ids,]
+        str(tile_data)
+        str(broad_data)
         all_train_data <- rbind(tile_data, broad_data)
     } else {
         all_train_data <- tile_data
