@@ -581,3 +581,92 @@ def filter_atl08_qual_v3(input_fn=None,
     else:
         print("\tFiltered obs. for all columns")
         return(atl08_df_filt)
+    
+import numpy as np
+from operator import itemgetter
+import pandas as pd
+
+
+# Add variable flags
+def filter_atl08_qual_v5(atl08,
+                            # Establish filter variables
+                            atl08_cols_list = ['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp','h_te_best', 'seg_landcov','sol_el','y','m','doy'],
+                            list_lc_class_values=[0, 111, 113, 112, 114, 115, 116, 121, 123, 122, 124, 125, 126, 20, 30, 90, 100, 60, 40, 50, 70, 80, 200],
+                            list_lc_h_can_thresh = [0, 60, 60, 60, 60, 60, 60, 50, 50, 50, 50, 50, 50, 20, 10, 10, 5, 5, 0, 0, 0, 0, 0],
+                            month_min = 6,
+                            month_max = 9,
+                            thresh_sol_el = 5,
+                            thresh_h_can_unc = 5,
+                            thresh_sig_topo = 2.5,
+                            thresh_h_dif = 25,
+                            thresh_seg_cov = 32767
+                          ):
+    '''The quality filter for ATL08 data for boreal forest biomass mapping
+        key features:
+            + an ABoVE Phase 3 update of filter_atl08_qual_v3 to work on v006 ATL08 data from SlideRule
+            + default threshold values are optimized for boreal forests
+    '''
+    
+    # Identify strong/weak from `spot`
+    # Create dictionary to link spot num to beam type
+    spot_dict = {
+                     1: 'strong',
+                     2: 'weak',
+                     3: 'strong',
+                     4: 'weak',
+                     5: 'strong',
+                     6: 'weak'}
+    
+    # Use spot num in gdf to create new field for beam_type        
+    atl08['beam_type'] = itemgetter(*list(np.array(atl08.spot)))(spot_dict)
+    
+              
+    # [1] Filter using basic flags
+    #
+    # Static quality filter flags    
+
+    filt_params_static = [
+                             ['msw_flag', 0],
+                             ['beam_type', 'strong'],
+                             ['snowcover' , 1] # snow free land
+                        ]
+    
+    # Apply filter
+    for flag, val in filt_params_static:
+        atl08 = atl08[atl08[flag] == val]
+        print(f"\tAfter {flag}={val}:{atl08.shape[0]:>75} observations in the dataframe.")
+
+    # [2] Filter with h_can thresholds
+    if list_lc_h_can_thresh is None:
+        atl08 = atl08[atl08.h_can < thresh_h_can]
+        print(f"\tAfter basic h_can threshold:{atl08.shape[0]:>75} observations in the dataframe.")
+    else:
+        dict_lc_h_can_thresh = dict(zip(list_lc_class_values, list_lc_h_can_thresh))
+        #print(f"\tLand cover threshold dictionary: \n{dict_lc_h_can_thresh}")
+        atl08 = gpd.GeoDataFrame(pd.concat([atl08[(atl08.segment_landcover == lc_val) & (atl08.h_canopy < thresh_h_can)] for lc_val, thresh_h_can in dict_lc_h_can_thresh.items()]))
+        print(f"\tAfter land-cover h_can thresholds:{atl08.shape[0]:>65} observations in the dataframe.")
+
+    # [3] Filter using misc thresholds (global; eg not LC-specific)
+    #
+    # Obs LESS than these values will remain
+    dict_misc_thresh = {#'h_te_unc': 5, 
+                        #'h_can_unc': thresh_h_can_unc, 
+                        #'seg_cover': thresh_seg_cov, 
+                        'solar_elevation': thresh_sol_el,
+                        'sigma_topo': thresh_sig_topo,
+                        'h_dif_ref': thresh_h_dif
+                        }
+    # Apply filter
+    atl08 = atl08.loc[(atl08[list(dict_misc_thresh)] < pd.Series(dict_misc_thresh)).all(axis=1)] 
+    print(f"\tAfter h_can_unc <{thresh_h_can_unc}, seg_cover<{thresh_seg_cov}, sol_el<{thresh_sol_el}, sig_topo<{thresh_sig_topo}, h_dif_ref<{thresh_h_dif}: \t\t{atl08.shape[0]:>15} observations in the dataframe.")
+
+    # [4] Filter using min and max months
+    #
+    atl08 =  atl08[
+                                (np.array(atl08.m) >= month_min ) & 
+                                (np.array(atl08.m) <= month_max) 
+                                    ]    
+    print(f"\tAfter month filters: {month_min}-{month_max}")
+    print(f"\tAfter all quality filtering: \t\t{atl08.shape[0]:>40} observations in the output dataframe.")
+    
+    return atl08

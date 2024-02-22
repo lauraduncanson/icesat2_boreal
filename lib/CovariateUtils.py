@@ -17,6 +17,7 @@ import boto3
 from cachetools import FIFOCache, TLRUCache, cached
 from datetime import datetime, timedelta, timezone
 from typing import List
+import pandas as pd
 
 try:
     from maap.maap import MAAP
@@ -368,3 +369,37 @@ def get_rio_aws_session_from_creds(credentials_fn):
     rio_aws_session = AWSSession(boto3_session)
     
     return rio_aws_session
+
+def local_to_s3(url, user='montesano'):
+    ''' A Function to convert local paths to s3 urls'''
+    return url.replace('/projects/my-private-bucket', f's3://maap-ops-workspace/{user}')
+
+def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path', return_s3=True):
+    
+    '''Return the path of the raster stack for in_tile_num from a list of stack paths (stack_list_fn) from *tindex_master.csv
+    '''
+    all_stacks_df = pd.read_csv(stack_list_fn)
+    
+    # Get the s3 location from the location (local_path) indicated in the tindex master csv
+    if user is None:
+        # Get user specific to each file in row of tindex table: this is safer, in case multiple tables from different users have been concatenated 
+        # user is at position 3 of s3_path
+        USER_POS = 3
+        all_stacks_df['user'] = all_stacks_df['s3_path'].str.split('/', expand=True)[USER_POS]
+        all_stacks_df['s3'] = [local_to_s3(local_path, all_stacks_df.user.to_list()[i]) for i, local_path in enumerate(all_stacks_df[col_name]) ]
+    else:
+        all_stacks_df['s3'] = [local_to_s3(local_path, user) for local_path in all_stacks_df[col_name]]
+    
+    if return_s3:
+        col_name = 's3'
+    
+    stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
+    
+    print("\nGetting stack fn from: ", stack_list_fn)
+    [print(i) for i in stack_for_tile[col_name].to_list()]
+    stack_for_tile_fn = stack_for_tile[col_name].to_list()[0]
+    
+    if len(stack_for_tile)==0:
+        stack_for_tile_fn = None
+        
+    return stack_for_tile_fn

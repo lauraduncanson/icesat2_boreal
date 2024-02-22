@@ -173,10 +173,10 @@ def extract_value_gdf_s3(r_fn, pt_gdf, bandnames: list, reproject=True, ANON=Tru
             print("\tExtracting raster values from: ", r_fn)
     
             if reproject:
-                print("\tRe-project points to match raster...")
+                print("\tReproject points to match raster...")
                 pt_gdf = pt_gdf.to_crs(r_src.crs)
             if bandnames is None:
-                print('\tGeting bandnames list from raster descriptions...')
+                print('\tGetting bandnames list from raster descriptions...')
                 bandnames = list(r_src.descriptions)
             for idx, bandname in enumerate(bandnames):
                 bandnum = idx + 1

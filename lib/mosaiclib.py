@@ -1,3 +1,5 @@
+import os
+
 ######
 ######
 ###### Library of all mosaic json files associated with various iterations of the ABoVE Boreal AGB Density maps
@@ -28,10 +30,12 @@ ATL08_GRANULE_TINDEX_FN_DICT = {
 #ATL08_filt_tindex_master_fn = 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv'
 #ATL08_filt_tindex_json_fn= "/projects/my-public-bucket/DPS_tile_lists/ATL08_filt_tindex_master.json"
 ATL08_FILT_TINDEX_FN_DICT = {
-    # Final ATL08_filt
+    # Final ATL08_filt - NO dateline tiles
     'c2020spring2022' : 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/ATL08_filt/c2020/tile_atl08/ATL08_filt_tindex_master.csv', # note: in nathan's now
     'c2020fall2022v1' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_gedi_rh/ATL08_filt_tindex_master.csv',
-    'c2020fall2022v2' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv'
+    'c2020fall2022v2' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv',
+    # in Phase 3 with same ATL08 v005 - ONLY dateline tiles
+    'c2020_v005'      : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/tile_atl08/c2020_v005/ATL08_filt_tindex_master.csv'
 }
 
 ######
@@ -93,7 +97,8 @@ Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOR
 ###### Harmonized Landsat-Sentinel L30 mosaics (Landsat only)
 ######
 #############################
-# Final HLS comp for c2020  <---UPDATE THIS TO INCLUDE NEW DATELINE TILES FROM L30
+# HLS tindex from Laura's AGB DPS: nathanmthomas/DPS_tile_lists/HLS/c2020/HLS_stack_2022_v2/HLS_tindex_master.csv
+# Final HLS comp for c2020  used for Boreal AGB c2020 <---UPDATE THIS TO INCLUDE NEW DATELINE TILES FROM L30
 MS_COMP_VERSION = 'HLS_stack_2022_v2' 
 HLS_tindex_c2020_master_fn = f's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS/c2020/{MS_COMP_VERSION}/HLS_tindex_master.csv'
 HLS_mosaic_c2020_json_fn   = f's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS/c2020/{MS_COMP_VERSION}/HLS_tindex_master_mosaic.json'
@@ -128,11 +133,18 @@ HLS_mosaic_c2015_json_fn = 's3://maap-ops-workspace/shared/nathanmthomas/DPS_til
 
 HLS_MOSAIC_JSON_FN_DICT = {
     'c2020oldv1':HLS_mosaic_c2020oldv1_json_fn,
+    # This has a bunch a large artifacts
     'c2020oldv2':HLS_mosaic_c2020oldv2_json_fn,
-    'c2020v2022': HLS_mosaic_c2020_json_fn,
+    'c2020v2022nmt': HLS_mosaic_c2020_json_fn,
+    # Copied from c2020v2022nmt so can be updated with datelines
+    'c2020v2022pmm': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/c2020/HLS_stack_2022_v2/HLS_tindex_master_mosaic.json',
     'c2020v2022datelines': HLS_mosaic_c2020datelines_json_fn,
-    # Updated with dateline : sum of nathan's c2020v2022 +  c2020v2022datelines
-    'c2020updated': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2022_v2/HLS_tindex_master_mosaic.json',
+    # Good update
+    # Updated with dateline : sum of c2020v2022pmm +  c2020v2022datelines
+    'c2020v2022updated' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/c2020/HLS_stack_2022_v2/HLS_tindex_master_mosaic_updated.json',
+    # Bad update - this is contaiminated with 10 c2015 tiles at the tail end of the file
+    # Updated with dateline : sum of c2020v2022nmt +  c2020v2022datelines
+    'c2020v2022updated_bad': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2022_v2/HLS_tindex_master_mosaic.json',
     '2015':  HLS_mosaic_c2015_json_fn,
     '2016': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2016/HLS_tindex_master_mosaic.json',
     '2017': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2017/HLS_tindex_master_mosaic.json',
@@ -142,11 +154,58 @@ HLS_MOSAIC_JSON_FN_DICT = {
     '2021': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2021/HLS_tindex_master_mosaic.json',
     '2022': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2022/HLS_tindex_master_mosaic.json',
     '2023': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2023/HLS_tindex_master_mosaic.json'
-} # DO THIS: s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_L30_c2020/HLS_tindex_master_mosaic.json <--same as what we used but with a few new dateline tiles
+}
+
 HLS_TINDEX_FN_DICT = dict()
 for key, value in HLS_MOSAIC_JSON_FN_DICT.items():
-    HLS_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
+    if '_mosaic.json' in value:
+        HLS_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
+    if '_mosaic_updated.json' in value:
+        HLS_TINDEX_FN_DICT[key] = value.replace('_mosaic_updated.json', '_updated.csv')
 
+###
+### This is a 1-off update of the c2020 HLS L30 mosaic to include dateline tiles
+### we use this for the Phase 3 c2020 Boreal AGB map update
+###
+UPDATE_C2020_HLS = False 
+
+if UPDATE_C2020_HLS:
+    
+    import sys
+    ICESAT2_BOREAL_REPO_PATH = '/projects/code/icesat2_boreal'
+    ICESAT2_BOREAL_LIB_PATH = ICESAT2_BOREAL_REPO_PATH + '/lib'
+    sys.path.append(ICESAT2_BOREAL_LIB_PATH)
+    import ExtractUtils
+    import shutil
+    import pandas as pd
+    
+    # MosaicJSON Update
+    #
+    # Nathan's version of the HLS L30 c2020 mosaic
+    #mosaic_json_fn = 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS/c2020/HLS_stack_2022_v2/HLS_tindex_master_mosaic.json'
+
+    # My version of the HLS L30 c2020 mosaic - this will be copied
+    mosaic_json_fn = HLS_MOSAIC_JSON_FN_DICT['c2020v2022pmm']
+
+    # Copied file renamed and will recceive the update
+    updated_mosaic_json_fn = os.path.splitext(HLS_MOSAIC_JSON_FN_DICT['c2020v2022pmm'])[0] + '_updated.json'
+    shutil.copy(mosaic_json_fn.replace('s3://maap-ops-workspace/shared/montesano','/projects/my-public-bucket'), 
+                updated_mosaic_json_fn.replace('s3://maap-ops-workspace/shared/montesano','/projects/my-public-bucket'))
+
+    # mosiac json update
+    ExtractUtils.update_mosaic_json(updated_mosaic_json_fn, HLS_mosaic_c2020datelines_json_fn)
+    
+    # Tindex CSV Update
+    #
+    # A new updated CSV will be written
+    updated_tindex_csv_fn = os.path.splitext(HLS_TINDEX_FN_DICT['c2020v2022pmm'])[0] + '_updated.csv'
+    # For the tindex CSV of 'c2020updated' we need to manually update (append) with the datelines (like we did for the mosaic json)
+    tmp_tindex = pd.concat([pd.read_csv(HLS_TINDEX_FN_DICT['c2020v2022datelines']),
+                            pd.read_csv(HLS_TINDEX_FN_DICT['c2020v2022pmm'])
+                  ])
+    tmp_tindex.to_csv(updated_tindex_csv_fn.replace('s3://maap-ops-workspace/shared/montesano','/projects/my-public-bucket'))
+    print(f"Update complete: {updated_tindex_csv_fn}")
+    
 ######
 ###### SAR S1 tri-seasonal yearly composites (Sentinel1)
 ######
