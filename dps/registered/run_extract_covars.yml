@@ -1,0 +1,25 @@
+algorithm_description: run the extract_covars.py script
+algorithm_name: run_extract_covars
+algorithm_version: extract_covars
+build_command: icesat2_boreal/dps/build_command_3.1.3.sh
+disk_space: 10GB
+docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/pangeo:main
+inputs:
+  config: []
+  file: []
+  positional:
+  - default: ''
+    description: the s3 path of the atl08 filtered geoparquet
+    name: s3_atl08_gdf_fn
+    required: true
+  - default: boreal_tiles_v004
+    description: ''
+    name: in_tile_layer
+    required: true
+  - default: ''
+    description: a list of s3 paths to tindex csvs that hold the s3 paths of the tiled raster covars whose pixels will be extracted to atl08
+    name: tindex_fn_list
+    required: true
+queue: maap-dps-worker-8gb
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
+run_command: icesat2_boreal/dps/alg_2-4/run_extract_covars.sh
