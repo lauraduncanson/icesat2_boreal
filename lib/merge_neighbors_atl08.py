@@ -2,7 +2,7 @@
 
 import os
 import pandas as pd
-import geopandas
+import geopandas as gpd
 
 import argparse
 
@@ -66,7 +66,7 @@ def main():
     out_dir = args.out_dir
     
     # Get the vector tiles
-    in_tile_gdf = geopandas.read_file(in_tile_fn)
+    in_tile_gdf = gpd.read_file(in_tile_fn)
     print(in_tile_gdf.head())
     in_tile_gdf[in_tile_field] = in_tile_gdf[in_tile_field].astype(int)
     
@@ -81,11 +81,11 @@ def main():
     ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
     print(ATL08_filt_tindex_master.info())
 
-    focal_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
+    focal_atl08_gdf_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
 
     if out_dir is None:
         # Get the focal tile's ATL08 filt CSV name to use to make out_csv_fn
-        out_dir = os.path.split(focal_csv_fn)[0]
+        out_dir = os.path.split(focal_atl08_gdf_fn)[0]
     
     # For neighbor tiles, get subset of ATL08 filtered CSVs as a fn list of their s3 paths assciated
     ATL08_filt_csv_s3_fn_list = [ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == tile_id].tolist() for tile_id in neighbor_tile_ids]
@@ -98,16 +98,24 @@ def main():
     ATL08_filt_csv_s3_fn_list = [item for sublist in ATL08_filt_csv_s3_fn_list for item in sublist]
     
     # Add the focal tile fn to list
-    ATL08_filt_csv_s3_fn_list = [focal_csv_fn] + ATL08_filt_csv_s3_fn_list
+    ATL08_filt_csv_s3_fn_list = [focal_atl08_gdf_fn] + ATL08_filt_csv_s3_fn_list
 
-    # Read these ATL08 filtered CSVs into a single df
-    atl08 = pd.concat([pd.read_csv(f, storage_options={'anon':True}) for f in ATL08_filt_csv_s3_fn_list], sort=False)
+    # Update for Phase 3 uses geoparquet geodataframes of filtered ATL08
+    if focal_atl08_gdf_fn.endswith('parquet'):
+        atl08 = pd.concat([gpd.read_parquet(f, storage_options={'anon':True}) for f in ATL08_filt_csv_s3_fn_list], sort=False)
+        # Write df to Geoparquet
+        out_parquet_fn = os.path.join(out_dir, focal_atl08_gdf_fn.split(f'_{in_tile_num:05}.')[0] + f'_merge_neighbors_{tile_num:05}.parquet')
+        print(f'Wrote out: {out_parquet_fn}')
+        atl08.to_parquet(out_parquet_fn)
+    else:
+        # Read these ATL08 filtered CSVs into a single df
+        atl08 = pd.concat([pd.read_csv(f, storage_options={'anon':True}) for f in ATL08_filt_csv_s3_fn_list], sort=False)
     
-    # Write df to CSV
-    out_csv_fn = os.path.join(out_dir, "atl08_004_30m_filt_merge_neighbors_" + str(f'{in_tile_num:04}.csv') )
-    
+    # Write df to CSV (regardless of what input type was...)
+    #out_csv_fn = os.path.join(out_dir, "atl08_004_30m_filt_merge_neighbors_" + str(f'{in_tile_num:05}.csv') )
+    out_csv_fn = os.path.join(out_dir, focal_atl08_gdf_fn.split(f'_{in_tile_num:05}.')[0] + f'_merge_neighbors_{tile_num:05}.csv')
     print(f'Wrote out: {out_csv_fn}')
     atl08.to_csv(out_csv_fn)
 
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()

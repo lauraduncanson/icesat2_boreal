@@ -252,6 +252,17 @@ for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
 ######
 ###### Build tindex dictionaries - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
 ######
+DICT_BUILD_TINDEX_ATL08_FILT = {
+  'SET': 'ATL08',
+ 'USER': 'montesano',
+ 'ALG_NAME': 'process_atl08_boreal', 
+ 'ALG_VERSION': 'process_atl08_boreal',
+ 'VAR': 'ATL08_filt',
+ 'BATCH_NAME': '2020_v006',
+ 'YEAR': 2024,
+ 'DPS_MONTH_LIST': '02',
+ 'DPS_DAY_MIN': 1,
+ 'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'}
 DICT_BUILD_TINDEX_HLS_L30_c2020_datelines = {
     'SET' : 'HLS',
     'USER' : 'montesano',

@@ -138,6 +138,8 @@ def main():
     parser.set_defaults(LOCAL_TEST=False)
     parser.add_argument('--RETURN_DUPS', dest='RETURN_DUPS', action='store_true', help='Return a df of dropped and a df of retained duplicate tiles')
     parser.set_defaults(RETURN_DUPS=False)
+    parser.add_argument('--SLIDERULE_OUT', dest='SLIDERULE_OUT', action='store_true', help='Identifies filtered ATL08 output parquet files from sliderule')
+    parser.set_defaults(SLIDERULE_OUT=False)
     parser.add_argument('--tindex_append', dest='tindex_append', action='store_true', help='Append data frame to existing tindex master csv')
     parser.set_defaults(tindex_append=False)
     parser.add_argument('--WRITE_TINDEX_MATCHES_GDF', dest='WRITE_TINDEX_MATCHES_GDF', action='store_true', help='Write a tindex gpkg from master json needed to build stack')
@@ -253,6 +255,9 @@ def main():
                 if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".csv"
+                if args.SLIDERULE_OUT:
+                    dps_out_searchkey_list = [f"{user}/data/atl08.v006/030m/*.parquet"]
+                    ends_with_str = ".parquet"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
@@ -340,12 +345,20 @@ def main():
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
+                # Get last element
+                # https://stackoverflow.com/questions/64463816/pandas-dataframe-split-and-get-last-element-of-list
 
-                df['tile_num'] = df['file'].str.split('_', expand = True)[7].str.split('.csv', expand = True)[0]
+                #df['tile_num'] = df['file'].str.split('_', expand = True)[tile_idx].str.split(ends_with_str, expand = True)[0]
+                df['tile_num'] = df['file'].str.split('_').str[-1].str.split(ends_with_str, expand = True)[0]
                 
                 # Get n_obs column for every tile, and join on tile_num
-                tile_num_list = [os.path.basename(f).split('_')[7].split('.csv')[0] for f in df[col_name].tolist()]
-                n_obs_list = [pd.read_csv(f).shape[0] for f in df[col_name].to_list()]
+                tile_num_list = [os.path.basename(f).split('_')[-1].split(ends_with_str)[0] for f in df[col_name].tolist()]
+                
+                if ends_with_str == '.parquet':
+                    n_obs_list = [pd.read_parquet(f).shape[0] for f in df[col_name].to_list()]
+                else:
+                    n_obs_list = [pd.read_csv(f).shape[0] for f in df[col_name].to_list()]
+                    
                 df_nobs = pd.DataFrame(data={'tile_num': tile_num_list, 'n_obs': n_obs_list})
                 df = df.join(df_nobs[['tile_num','n_obs']].set_index('tile_num'), how='left', on='tile_num')
             else:
