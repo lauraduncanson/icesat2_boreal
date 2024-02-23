@@ -507,7 +507,7 @@ def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/D
             #'color' : feature['properties']['color'],
             'color' : 'black',
             'weight' : 1,
-            'fillOpacity' : 0.5,
+            'fillOpacity' : 0.85, 
             },
         name="ATL08 filt tiles: n_obs",
         tooltip=features.GeoJsonTooltip(
@@ -669,13 +669,14 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
         atl08_df = pd.read_csv(ATL08_filt_csv_fn)
         atl08_gdf = geopandas.GeoDataFrame(atl08_df, crs="EPSG:4326", geometry = geopandas.points_from_xy(atl08_df.lon, atl08_df.lat) )
         
-        print(f'\nNum. of ATL08 obs. in tile {TILE_OF_INTEREST}: \t{len(atl08_gdf)}')
+        
         if DO_NIGHT:
             print(f'Percentage of night (night_flg=1) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.night_flg == 1]) / len(atl08_gdf),3) *100}%')
-        print(f'Percentage of water (ValidMask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.ValidMask == 0]) / len(atl08_gdf),3) *100}%')
-        print(f'Percentage of water (slopemask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.slopemask == 0]) / len(atl08_gdf),3) *100}%')
-
-        print(round(atl08_gdf.lat.mean(),4), round(atl08_gdf.lon.mean(),4))
+        #print(f'Percentage of water (ValidMask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.ValidMask == 0]) / len(atl08_gdf),3) *100}%')
+        #print(f'Percentage of water (slopemask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.slopemask == 0]) / len(atl08_gdf),3) *100}%')
+    
+    print(f'\nNum. of ATL08 obs. in tile {TILE_OF_INTEREST}: \t{len(atl08_gdf)}')
+    print(round(atl08_gdf.lat.mean(),4), round(atl08_gdf.lon.mean(),4))
 
     # Map the Layers
     #Map_Figure=Figure(width=map_width,height=map_height)
@@ -703,7 +704,7 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     for lat, lon, h_can in zip(atl08_gdf.lat, atl08_gdf.lon, atl08_gdf.h_can):
         ATL08_obs_night = CircleMarker(location=[lat, lon],
                                 radius = 10,
-                                weight=0.75,
+                                weight=5,
                                 tooltip=str(round(h_can,2))+" m",
                                 fill=True,
                                 #fill_color=getfill(h_can),
