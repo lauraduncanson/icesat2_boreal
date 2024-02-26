@@ -256,7 +256,7 @@ def main():
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".csv"
                 if args.SLIDERULE_OUT:
-                    dps_out_searchkey_list = [f"{user}/data/atl08.v006/030m/*.parquet"]
+                    dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.parquet"]
                     ends_with_str = ".parquet"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'

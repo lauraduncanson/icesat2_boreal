@@ -258,7 +258,7 @@ DICT_BUILD_TINDEX_ATL08_FILT = {
  'ALG_NAME': 'process_atl08_boreal', 
  'ALG_VERSION': 'process_atl08_boreal',
  'VAR': 'ATL08_filt',
- 'BATCH_NAME': '2020_v006',
+ 'BATCH_NAME': '030m/2020',
  'YEAR': 2024,
  'DPS_MONTH_LIST': '02',
  'DPS_DAY_MIN': 1,
