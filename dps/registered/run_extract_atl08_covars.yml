@@ -1,7 +1,7 @@
 algorithm_description: run the extract_atl08_covars.py script
 algorithm_name: run_extract_atl08_covars
 algorithm_version: extract_atl08_covars
-build_command: icesat2_boreal/dps/build_command_agb.sh
+build_command: icesat2_boreal/dps/build_command_3.1.4.sh
 disk_space: 10GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/pangeo:v3.1.4
 inputs:
