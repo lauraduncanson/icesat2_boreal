@@ -1,7 +1,7 @@
 #!/bin/bash
 # this is intended for running DPS jobs
 
-source activate icesat2_boreal
+#source activate icesat2_boreal
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
