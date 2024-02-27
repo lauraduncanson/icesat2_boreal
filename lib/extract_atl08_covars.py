@@ -15,7 +15,7 @@ import FilterUtils
 import ExtractUtils
 import CovariateUtils
 
-def extract_atl08_covars(s3_atl08_gdf_fn, tindex_fn_list: list, RETURN_DF=False):
+def extract_atl08_covars(s3_atl08_gdf_fn: str, tindex_fn_list: list, outdir: str, RETURN_DF=False):
     
     '''Extract values from tiled raster covariates to input tiled sets of atl08 observations using the path of the tiled atl08 geodataframe
      + designed to be multiprocessed with a list of tile nums
@@ -43,6 +43,10 @@ def extract_atl08_covars(s3_atl08_gdf_fn, tindex_fn_list: list, RETURN_DF=False)
         out_atl08_covars_fn = s3_atl08_gdf_fn.split(f'_{tile_num:06}.')[0] + f'_covars_{tile_num:06}.parquet'
     else:
         out_atl08_covars_fn = s3_atl08_gdf_fn.split(f'_{tile_num:05}.')[0] + f'_covars_{tile_num:06}.parquet'
+        
+    if outdir is not None:
+        print(f"Output dir: {outdir}")
+        out_atl08_covars_fn = os.path.join(outdir, os.path.basename(out_atl08_covars_fn))
     
     if atl08.shape[0] == 0: sys.exit(f'Tile {tile_num:05} has 0 observations. Exiting.')
     
@@ -67,12 +71,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-s3_atl08_gdf_fn", type=str, help="The s3 path to the ATL08 geodataframe used for extraction.")
     parser.add_argument("-tindex_fn_list",  nargs='+', type=str, default=None, help="A list of s3 paths to tindex csv files with s3 paths to raster tiles.")
+    parser.add_argument("-outdir",  type=str, default=None, help="Output dir")
     parser.add_argument('--RETURN_DF', dest='RETURN_DF', action='store_true', help='Boolean to return a data frame')
     parser.set_defaults(RETURN_DF=False)
     
     args = parser.parse_args()
         
-    extract_atl08_covars(args.s3_atl08_gdf_fn, args.tindex_fn_list, args.RETURN_DF)
+    extract_atl08_covars(args.s3_atl08_gdf_fn, args.tindex_fn_list, args.outdir, args.RETURN_DF)
     
 if __name__ == "__main__":
     main()

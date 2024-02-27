@@ -16,4 +16,5 @@ OUTPUTDIR="${PWD}/output"
 
 python ${basedir}/../../lib/extract_atl08_covars.py \
 -s3_atl08_gdf_fn ${1} \
--tindex_fn_list ${2}
+-tindex_fn_list ${2} \
+-outdir ${OUTPUTDIR}
