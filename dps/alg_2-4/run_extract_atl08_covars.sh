@@ -2,6 +2,8 @@
 # this is intended for running DPS jobs
 
 #source activate icesat2_boreal
+conda activate pangeo
+
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
