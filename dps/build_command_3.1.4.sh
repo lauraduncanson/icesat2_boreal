@@ -2,6 +2,7 @@
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
 
+source activate pangeo
 #install requirements packages
 conda env update -f ${basedir}/above_env_3.1.4.yml
 
@@ -15,5 +16,5 @@ source activate icesat2_boreal
 
 pip install git+https://github.com/MAAP-Project/maap-py.git#egg=maappy
 
-source activate r
+#source activate r
 pip3 install pyOpenSSL --upgrade
