@@ -12,10 +12,6 @@ inputs:
     description: the s3 path of the atl08 filtered geoparquet
     name: s3_atl08_gdf_fn
     required: true
-  - default: boreal_tiles_v004
-    description: ''
-    name: in_tile_layer
-    required: true
   - default: ''
     description: a list of s3 paths to tindex csvs that hold the s3 paths of the tiled raster covars whose pixels will be extracted to atl08
     name: tindex_fn_list
