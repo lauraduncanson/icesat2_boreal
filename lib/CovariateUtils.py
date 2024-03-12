@@ -27,6 +27,15 @@ try:
 except ImportError:
     print('NASA MAAP is unavailable')
     HAS_MAAP = False
+    
+# Set up the endpoints for the aws s3 credentials for various DAACs    
+s3_cred_endpoint_DAAC = {
+    'podaac':   'https://archive.podaac.earthdata.nasa.gov/s3credentials',
+    'gesdisc':  'https://data.gesdisc.earthdata.nasa.gov/s3credentials',
+    'lpdaac':   'https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials',
+    'ornldaac': 'https://data.ornldaac.earthdata.nasa.gov/s3credentials',
+    'ghrcdaac': 'https://data.ghrc.earthdata.nasa.gov/s3credentials'
+}
 
 def creds_expiration_timestamp(_key, creds, _now) -> float:
     """Return the expiration time of an AWS credentials object converted to the

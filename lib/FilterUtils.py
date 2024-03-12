@@ -599,7 +599,8 @@ def filter_atl08_qual_v5(atl08,
                             thresh_h_can_unc = 5,
                             thresh_sig_topo = 2.5,
                             thresh_h_dif = 25,
-                            thresh_seg_cov = 32767
+                            thresh_seg_cov = 32767,
+                            RETURN_METADATA=False
                           ):
     '''The quality filter for ATL08 data for boreal forest biomass mapping
         key features:
@@ -631,21 +632,40 @@ def filter_atl08_qual_v5(atl08,
                              ['snowcover' , 1] # snow free land
                         ]
     
+    # Prep a metadata df with post-filter reductions in obs from filter flags
+    filt_metadata_cols_list = []
+    after_filt_cnt_list = []
+    
+    after_filt_cnt = atl08.shape[0]
+    after_filt_cnt_list.append(after_filt_cnt)
+    filt_name = 'sliderule'
+    filt_metadata_cols_list.append(filt_name)
+    print(f"\tAfter {filt_name}:{after_filt_cnt:>75} observations in the dataframe.")
+    
     # Apply filter
     for flag, val in filt_params_static:
         atl08 = atl08[atl08[flag] == val]
-        print(f"\tAfter {flag}={val}:{atl08.shape[0]:>75} observations in the dataframe.")
+        after_filt_cnt = atl08.shape[0]
+        after_filt_cnt_list.append(after_filt_cnt)
+        filt_name = f'{flag}={val}'
+        filt_metadata_cols_list.append(filt_name)
+        print(f"\tAfter {filt_name}:{after_filt_cnt:>75} observations in the dataframe.")
 
     # [2] Filter with h_can thresholds
     if list_lc_h_can_thresh is None:
+        filt_name = 'h_can threshold (single)'
         atl08 = atl08[atl08.h_can < thresh_h_can]
-        print(f"\tAfter basic h_can threshold:{atl08.shape[0]:>75} observations in the dataframe.")
     else:
+        filt_name = 'h_can threshold (lc)'
         dict_lc_h_can_thresh = dict(zip(list_lc_class_values, list_lc_h_can_thresh))
         #print(f"\tLand cover threshold dictionary: \n{dict_lc_h_can_thresh}")
         atl08 = gpd.GeoDataFrame(pd.concat([atl08[(atl08.segment_landcover == lc_val) & (atl08.h_canopy < thresh_h_can)] for lc_val, thresh_h_can in dict_lc_h_can_thresh.items()]))
-        print(f"\tAfter land-cover h_can thresholds:{atl08.shape[0]:>65} observations in the dataframe.")
-
+    
+    after_filt_cnt = atl08.shape[0]
+    print(f"\tAfter {filt_name}:{after_filt_cnt:>65} observations in the dataframe.")
+    after_filt_cnt_list.append(after_filt_cnt)
+    filt_metadata_cols_list.append(filt_name)
+    
     # [3] Filter using misc thresholds (global; eg not LC-specific)
     #
     # Obs LESS than these values will remain
@@ -657,16 +677,29 @@ def filter_atl08_qual_v5(atl08,
                         'h_dif_ref': thresh_h_dif
                         }
     # Apply filter
+    filt_name = 'misc thresholds'
     atl08 = atl08.loc[(atl08[list(dict_misc_thresh)] < pd.Series(dict_misc_thresh)).all(axis=1)] 
-    print(f"\tAfter h_can_unc <{thresh_h_can_unc}, seg_cover<{thresh_seg_cov}, sol_el<{thresh_sol_el}, sig_topo<{thresh_sig_topo}, h_dif_ref<{thresh_h_dif}: \t\t{atl08.shape[0]:>15} observations in the dataframe.")
+    after_filt_cnt = atl08.shape[0]
+    print(f"\tAfter {filt_name} h_can_unc <{thresh_h_can_unc}, seg_cover<{thresh_seg_cov}, sol_el<{thresh_sol_el}, sig_topo<{thresh_sig_topo}, h_dif_ref<{thresh_h_dif}: \t\t{after_filt_cnt:>15} observations in the dataframe.")
+    
+    after_filt_cnt_list.append(after_filt_cnt)
+    filt_metadata_cols_list.append(filt_name)
 
     # [4] Filter using min and max months
     #
+    filt_name = f'seasonal_{month_min}-{month_max}'
     atl08 =  atl08[
                                 (np.array(atl08.m) >= month_min ) & 
                                 (np.array(atl08.m) <= month_max) 
                                     ]    
+    after_filt_cnt = atl08.shape[0]
     print(f"\tAfter month filters: {month_min}-{month_max}")
-    print(f"\tAfter all quality filtering: \t\t{atl08.shape[0]:>40} observations in the output dataframe.")
+    print(f"\tAfter all quality filtering: \t\t{after_filt_cnt:>40} observations in the output dataframe.")
+    after_filt_cnt_list.append(after_filt_cnt)
+    filt_metadata_cols_list.append(filt_name)
+    atl08_meta = pd.DataFrame(data=dict(zip(filt_metadata_cols_list, after_filt_cnt_list)), index=[0])
     
-    return atl08
+    if RETURN_METADATA:
+        return atl08, atl08_meta
+    else:
+        return atl08

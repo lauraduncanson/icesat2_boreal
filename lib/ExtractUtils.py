@@ -35,7 +35,7 @@ from functools import partial
 
 try:
     from maap.maap import MAAP
-    maap = MAAP()
+    maap = MAAP("api.maap-project.org")
     HAS_MAAP = True
     print('NASA MAAP')
 except ImportError:

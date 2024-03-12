@@ -13,7 +13,7 @@ import datetime
 
 from pandarallel import pandarallel
 
-pandarallel.initialize(nb_workers=30, progress_bar=False)
+pandarallel.initialize(nb_workers=25, progress_bar=False)
 
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
@@ -253,8 +253,8 @@ def main():
                 ends_with_str = args.seg_str_atl08+".csv"
             if "filt" in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.csv" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
-                ends_with_str = ".csv"
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.parquet" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                ends_with_str = ".parquet"
                 if args.SLIDERULE_OUT:
                     dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.parquet"]
                     ends_with_str = ".parquet"
@@ -354,10 +354,17 @@ def main():
                 # Get n_obs column for every tile, and join on tile_num
                 tile_num_list = [os.path.basename(f).split('_')[-1].split(ends_with_str)[0] for f in df[col_name].tolist()]
                 
+                print('Multiprocessing n obs with pandarallel...')
                 if ends_with_str == '.parquet':
-                    n_obs_list = [pd.read_parquet(f).shape[0] for f in df[col_name].to_list()]
+                    def get_n_obs(f):
+                        return pd.read_parquet(str(f)).shape[0]
+                    #n_obs_list = [pd.read_parquet(f).shape[0] for f in df[col_name].to_list()]
+                    n_obs_list = df[col_name].parallel_apply(get_n_obs)
                 else:
-                    n_obs_list = [pd.read_csv(f).shape[0] for f in df[col_name].to_list()]
+                    def get_n_obs(f):
+                        return pd.read_csv(str(f)).shape[0]
+                    #n_obs_list = [pd.read_csv(f).shape[0] for f in df[col_name].to_list()]
+                    n_obs_list = df[col_name].parallel_apply(get_n_obs)
                     
                 df_nobs = pd.DataFrame(data={'tile_num': tile_num_list, 'n_obs': n_obs_list})
                 df = df.join(df_nobs[['tile_num','n_obs']].set_index('tile_num'), how='left', on='tile_num')

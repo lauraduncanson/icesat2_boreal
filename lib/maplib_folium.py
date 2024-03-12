@@ -640,7 +640,8 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
     #AGB_tindex_master_fn = f's3://maap-ops-workspace/shared/{DPS_DATA_USER}/DPS_tile_lists/AGB_tindex_master.csv'
     
     if isinstance(ATL08_filt_tindex_master_fn, pd.DataFrame):
-        atl08_gdf = ATL08_filt_tindex_master_fn
+        print('Input is dataframe')
+        atl08_gdf = ATL08_filt_tindex_master_fn.to_crs(4326)
         if 'h_canopy' in atl08_gdf.columns: atl08_gdf['h_can'] = atl08_gdf['h_canopy']
         atl08_gdf['lon'] = atl08_gdf.geometry.x
         atl08_gdf['lat'] = atl08_gdf.geometry.y
