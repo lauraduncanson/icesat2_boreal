@@ -3,14 +3,16 @@ import rasterio
 #os.environ['USE_PYGEOS'] = '0'
 import geopandas as gpd
 import pandas as pd
-os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+#os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
 import boto3
+import s3fs
+import requests
 from typing import List
 import argparse
 
 import numpy as np
 
-
+import rasterio
 import rasterio as rio
 from rasterio.session import AWSSession 
 from rasterio.warp import * #TODO: limit to specific needed modules
@@ -21,8 +23,12 @@ from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.mosaic.methods import defaults
 from rio_tiler.io import COGReader, Reader
 
+import CovariateUtils
 from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
+
+from maap.maap import MAAP
+maap = MAAP(maap_host='api.maap-project.org')
 
 #Check for file existence
 def fn_check(fn):
@@ -83,6 +89,17 @@ def fn_list_valid(fn_list):
     print('%i output fn' % len(out_list))
     return out_list 
 
+s3_cred_endpoint = {
+    'podaac':   'https://archive.podaac.earthdata.nasa.gov/s3credentials',
+    'gesdisc':  'https://data.gesdisc.earthdata.nasa.gov/s3credentials',
+    'lpdaac':   'https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials',
+    'ornldaac': 'https://data.ornldaac.earthdata.nasa.gov/s3credentials',
+    'ghrcdaac': 'https://data.ghrc.earthdata.nasa.gov/s3credentials'
+}
+
+def get_temp_creds(provider):
+    return requests.get(s3_cred_endpoint[provider]).json()
+
 def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, bandnames_list: list, clip: bool, topo_off: bool, output_dir: str, height: None, width: None, band_indexes_list: list):
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
@@ -129,16 +146,31 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     print(bandnames_list)
     
     print('\n'.join(files_list_s3))
-
-    # updated call to manage memory and accomodate subsetting by bands (indexes)
-    # works for ~56 files of float COGs with arrays of 9 x ~700 x ~700 to return mosaic COGs with arrays of 9 x 3000 x 3000
-    MAX_FILES = 30
-    NUM_THREADS_MOSAIC = 5
-    if len(files_list_s3) > MAX_FILES:
-        print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
-        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
-    else:
-        img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list)
+    
+    #########################
+    # Get rio Env aws session
+    
+    # Setup a dummy aws env session for rio
+    os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
+    rio_env_session = rio.Env(rasterio.session.AWSSession())
+    
+    # Set up AWS session according to strings in file list
+    if 'ornl' in files_list_s3[0]:
+        os.environ['AWS_NO_SIGN_REQUEST'] = 'NO'
+        print('Accessing ORNL DAAC data...')
+        rio_env_session = rio.Env(CovariateUtils.get_aws_session_DAAC(maap.aws.earthdata_s3_credentials(CovariateUtils.s3_cred_endpoint_DAAC['ornldaac'])))
+        
+    with rio_env_session:
+        # updated call to manage memory and accomodate subsetting by bands (indexes)
+        # works for ~56 files of float COGs with arrays of 9 x ~700 x ~700 to return mosaic COGs with arrays of 9 x 3000 x 3000
+        MAX_FILES = 30
+        NUM_THREADS_MOSAIC = 5
+        
+        if len(files_list_s3) > MAX_FILES:
+            print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
+            img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
+        else:
+            img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list)
         
     mosaic = (img[0].as_masked())
     
