@@ -23,6 +23,7 @@ dependencies:
   - numpy
   - pycurl
   - rasterstats
+  - pyarrow
   #- cogeo_mosaic==6.2.0
 #  - r-rockchalk
 #  - r-terra
