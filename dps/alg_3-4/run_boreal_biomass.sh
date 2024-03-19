@@ -53,7 +53,7 @@ echo $cmd
 eval $cmd
 
 # Set the output merged CSV name to a var
-MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/atl08_004_30m_filt_merge_neighbors* | head -1)
+MERGED_ATL08_CSV=$(ls ${OUTPUTDIR}/*_merge_neighbors_*.csv | head -1)
 
 echo $MERGED_ATL08_CSV
 echo $ATL08_SAMPLE_CSV

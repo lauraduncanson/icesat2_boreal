@@ -258,7 +258,6 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
             combined_totals <- tile_means
-            print(str(tile_means))
     }
     return(combined_totals)
 }
@@ -453,7 +452,6 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
 
         fit.rf <- randomForest(y=y, x=x, ntree=1000, mtry=6)
         
-        #print(max(fit.rf$rsq, na.rm=TRUE))
     }
     
     if(predict_var=='Ht'){
@@ -777,7 +775,8 @@ mapBoreal<-function(rds_models,
     tile_data <- read.csv(ice2_30_atl08_path)
     
     #sub-sample tile data to n_tile
-    n_tile <- as.double(min_n)
+    min_n_tile <- as.double(min_n)
+    max_n <- as.double(max_n)
     
     #expand_training=TRUE when looking to expand to fulfill n_tile
     #expand_training=FALSE when looking to be explicity
@@ -791,17 +790,17 @@ mapBoreal<-function(rds_models,
         n_filter1 <- length(filter1)
 
         #check if sufficient data, if not expand to max solar elevation allowed
-        if(n_filter1 < n_tile){
+        if(n_filter1 < min_n_tile){
             filter2 <- which(tile_data$doy >= minDOY & tile_data$doy <=maxDOY & tile_data$sol_el < max_sol_el)
             n_filter2 <- length(filter2)
             
             #check if n met, if not expand 1 month later in growing season, iteratively
-            if(n_filter2 < n_tile){
+            if(n_filter2 < min_n_tile){
                 #check maxDOY
                 temp_maxDOY <- default_maxDOY
                 n_late <- 0
                 for(late_months in 1:4){
-                    if(n_late < n_tile){
+                    if(n_late < min_n_tile){
                         temp_maxDOY <- default_maxDOY+(30*(late_months-1))
                         
                         if(temp_maxDOY < maxDOY){
@@ -811,7 +810,7 @@ mapBoreal<-function(rds_models,
                     }
                 }
 
-                if(n_late > n_tile){
+                if(n_late > min_n_tile){
                         tile_data <- tile_data[filter_lateseason,]
                 } else{
                     #shift to iterative searching through early season
@@ -819,7 +818,7 @@ mapBoreal<-function(rds_models,
                     n_early <- 0
                     early_months <- 0
                     for(early_months in 1:4){
-                        if(n_early < n_tile){
+                        if(n_early < min_n_tile){
                             temp_minDOY <- default_minDOY-(30*(early_months-1))
                             
                             if(temp_minDOY > minDOY){
@@ -829,7 +828,7 @@ mapBoreal<-function(rds_models,
                         }
 
                     }
-                    if(n_early > n_tile){
+                    if(n_early > min_n_tile){
                         tile_data <- tile_data[filter_earlyseason,]
                     }
                          
@@ -849,28 +848,31 @@ mapBoreal<-function(rds_models,
         
     # Get rid of extra data above max_n
     n_avail <- nrow(tile_data)
-    
-    if(n_avail > max_n){
+    print('n_avail training:')
+    print(n_avail)
+
+    if(n_avail > max_n){        
         samp_ids <- seq(1,n_avail)
-        tile_sample_ids <- sample(samp_ids, n_tile, replace=FALSE)
+        tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
-            
+    str(tile_data)
+    n_avail <- nrow(tile_data)
+    
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
-    
     
     #remove first col of broad_data
     #broad_data <- broad_data[,2:ncol(broad_data)]
     #take propertion of broad data we want based on local_train_perc
-    sample_local <- n_tile * (local_train_perc/100)
+    sample_local <- n_avail * (local_train_perc/100)
     
     #if static broad, use all local train data
     #sample_local <- n_tile
-    print(n_tile)
+
     print('sample_local:')
     print(n_avail)
-    if(sample_local < n_tile){
+    if(sample_local < min_n_tile){
         samp_ids <- seq(1,sample_local)
         tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
@@ -878,7 +880,7 @@ mapBoreal<-function(rds_models,
 
     #sample from broad data to complete sample size
     #this will work if either there aren't enough local samples for n_min OR if there is forced broad sampling
-    n_broad <- n_tile - nrow(tile_data)
+    n_broad <- min_n_tile - nrow(tile_data)
     if(n_broad > 1){
         broad_samp_ids <- seq(1,n_broad)
         
@@ -905,10 +907,10 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
 
     }else{
-        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'SWIR2')
+        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
 print(predict_var)
     models<-agbModeling(rds_models=rds_models,
@@ -1159,6 +1161,8 @@ boreal_vect <- args[15]
 predict_var <- args[16]
 max_n <- args[17]
 
+print('max_n:')
+print(max_n)
 #for debugging replace args with hard paths
 #data_table_file <- '/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/tile_atl08/2022/11/30/19/22/04/120959/atl08_005_30m_filt_topo_landsat_20221130_1216.csv'
 #topo_stack_file <- '/projects/shared-buckets/nathanmthomas/alg_34_testing/Copernicus_1216_covars_cog_topo_stack.tif'
