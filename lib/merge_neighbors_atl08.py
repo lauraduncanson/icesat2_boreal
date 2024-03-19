@@ -81,6 +81,7 @@ def main():
 
     focal_atl08_gdf_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
     print(f"Found: {focal_atl08_gdf_fn}")
+    
     if out_dir is None:
         # Get the focal tile's ATL08 filt CSV name to use to make out_csv_fn
         out_dir = os.path.split(focal_atl08_gdf_fn)[0]
