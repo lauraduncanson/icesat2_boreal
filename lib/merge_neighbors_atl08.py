@@ -69,16 +69,18 @@ def main():
     
     # Get list of neighbor tiles for a given tile_num
     neighbor_tile_ids = get_neighbors(in_tile_gdf, in_tile_field, in_tile_num)
-    print(f"Neighbor tile ids: {neighbor_tile_ids}")
+    print(f"Neighbor tile ids for tile {in_tile_num}: {neighbor_tile_ids}")
     print(f"# of neighbor tiles: {len(neighbor_tile_ids)}")
     
     # Build up a dataframe of dps output ATL08 filtered CSVs
-    ATL08_filt_tindex_master = pd.read_csv(csv_list_fn, storage_options={'anon':True})
+    #ATL08_filt_tindex_master = pd.read_csv(csv_list_fn, storage_options={'anon':True})
+    print(f'Reading ATL08 tile index: {csv_list_fn}')
+    ATL08_filt_tindex_master = pd.read_csv(csv_list_fn)
     
     ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
 
     focal_atl08_gdf_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == in_tile_num].tolist()[0]
-
+    print(f"Found: {focal_atl08_gdf_fn}")
     if out_dir is None:
         # Get the focal tile's ATL08 filt CSV name to use to make out_csv_fn
         out_dir = os.path.split(focal_atl08_gdf_fn)[0]
