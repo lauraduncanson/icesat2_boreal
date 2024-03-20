@@ -31,7 +31,7 @@ local_train_perc=${16}
 min_n=${17}
 boreal_vect_fn=${18}
 predict_var=${19}
-max_n=${18}
+max_n=${20}
 
 TAR_FILE=${basedir}/../../lib/bio_models_noground.tar
 

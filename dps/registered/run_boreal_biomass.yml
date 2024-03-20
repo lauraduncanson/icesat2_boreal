@@ -113,7 +113,7 @@ inputs:
     name: predict_var
     required: true
   - default: ''
-    description: min sample size required for models
+    description: max sample size allowed for models
     name: max_n
     required: true
 queue: maap-dps-worker-32gb
