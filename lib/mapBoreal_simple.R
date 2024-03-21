@@ -269,12 +269,26 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   #}
   xtable_i<-na.omit(as.data.frame(in_data))
-  names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
+  
+  #rename to match variables in models
+  names(xtable_i)[which(names(xtable_i) %in% "rh25")] <- 'RH_25'
+  names(xtable_i)[which(names(xtable_i) %in% "rh50")] <- 'RH_50'
+  names(xtable_i)[which(names(xtable_i) %in% "rh60")] <- 'RH_60'
+  names(xtable_i)[which(names(xtable_i) %in% "rh70")] <- 'RH_70'
+  names(xtable_i)[which(names(xtable_i) %in% "rh75")] <- 'RH_75'
+  names(xtable_i)[which(names(xtable_i) %in% "rh80")] <- 'RH_80'                      
+  names(xtable_i)[which(names(xtable_i) %in% "rh90")] <- 'RH_90'
+  names(xtable_i)[which(names(xtable_i) %in% "rh95")] <- 'RH_95'
+  names(xtable_i)[which(names(xtable_i) %in% "h_canopy")] <- 'RH_98'
+
+   #subset to height cols
+   ht_cols <- names(xtable_i) %in% c('RH_25', 'RH_50', 'RH_60', 'RH_70', 'RH_75', 'RH_80', 'RH_90', 'RH_95', 'RH_98')
 
     #adjust for offset in model fits (100)
     #GEDI L4A team added offset to all the height metrics so they would never be negative)
-  xtable_sqrt<-xtable_i[3:11]+offset
-
+    
+  xtable_sqrt<-xtable_i[,ht_cols]+offset
+    
   # get unique ids
   # apply models by id
   xtable_sqrt$AGB<-NA
@@ -936,10 +950,10 @@ mapBoreal<-function(rds_models,
         all_train_data <- tile_data
         }
     
-    #remove first col
-    all_train_data <- all_train_data[,-1]
+    #remove first col - removed this when switched to v6
+    #all_train_data <- all_train_data[,-1]
     
-    tile_data_output <- tile_data[,-1]
+    #tile_data_output <- tile_data[,-1]
         
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
