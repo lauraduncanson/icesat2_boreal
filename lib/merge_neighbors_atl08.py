@@ -122,11 +122,17 @@ def main():
     print(f'Focal tile + neighbors shape: {atl08.shape}')
     
     # Write df to CSV (regardless of what input type was...)
+    print('Adding lat, lon fields & dropping geometry field for CSV output...')
+    # you want lat lon field in the CSV output
+    atl08['lon'] = atl08.to_crs(4326).geometry.x  
+    atl08['lat'] = atl08.to_crs(4326).geometry.y
+    atl08.drop('geometry', axis=1, inplace=True)
+    
     #out_csv_fn = os.path.join(out_dir, "atl08_004_30m_filt_merge_neighbors_" + str(f'{in_tile_num:05}.csv') )
     #out_csv_fn = os.path.join(out_dir, os.path.basename(focal_atl08_gdf_fn).split(f'.{input_ext}')[0] + f'_merge_neighbors_{in_tile_num:06}.csv')
     out_csv_fn = os.path.join(out_dir, out_fn_base_no_ext + '.csv')
     print(f'Wrote out: {out_csv_fn}')
-    atl08.to_csv(out_csv_fn)
+    atl08.to_csv(out_csv_fn, index=False)
 
 if __name__ == "__main__":
     main()
