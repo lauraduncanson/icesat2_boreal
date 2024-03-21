@@ -954,7 +954,7 @@ mapBoreal<-function(rds_models,
     #all_train_data <- all_train_data[,-1]
     
     #tile_data_output <- tile_data[,-1]
-        
+    tile_data_output <- tile_data
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
