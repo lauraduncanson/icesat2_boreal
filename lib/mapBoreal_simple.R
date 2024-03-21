@@ -70,7 +70,6 @@ applyModels <- function(models=models,
 
         #set slope and valid mask to zero
         agb_preds <- mask(agb_preds, pred_stack$slopemask, maskvalues=0, updatevalue=0)
-        print('mask first predictions 2')
 
         agb_preds <- mask(agb_preds, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
     
@@ -446,8 +445,16 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   model_list <- list()
     model_list <- list.append(model_list, xtable_predict)
     if(predict_var=='AGB'){
+
         x <- xtable_predict[pred_vars]
         y <- xtable_predict$AGB
+        
+        #remove na data
+        check_nas <- which(is.na(y)==TRUE)
+        if(length(check_nas>1)){
+            x <- x[-check_nas]
+            y <- y[-check_nas]
+        }
         se <- xtable$se
 
         fit.rf <- randomForest(y=y, x=x, ntree=1000, mtry=6)
@@ -457,6 +464,12 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
     if(predict_var=='Ht'){
         x <- xtable_predict[pred_vars]
         y <- xtable_predict$RH_98
+        #remove na data
+        check_nas <- which(is.na(y)==TRUE)
+        if(length(check_nas>1)){
+            x <- x[-check_nas]
+            y <- y[-check_nas]
+        }
         se <- xtable$se
         # create one single rf using all the data; the first in model_list will be used for prediction
         print('fitting height model')
@@ -464,7 +477,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         #tune mtry
         #mtry_use <- tuneRF(x, y, ntreeTry=50, stepFactor=2, improve=0.05, trace=FALSE, plot=FALSE, doBest=FALSE)
         #fit the RF model that will actually be applied for mapping
-        fit.rf <- randomForest(y=y, x=x, ntree=500)
+        fit.rf <- randomForest(y=y, x=x, ntree=1000, mtry=6)
         #print(max(fit.rf$rsq, na.rm=TRUE))
     }
     
@@ -786,12 +799,12 @@ mapBoreal<-function(rds_models,
 
     if(expand_training==TRUE){
         #first hard filtering
-        filter1 <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$sol_el < 0)
+        filter1 <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$solar_elevation < 0)
         n_filter1 <- length(filter1)
 
         #check if sufficient data, if not expand to max solar elevation allowed
         if(n_filter1 < min_n_tile){
-            filter2 <- which(tile_data$doy >= minDOY & tile_data$doy <=maxDOY & tile_data$sol_el < max_sol_el)
+            filter2 <- which(tile_data$doy >= minDOY & tile_data$doy <=maxDOY & tile_data$solar_elevation < max_sol_el)
             n_filter2 <- length(filter2)
             
             #check if n met, if not expand 1 month later in growing season, iteratively
@@ -804,7 +817,7 @@ mapBoreal<-function(rds_models,
                         temp_maxDOY <- default_maxDOY+(30*(late_months-1))
                         
                         if(temp_maxDOY < maxDOY){
-                            filter_lateseason <- which(tile_data$doy > minDOY & tile_data$doy < temp_maxDOY & tile_data$sol_el < max_sol_el)
+                            filter_lateseason <- which(tile_data$doy > minDOY & tile_data$doy < temp_maxDOY & tile_data$solar_elevation < max_sol_el)
                             n_late <- length(filter_lateseason) 
                         }
                     }
@@ -822,7 +835,7 @@ mapBoreal<-function(rds_models,
                             temp_minDOY <- default_minDOY-(30*(early_months-1))
                             
                             if(temp_minDOY > minDOY){
-                                filter_earlyseason <- which(tile_data$doy >= temp_minDOY & tile_data$doy <=temp_maxDOY & tile_data$sol_el < max_sol_el)
+                                filter_earlyseason <- which(tile_data$doy >= temp_minDOY & tile_data$doy <=temp_maxDOY & tile_data$solar_elevation < max_sol_el)
                                 n_early <- length(filter_earlyseason)
                             }
                         }
@@ -842,7 +855,7 @@ mapBoreal<-function(rds_models,
             }
     } else {
             #expand training = FALSE take defaults
-            filter <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$sol_el < 0)
+            filter <- which(tile_data$doy >= default_minDOY & tile_data$doy <= default_maxDOY & tile_data$solar_elevation < 0)
             tile_data <- tile_data[filter,]
     }
         
@@ -856,6 +869,31 @@ mapBoreal<-function(rds_models,
         tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
         tile_data <- tile_data[tile_sample_ids,]
     }
+    
+    #if bad cols exist, remove
+    
+    if("binsize" %in% names(tile_data)){
+        check_binsize <- which(names(tile_data) %in% "binsize")
+        tile_data <- tile_data[,-check_binsize]
+        rm(check_binsize)
+    }
+    if("num_bins" %in% names(tile_data)){
+        check_nbins <- which(names(tile_data) %in% "num_bins")
+        tile_data <- tile_data[,-check_nbins]
+        rm(check_nbins)
+    }
+    
+    if("__index_level_0__" %in% names(tile_data)){
+        rm_temp <- which(names(tile_data) %in% "__index_level_0__")
+        tile_data <- tile_data[,-rm_temp]
+        rm(rm_temp)
+    }
+                
+    tile_data = tile_data[,!(names(tile_data) %in% "geometry")]
+                
+    #order by name
+    #tile_data <- tile_data[,order(names(tile_data))]
+    
     str(tile_data)
     n_avail <- nrow(tile_data)
     
@@ -907,12 +945,13 @@ mapBoreal<-function(rds_models,
 
     # run 
     if(DO_MASK){
-        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
 
     }else{
-        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
     }
 print(predict_var)
+       
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
                             in_data=all_train_data,
