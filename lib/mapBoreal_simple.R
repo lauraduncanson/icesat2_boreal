@@ -1,4 +1,4 @@
-# This script was developed by Carlos A Silva and Laura Duncanson to produce tiled boreal biomass 30-m maps
+# This script was developed by Laura Duncanson to produce tiled boreal biomass 30-m maps with inputs from Carlos A Silva, Alex Mandel, and Paul Montesano.
 # Inputs are stacks of Landsat and Copernicus DEM data, and tables of linked 30-m ATL08 data to coincident stack attrbitutes
 
 #----------------------------------------------#
@@ -269,12 +269,26 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   #}
   xtable_i<-na.omit(as.data.frame(in_data))
-  names(xtable_i)[1:11]<- c("lon","lat","RH_25","RH_50","RH_60","RH_70","RH_75","RH_80","RH_90","RH_95","RH_98")
+  
+  #rename to match variables in models
+  names(xtable_i)[which(names(xtable_i) %in% "rh25")] <- 'RH_25'
+  names(xtable_i)[which(names(xtable_i) %in% "rh50")] <- 'RH_50'
+  names(xtable_i)[which(names(xtable_i) %in% "rh60")] <- 'RH_60'
+  names(xtable_i)[which(names(xtable_i) %in% "rh70")] <- 'RH_70'
+  names(xtable_i)[which(names(xtable_i) %in% "rh75")] <- 'RH_75'
+  names(xtable_i)[which(names(xtable_i) %in% "rh80")] <- 'RH_80'                      
+  names(xtable_i)[which(names(xtable_i) %in% "rh90")] <- 'RH_90'
+  names(xtable_i)[which(names(xtable_i) %in% "rh95")] <- 'RH_95'
+  names(xtable_i)[which(names(xtable_i) %in% "h_canopy")] <- 'RH_98'
+
+   #subset to height cols
+   ht_cols <- names(xtable_i) %in% c('RH_25', 'RH_50', 'RH_60', 'RH_70', 'RH_75', 'RH_80', 'RH_90', 'RH_95', 'RH_98')
 
     #adjust for offset in model fits (100)
     #GEDI L4A team added offset to all the height metrics so they would never be negative)
-  xtable_sqrt<-xtable_i[3:11]+offset
-
+    
+  xtable_sqrt<-xtable_i[,ht_cols]+offset
+    
   # get unique ids
   # apply models by id
   xtable_sqrt$AGB<-NA
@@ -787,6 +801,9 @@ mapBoreal<-function(rds_models,
     #combine tables
     tile_data <- read.csv(ice2_30_atl08_path)
     
+    #temporarily reduce sample for debugging
+    ############################################
+    
     #sub-sample tile data to n_tile
     min_n_tile <- as.double(min_n)
     max_n <- as.double(max_n)
@@ -883,22 +900,31 @@ mapBoreal<-function(rds_models,
         rm(check_nbins)
     }
     
-    if("__index_level_0__" %in% names(tile_data)){
-        rm_temp <- which(names(tile_data) %in% "__index_level_0__")
-        tile_data <- tile_data[,-rm_temp]
-        rm(rm_temp)
-    }
+    #if("__index_level_0__" %in% names(tile_data)){
+    #    rm_temp <- which(names(tile_data) %in% "__index_level_0__")
+    #    tile_data <- tile_data[,-rm_temp]
+    #    rm(rm_temp)
+    #}
                 
-    tile_data = tile_data[,!(names(tile_data) %in% "geometry")]
+    #tile_data = tile_data[,!(names(tile_data) %in% "geometry")]
                 
     #order by name
     #tile_data <- tile_data[,order(names(tile_data))]
     
-    str(tile_data)
     n_avail <- nrow(tile_data)
     
     #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
+    
+    if("X__index_level_0__" %in% names(broad_data)){
+        rm_temp <- which(names(broad_data) %in% "X__index_level_0__")
+        broad_data <- broad_data[,-rm_temp]
+        rm(rm_temp)
+    }
+                
+    broad_data = broad_data[,!(names(broad_data) %in% "geometry")]
+    
+    print(ice2_30_sample_path)
     
     #remove first col of broad_data
     #broad_data <- broad_data[,2:ncol(broad_data)]
@@ -919,6 +945,7 @@ mapBoreal<-function(rds_models,
     #sample from broad data to complete sample size
     #this will work if either there aren't enough local samples for n_min OR if there is forced broad sampling
     n_broad <- min_n_tile - nrow(tile_data)
+    
     if(n_broad > 1){
         broad_samp_ids <- seq(1,n_broad)
         
@@ -929,18 +956,15 @@ mapBoreal<-function(rds_models,
         broad_data <- broad_data[broad_in_lat,]
         broad_sample_ids <- sample(broad_samp_ids, n_broad, replace=FALSE)
         broad_data <- broad_data[broad_sample_ids,]
-        str(tile_data)
-        str(broad_data)
+
         all_train_data <- rbind(tile_data, broad_data)
     } else {
         all_train_data <- tile_data
         }
+    #remove first col - removed this when switched to v6
+    #all_train_data <- all_train_data[,-1]
     
-    #remove first col
-    all_train_data <- all_train_data[,-1]
-    
-    tile_data_output <- tile_data[,-1]
-        
+    tile_data_output <- tile_data
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
@@ -1300,6 +1324,9 @@ if(DO_MASK_WITH_STACK_VARS){
 boreal_poly <- vect(boreal_vect)
 
 print("modelling begins")
+
+print('file name:')
+print(data_sample_file)
 
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
