@@ -120,12 +120,20 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
         
     if ADD_TILELAYER is not None:
-        #cmap = matplotlib.cm.get_cmap('plasma', 30)
-        #colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
-        #colormap_Ht.caption = 'Vegetation Height (m)'
-        cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
-        colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
-        colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
+        if isinstance(ADD_TILELAYER, list):
+            ADD_TILELAYER_LIST = ADD_TILELAYER
+        else:
+            ADD_TILELAYER_LIST = [ADD_TILELAYER]
+            
+        colormap_ADDED_TILELAYER_list = []
+        for ADD_TILELAYER in ADD_TILELAYER_LIST:
+            #cmap = matplotlib.cm.get_cmap('plasma', 30)
+            #colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
+            #colormap_Ht.caption = 'Vegetation Height (m)'
+            cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
+            colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
+            colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
+            colormap_ADDED_TILELAYER_list.append(colormap_ADDED_TILELAYER)
 
     # Get Vector layers
     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
@@ -257,7 +265,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         agb_tiles_layer = TileLayer(
             tiles=agb_tiles,
             opacity=1,
-            name="Boreal AGB",
+            name="AGB",
             attr="MAAP",
             overlay=True
         )
@@ -266,7 +274,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         agb_se_tiles_layer = TileLayer(
             tiles=agb_se_tiles,
             opacity=1,
-            name="Boreal AGB SE",
+            name="AGB SE",
             attr="MAAP",
             overlay=True
         )
@@ -394,8 +402,11 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
         # Just need to add the colorbar once    
         m1.add_child(colormap_ADDED_TILELAYER)
     if ADD_TILELAYER is not None:
-        ADD_TILELAYER["layer"].add_to(m1)
-        m1.add_child(colormap_ADDED_TILELAYER)
+        for i, ADD_TILELAYER in enumerate(ADD_TILELAYER_LIST):
+            ADD_TILELAYER["layer"].add_to(m1)
+            print(f"Adding layer {ADD_TILELAYER['caption']}...")
+            if ADD_TILELAYER["show_cbar"]:
+                m1.add_child(colormap_ADDED_TILELAYER_list[i])
         
     # Overlay topo last with an opacity     
     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
@@ -601,7 +612,7 @@ def map_tile_n_scenes(tindex_master_fn='s3://maap-ops-workspace/shared/nathanmth
 
     return m3
 
-def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
+def map_tile_atl08(TILE_OF_INTEREST_LIST, tiler_mosaic, boreal_tindex_master,
                   DPS_DATA_USER = 'lduncanson', ATL08_filt_tindex_master_fn = f'/projects/shared-buckets/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv', DO_NIGHT=True,
                   mosaic_json_dict = {
                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
@@ -658,12 +669,12 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
         else:
             ATL08_filt_tindex_master['s3'] = [local_to_s3(local_path, user=DPS_DATA_USER, type = 'private') for local_path in ATL08_filt_tindex_master['local_path']]
 
-        if TILE_OF_INTEREST not in ATL08_filt_tindex_master.tile_num.to_list():
-            print(f'Tile {TILE_OF_INTEREST} has not yet been added to this list.')
+        if TILE_OF_INTEREST_LIST[0] not in ATL08_filt_tindex_master.tile_num.to_list():
+            print(f'Tile {TILE_OF_INTEREST_LIST[0]} has not yet been added to this list.')
             return None
 
         # Get the CSV fn for tile
-        ATL08_filt_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num == TILE_OF_INTEREST].tolist()[0]
+        ATL08_filt_csv_fn = ATL08_filt_tindex_master['s3'].loc[ATL08_filt_tindex_master.tile_num.isin(TILE_OF_INTEREST_LIST)].tolist()[0]
         print(ATL08_filt_csv_fn)
 
         # Get corresponding ATL08 filtered csv
@@ -676,18 +687,18 @@ def map_tile_atl08(TILE_OF_INTEREST, tiler_mosaic, boreal_tindex_master,
         #print(f'Percentage of water (ValidMask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.ValidMask == 0]) / len(atl08_gdf),3) *100}%')
         #print(f'Percentage of water (slopemask=0) ATL08 obs: \t\t{round(len(atl08_gdf[atl08_gdf.slopemask == 0]) / len(atl08_gdf),3) *100}%')
     
-    print(f'\nNum. of ATL08 obs. in tile {TILE_OF_INTEREST}: \t{len(atl08_gdf)}')
+    print(f'\nNum. of ATL08 obs. in tile {TILE_OF_INTEREST_LIST}: \t{len(atl08_gdf)}')
     print(round(atl08_gdf.lat.mean(),4), round(atl08_gdf.lon.mean(),4))
 
     # Map the Layers
     #Map_Figure=Figure(width=map_width,height=map_height)
     Map_Figure=Figure()
     #------------------
-    boreal_tile_of_interest_gdf = boreal_tindex_master[boreal_tindex_master.tile_num == TILE_OF_INTEREST].to_crs(4326)
+    boreal_tile_of_interest_gdf = boreal_tindex_master[boreal_tindex_master.tile_num.isin(TILE_OF_INTEREST_LIST)].to_crs(4326)
     m2 = Map(
         tiles='',
         #location=(atl08_gdf.lat.mean(), atl08_gdf.lon.mean()),
-        location = (boreal_tile_of_interest_gdf.geometry.centroid.y, boreal_tile_of_interest_gdf.geometry.centroid.x),
+        location = (boreal_tile_of_interest_gdf.geometry.centroid.y.median(), boreal_tile_of_interest_gdf.geometry.centroid.x.median()),
         zoom_start=8,
         control_scale = True
     )
