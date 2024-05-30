@@ -261,14 +261,25 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
     return(combined_totals)
 }
 
-GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE){
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE, max_n=5000){
   # rds_models
   names(rds_models)<-models_id
+    
+    xtable_i<-na.omit(as.data.frame(in_data))
+
+    #### test adding this in here
+    # Get rid of extra data above max_n
+    n_avail <- nrow(xtable_i)
+
+    if(n_avail > max_n){        
+        samp_ids <- seq(1,n_avail)
+        tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
+        xtable_i <- xtable_i[tile_sample_ids,]
+    }
 
   #if(DO_MASK){
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   #}
-  xtable_i<-na.omit(as.data.frame(in_data))
   
   #rename to match variables in models
   names(xtable_i)[which(names(xtable_i) %in% "rh25")] <- 'RH_25'
@@ -442,19 +453,22 @@ stratRandomSample<-function(agb=y,breaks, p){
 # modeling - fit a number of models and return as a list of models
 agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_MASK, se=NULL, rep=100,s_train=70, strat_random=TRUE,boreal_poly=boreal_poly, output, predict_var){
     # apply GEDI models for prediction
+    
     xtable_predict<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=in_data, 
                        offset=offset,
                        DO_MASK=DO_MASK, 
-                       one_model=TRUE) 
+                       one_model=TRUE,
+                       max_n=max_n) 
     
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=in_data, 
                        offset=offset,
                        DO_MASK=DO_MASK, 
-                       one_model=FALSE) 
+                       one_model=FALSE,
+                       max_n=max_n) 
 
   model_list <- list()
     model_list <- list.append(model_list, xtable_predict)
@@ -502,36 +516,30 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
   ids<-1:n
   i.s=0
 
+
+    #loop through many reps with quick model fits for uncertainty
 if(rep>1){    
     for (j in 1:rep){
-    
+    #reduce max_n for faster modeling
+    max_n = 1000
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
                        in_data=in_data, 
                        offset=offset,
                        DO_MASK=DO_MASK, 
-                       one_model=FALSE) 
-    i.s<-i.s+1
-      set.seed(j)
-    if (strat_random==TRUE){
-      trainRowNumbers<-stratRandomSample(agb=y,breaks=quantile(y, na.rm=T), p=s_train/100)
-    } else {
-      trainRowNumbers<-sort(sample(ids,round(n*s_train/100), T))
-    }
-    # Step 2: Create the training  dataset
-    # select % of data to training and testing the models
-    trainData.x <- x[trainRowNumbers,]
-    trainData.y <- y[trainRowNumbers]
-    
-    # Step 3: Create the test dataset
-    # select % of the data for validation
-    testData.x <- x[!row.names(x) %in% trainRowNumbers,]
-    testData.y <- y[!row.names(x) %in% trainRowNumbers]
-    
+                       one_model=FALSE,
+                       max_n=max_n) 
+
     # rf modeling
-    y_fit <- xtable$AGB[trainRowNumbers]
+    if(predict_var=='Ht'){
+        y_fit <- xtable$RH98
+    }
+    if(predict_var=='AGB'){
+        y_fit <- xtable$AGB
+
+    }
     x_fit <- xtable[pred_vars]
-    x_fit <- x_fit[trainRowNumbers,]
+        
     fit.rf <- randomForest(y=y_fit, x=x_fit, ntree=100)
     
     model_list <- list.append(model_list, fit.rf)  
@@ -881,11 +889,11 @@ mapBoreal<-function(rds_models,
     print('n_avail training:')
     print(n_avail)
 
-    if(n_avail > max_n){        
-        samp_ids <- seq(1,n_avail)
-        tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
-        tile_data <- tile_data[tile_sample_ids,]
-    }
+    #if(n_avail > max_n){        
+    #    samp_ids <- seq(1,n_avail)
+    #    tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
+    #    tile_data <- tile_data[tile_sample_ids,]
+    #}
     
     #if bad cols exist, remove
     
@@ -1016,7 +1024,7 @@ print(predict_var)
         #if larger difference, need more models and more iterations
         #save(combined_totals, file='/projects/lduncanson/testing/test_totals.Rdata')
         #set some maximum number of iterations
-        max_iters <- 200
+        max_iters <- 100
         if(length(combined_totals)<max_iters){
             while(var_diff > var_thresh){
             print('Adding more interations...')
