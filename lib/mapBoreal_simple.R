@@ -798,7 +798,8 @@ mapBoreal<-function(rds_models,
                     DO_MASK=FALSE,
                     boreal_poly=boreal_poly,
                     predict_var,
-                    max_n=3000){
+                    max_n=3000,
+                    pred_vars=c('elev', 'slope')){
 
     # Get tile num
     tile_num = tail(unlist(strsplit(path_ext_remove(ice2_30_atl08_path), "_")), n=1)
@@ -957,7 +958,7 @@ mapBoreal<-function(rds_models,
     if(n_broad > 1){
         broad_samp_ids <- seq(1,n_broad)
         
-        #subset broad data to be within a certain latitude
+        #subset broad data to be within a certain latitude (5 degrees)
         lat_thresh <- 5
         min_lat <- min(tile_data$lat)
         broad_in_lat <- which(broad_data$lat > (min_lat-lat_thresh) & broad_data$lat < (min_lat+lat_thresh))
@@ -976,13 +977,13 @@ mapBoreal<-function(rds_models,
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
 
     # run 
-    if(DO_MASK){
-        pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+    #if(DO_MASK){
+    #    pred_vars <- c('slopemask', 'ValidMask', 'Red', 'Green','elevation', 'slope', 'tsri', 'tpi', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
 
-    }else{
-        pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
-    }
-print(predict_var)
+    #}else{
+    #    pred_vars <- c('Xgeo', 'Ygeo','elevation', 'slope', 'tsri', 'tpi', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW')
+    #}
+print(pred_vars)
        
     models<-agbModeling(rds_models=rds_models,
                             models_id=models_id,
@@ -1231,6 +1232,7 @@ min_n <- args[14]
 boreal_vect <- args[15]
 predict_var <- args[16]
 max_n <- args[17]
+pred_vars <- args[18]
 
 print('max_n:')
 print(max_n)
@@ -1356,4 +1358,5 @@ maps<-mapBoreal(rds_models=rds_models,
                 DO_MASK=DO_MASK_WITH_STACK_VARS,
                 boreal_poly=boreal_poly, 
                 predict_var=predict_var,
-                max_n=max_n)
+                max_n=max_n,
+                pred_vars=pred_vars)
