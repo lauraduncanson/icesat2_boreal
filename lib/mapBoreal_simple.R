@@ -1236,6 +1236,11 @@ pred_vars <- args[18]
 
 print('max_n:')
 print(max_n)
+
+pred_vars <- unlist(strsplit(pred_vars, " "))
+print('pred_vars:')
+print(pred_vars)
+
 #for debugging replace args with hard paths
 #data_table_file <- '/projects/my-private-bucket/dps_output/run_tile_atl08_ubuntu/tile_atl08/2022/11/30/19/22/04/120959/atl08_005_30m_filt_topo_landsat_20221130_1216.csv'
 #topo_stack_file <- '/projects/shared-buckets/nathanmthomas/alg_34_testing/Copernicus_1216_covars_cog_topo_stack.tif'
