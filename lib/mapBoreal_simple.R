@@ -636,8 +636,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
 str(boreal_total_temp)
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         
-        AGB_total_boreal <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
-        AGB_total_boreal_test <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
+        AGB_total_boreal <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
 
         print('boreal_total:')
         print(AGB_total_boreal)
@@ -1367,6 +1366,9 @@ if(DO_MASK_WITH_STACK_VARS){
 
 #read boreal polygon for masking later
 boreal_poly <- vect(boreal_vect)
+
+#project vector to match tile
+crs(boreal_poly) <- crs(stack)
 
 print("modelling begins")
 
