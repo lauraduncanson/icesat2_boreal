@@ -63,7 +63,7 @@ applyModels <- function(models=models,
         #pred_stack <- subset(pred_stack, pred_layer_names)
     
         print('apply first model to stack')
-
+        str(models[[1]])
         agb_preds <- predict(pred_stack, models[[1]], na.rm=TRUE)
     
         print('mask first predictions')
@@ -261,7 +261,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
     return(combined_totals)
 }
 
-GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE, max_n=5000){
+GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE, one_model=TRUE, max_n=5000.0, sample=TRUE){
   # rds_models
   names(rds_models)<-models_id
     
@@ -269,14 +269,27 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
 
     #### test adding this in here
     # Get rid of extra data above max_n
-    n_avail <- nrow(xtable_i)
+    #sample = TRUE if subsampling desired, otherwise all data will be used for fits
 
-    if(n_avail > max_n){        
-        samp_ids <- seq(1,n_avail)
-        tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
-        xtable_i <- xtable_i[tile_sample_ids,]
+    if(sample==TRUE){
+        
+        n_avail <- nrow(xtable_i)
+        
+        max_n <- as.numeric(max_n)
+        
+        if(n_avail > max_n){ 
+            
+            samp_ids <- seq(1,n_avail)
+            
+            tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
+            
+            xtable_i <- xtable_i[tile_sample_ids,]
+        }    
     }
-
+    
+print('n for model fits:')
+print(nrow(xtable_i))
+    
   #if(DO_MASK){
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
   #}
@@ -409,14 +422,19 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
     #set predictions where landcover is water, urban, snow, barren to 0
     #bad_lc <- c(0, 13, 15, 16)
     #update with copernicus
+      
     bad_lc <- c(0, 60, 80, 200, 50, 70)
+      
     xtable_sqrt$AGB[which(xtable_sqrt$seg_landcov %in% bad_lc)] <- 0.0
 
   }
     
   xtable2<-cbind(xtable_i, xtable_sqrt$AGB, xtable_sqrt$SE)
-    ncol <- ncol(xtable2)
-    colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
+    
+  ncol <- ncol(xtable2)
+    
+  colnames(xtable2)[(ncol-1):ncol]<-c('AGB', 'SE')
+    
   return(xtable2)
 }
 
@@ -460,7 +478,8 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
                        offset=offset,
                        DO_MASK=DO_MASK, 
                        one_model=TRUE,
-                       max_n=max_n) 
+                       max_n=max_n,
+                       sample = FALSE) 
     
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
@@ -468,7 +487,8 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
                        offset=offset,
                        DO_MASK=DO_MASK, 
                        one_model=FALSE,
-                       max_n=max_n) 
+                       max_n=max_n,
+                       sample=TRUE) 
 
   model_list <- list()
     model_list <- list.append(model_list, xtable_predict)
@@ -485,7 +505,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         }
         se <- xtable$se
 
-        fit.rf <- randomForest(y=y, x=x, ntree=1000, mtry=6)
+        fit.rf <- randomForest(y=y, x=x, ntree=500, mtry=6)
         
     }
     
@@ -505,7 +525,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         #tune mtry
         #mtry_use <- tuneRF(x, y, ntreeTry=50, stepFactor=2, improve=0.05, trace=FALSE, plot=FALSE, doBest=FALSE)
         #fit the RF model that will actually be applied for mapping
-        fit.rf <- randomForest(y=y, x=x, ntree=1000, mtry=6)
+        fit.rf <- randomForest(y=y, x=x, ntree=500, mtry=6)
         #print(max(fit.rf$rsq, na.rm=TRUE))
     }
     
@@ -528,7 +548,8 @@ if(rep>1){
                        offset=offset,
                        DO_MASK=DO_MASK, 
                        one_model=FALSE,
-                       max_n=max_n) 
+                       max_n=max_n,
+                       sample=TRUE) 
 
     # rf modeling
     if(predict_var=='Ht'){
@@ -540,7 +561,7 @@ if(rep>1){
     }
     x_fit <- xtable[pred_vars]
         
-    fit.rf <- randomForest(y=y_fit, x=x_fit, ntree=100)
+    fit.rf <- randomForest(y=y_fit, x=x_fit, ntree=250)
     
     model_list <- list.append(model_list, fit.rf)  
       }
@@ -592,7 +613,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
     pred_stack <- na.omit(stack)
     rm(stack)
     
-    if(length(unique(values(pred_stack$Red)))>1){
+    if(length(unique(values(pred_stack$NDVI)))>1){
         map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
         #set slope and valid mask to zero
 
@@ -602,14 +623,23 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         #convert to total map (Pg, values per cell will be extremely small)
         total_convert <- function(x){(x*0.09)/1000000000}
         AGB_tot_map <- app(map_pred, total_convert)
+        print('str AGB tot:')
+        str(AGB_tot_map)
         AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
-    
+        
+        #test print
+        print('AGB_total:')
+        print(AGB_total)
         #calculate just the boreal total
+
         boreal_total_temp <- extract(AGB_tot_map, boreal_poly, fun=sum, na.rm=TRUE)
-
+str(boreal_total_temp)
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
-
+        
         AGB_total_boreal <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
+        AGB_total_boreal_test <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
+
+        print('boreal_total:')
         print(AGB_total_boreal)
         rm(AGB_tot_map)
         n_models <- length(model_list)
