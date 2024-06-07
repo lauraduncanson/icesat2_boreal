@@ -479,7 +479,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
                        DO_MASK=DO_MASK, 
                        one_model=TRUE,
                        max_n=max_n,
-                       sample = FALSE) 
+                       sample = TRUE) 
     
     xtable<-GEDI2AT08AGB(rds_models=rds_models,
                        models_id=models_id,
@@ -624,7 +624,6 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         total_convert <- function(x){(x*0.09)/1000000000}
         AGB_tot_map <- app(map_pred, total_convert)
         print('str AGB tot:')
-        str(AGB_tot_map)
         AGB_total <- global(AGB_tot_map, 'sum', na.rm=TRUE)$sum
         
         #test print
@@ -633,7 +632,9 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         #calculate just the boreal total
 
         boreal_total_temp <- extract(AGB_tot_map, boreal_poly, fun=sum, na.rm=TRUE)
-str(boreal_total_temp)
+        print('boreal_extract:')
+        print(boreal_total_temp)
+        
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         
         AGB_total_boreal <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
@@ -663,9 +664,10 @@ str(boreal_total_temp)
         
             #repeat for just boreal
             #boreal_map_temp <- mask(map_pred_tot_temp, boreal_poly, updatevalue=0)
-
+            
             boreal_total_temp <- extract(map_pred_tot_temp, boreal_poly, fun=sum, na.rm=TRUE)
-
+print('boreal_extract:')
+            print(boreal_total_temp)
             rm(map_pred_tot_temp)
             rm(map_pred_temp)
 
@@ -1041,6 +1043,8 @@ print(pred_vars)
     
     #just pull the mean for out_map, sd will be added later
     out_map <- subset(final_map[[1]], 1)
+    str(out_map)
+    
     rm(final_map)
 
     #set the variance threshold - 0.05 = 5%
@@ -1194,7 +1198,8 @@ print(pred_vars)
 
         out_table <- xtable[,c('lon', 'lat', 'AGB', 'SE')]
         write.csv(out_table, file=out_train_fn, row.names=FALSE)
-        rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=1000, importance=TRUE, mtry=6)
+        str(xtable)
+        rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE, mtry=6)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$AGB[1:nrow_tile], na.rm=TRUE)
 
     }
@@ -1202,7 +1207,7 @@ print(pred_vars)
     if(predict_var=='Ht'){
         out_table = xtable[c('lon','lat','RH_98')]    
         write.csv(out_table, file=out_train_fn, row.names=FALSE)
-        rf_single <- randomForest(y=xtable$RH_98, x=xtable[pred_vars], ntree=1000, importance=TRUE, mtry=6)
+        rf_single <- randomForest(y=xtable$RH_98, x=xtable[pred_vars], ntree=500, importance=TRUE, mtry=6)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$RH_98[1:nrow_tile], na.rm=TRUE)
 
     }
@@ -1368,7 +1373,11 @@ if(DO_MASK_WITH_STACK_VARS){
 boreal_poly <- vect(boreal_vect)
 
 #project vector to match tile
-crs(boreal_poly) <- crs(stack)
+#crs(boreal_poly) <- crs(l8)
+
+#project to ensure match
+boreal_poly <- project(boreal_poly, crs(l8))
+
 
 print("modelling begins")
 
