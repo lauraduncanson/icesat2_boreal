@@ -63,7 +63,6 @@ applyModels <- function(models=models,
         #pred_stack <- subset(pred_stack, pred_layer_names)
     
         print('apply first model to stack')
-        str(models[[1]])
         agb_preds <- predict(pred_stack, models[[1]], na.rm=TRUE)
     
         print('mask first predictions')
@@ -637,7 +636,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         
-        AGB_total_boreal <- sum(boreal_total_temp$lyr1, na.rm=TRUE)
+        AGB_total_boreal <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
 
         print('boreal_total:')
         print(AGB_total_boreal)
@@ -724,7 +723,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     
         #calculate just the boreal total
         boreal_ht_temp <- extract(map_pred, boreal_poly, na.rm=TRUE)
-        Ht_mean_boreal <- mean(boreal_ht_temp$lyr1, na.rm=TRUE)
+        Ht_mean_boreal <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
         print(Ht_mean_boreal)
         rm(boreal_ht_temp)
         
@@ -751,7 +750,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         boreal_ht_temp <- extract(map_pred_temp, boreal_poly, na.rm=TRUE)
         rm(map_pred_temp)
 
-        Ht_boreal_temp <- mean(boreal_ht_temp$lyr1, na.rm=TRUE)
+        Ht_boreal_temp <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
         print(Ht_boreal_temp)
         Ht_mean_boreal <- c(Ht_mean_boreal, Ht_boreal_temp)
         rm(boreal_ht_temp)        
@@ -1043,7 +1042,6 @@ print(pred_vars)
     
     #just pull the mean for out_map, sd will be added later
     out_map <- subset(final_map[[1]], 1)
-    str(out_map)
     
     rm(final_map)
 
@@ -1268,10 +1266,12 @@ predict_var <- args[16]
 max_n <- args[17]
 pred_vars <- args[18]
 
+print(pred_vars)
+
 print('max_n:')
 print(max_n)
 
-pred_vars <- unlist(strsplit(pred_vars, " "))
+pred_vars <- as.character(read.table(pred_vars, header=FALSE, sep=' ')[1,])
 print('pred_vars:')
 print(pred_vars)
 

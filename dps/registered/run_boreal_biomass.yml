@@ -35,6 +35,10 @@ inputs:
     description: boreal shapefile
     name: boreal_vect
     required: true
+  - default: ''
+    description: pred_vars txtfile
+    name: pred_vars
+    required: true
   positional:
   - default: ''
     description: tindex file pos
@@ -117,8 +121,8 @@ inputs:
     name: max_n
     required: true
   - default: ''
-    description: names of predict variables 
-    name: pred_vars
+    description: filename of predict variable file
+    name: pred_vars_fn
     required: true   
 queue: maap-dps-worker-32gb
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
