@@ -1,6 +1,6 @@
 algorithm_description: run the build_stack.py script for DEMs without the --topo_off flag
 algorithm_name: run_build_stack_topo
-algorithm_version: build_stack_v2023_2
+algorithm_version: build_stack_v2024.1
 build_command: icesat2_boreal/dps/build_command_3.1.3.sh
 disk_space: 10GB
 docker_container_url: mas.dit.maap-project.org/root/maap-workspaces/base_images/pangeo:main

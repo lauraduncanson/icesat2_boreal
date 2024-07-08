@@ -27,6 +27,8 @@ import CovariateUtils
 from CovariateUtils import write_cog, get_index_tile, get_shape, reader
 from CovariateUtils_topo import *
 
+import mosaiclib
+
 from maap.maap import MAAP
 maap = MAAP(maap_host='api.maap-project.org')
 
@@ -97,10 +99,79 @@ s3_cred_endpoint = {
     'ghrcdaac': 'https://data.ghrc.earthdata.nasa.gov/s3credentials'
 }
 
+#Return a common mask for a set of input ma
+def common_mask(ma_list, apply=False):
+    if type(ma_list) is not list:
+        print("Input must be list of masked arrays")
+        return None
+    a = np.ma.array(ma_list, shrink=False)
+    mask = np.ma.getmaskarray(a).any(axis=0)
+    if apply:
+        return [np.ma.array(b, mask=mask) for b in ma_list] 
+    else:
+        return mask
+
+def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H30_2023_2022', bnum=1, ndv=-9999, units='mg_ha',covar_fn_list=None):
+    '''
+    Write a difference map based on subtraction of first from second of 2 raster inputs
+    '''
+    cog_names_list = [f'diff_{units}']
+    
+    arr_list = []
+    
+    for fn in [t1_fn, t2_fn]:
+        with rasterio.open(fn) as ds:
+            print(f"Opening {fn}\nno data value is {ds.nodata}")
+            #arr = ds.read(bnum)
+            arr_list.append( ds.read(bnum) )
+            # Copy input metadata
+            out_meta = ds.profile
+            
+    if covar_fn_list is not None:
+        covar_arr_list = []
+        covar_names_list = []
+        for fn in covar_fn_list:
+            with rasterio.open(fn) as ds:
+                bnames_list = list(ds.descriptions)
+                covar_names_list += bnames_list
+                
+                bnum_list = list(range(1, ds.count + 1))
+                print(f"Opening covar {fn}\nno data value is {ds.nodata}")
+                for bnum in bnum_list:
+                    covar_arr_list.append( ds.read(bnum) )
+        cog_names_list += covar_names_list
+        
+    # Difference t1 from t2
+    ma_list = common_mask(arr_list, apply=True)
+    diff_ma = ma_list[1] - ma_list[0]
+    
+    out_stack = np.stack([diff_ma] + covar_arr_list)
+    
+    # write COG to disk
+    cog_fn = os.path.join(output_dir, f"{diff_id_name}_{int(tile_num):07}.tif")
+    write_cog(
+                out_stack, 
+                cog_fn, 
+                out_meta['crs'], 
+                out_meta['transform'], 
+                cog_names_list, 
+                out_crs=out_meta['crs'],
+                input_nodata_value= -9999
+                 )
+    
+    return cog_fn
+
 def get_temp_creds(provider):
     return requests.get(s3_cred_endpoint[provider]).json()
 
 def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, tile_buffer_m: int, stack_tile_layer: str, covar_tile_fn: str, in_covar_s3_col: str, res: int, input_nodata_value: int, tmp_out_path: str, covar_src_name: str, bandnames_list: list, clip: bool, topo_off: bool, output_dir: str, height: None, width: None, band_indexes_list: list):
+    
+    '''TODO:
+        use of 'topo_off' and 'clip' should be adjusted for ease of use / to reduce confusion.
+    '''
+    
+    # Need to preserve this input res - as var 'res' might be changed later
+    input_res = res
     
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
@@ -111,45 +182,21 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     covar_tiles = gpd.read_file(covar_tile_fn).to_crs(4326)
 
     # intersect with the bbox tile
-    covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
+    if False:
+        covar_tiles_selection = covar_tiles.loc[covar_tiles.intersects(geom_4326_buffered.iloc[0])]
+    else:
+        # Works for dateline tiles?
+        #covar_tiles_selection = covar_tiles[covar_tiles.geometry.apply(lambda x: any(x.intersects(y) for y in tile_parts["geom_orig_buffered"].to_crs(covar_tiles.crs).geometry))]
+        covar_tiles_selection = covar_tiles[covar_tiles.geometry.apply(lambda x: any(x.intersects(y) for y in tile_parts["geom_orig"].to_crs(covar_tiles.crs).geometry))]
 
     # Get the s3 urls to the granules
     files_list_s3 = covar_tiles_selection[in_covar_s3_col].to_list()
     files_list_s3.sort()
     print(f"{len(files_list_s3)} covariate filename(s) intersecting the {tile_buffer_m} m buffered bbox for tile id {stack_tile_id}:\n")
     
-    # Create a mosaic from all the images
-    in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
-    print(f"in_bbox: {in_bbox}")
-    
-    # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
-    # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
-    if height is None or not topo_off:
-        # Resets height, width based on bbox computerd with tile buffer
-        # Needed to handle topo runs
-        print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original tile geometry...')
-        height, width = get_shape(in_bbox, res)
-    else:
-        print('Getting output height and width from input shape arg...')
-        
-    print(f"{height} x {width}")
-
-    #
-    # Mosiac: use rio_tiler to read in a list of files and return a mosaic
-    #
-    
-    # Get the band indexes associated with the band names of interest
-    if band_indexes_list is None:
-        band_indexes_list = list(range(1, len(bandnames_list) + 1)) #[1,2,3,4,7,8]# get_band_indices(files_list_s3[0], bandnames_list)
-    print(f'Band indexes list: {band_indexes_list}')
-    bandnames_list = [bandnames_list[i-1] for i in band_indexes_list]
-    print(bandnames_list)
-    
-    print('\n'.join(files_list_s3))
-    
     #########################
     # Get rio Env aws session
-    
+    #
     # Setup a dummy aws env session for rio
     os.environ['AWS_NO_SIGN_REQUEST'] = 'YES'
     rio_env_session = rio.Env(rasterio.session.AWSSession())
@@ -159,24 +206,86 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         os.environ['AWS_NO_SIGN_REQUEST'] = 'NO'
         print('Accessing ORNL DAAC data...')
         rio_env_session = rio.Env(CovariateUtils.get_aws_session_DAAC(maap.aws.earthdata_s3_credentials(CovariateUtils.s3_cred_endpoint_DAAC['ornldaac'])))
+    
+    BBOX_TYPE = f"buffered ({tile_buffer_m} m) original tile geometry"
+    # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
+    # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+    if height is None or not topo_off:
+        
+        dateline_tile_list = mosaiclib.MINI_DATELINE_TILES + mosaiclib.LARGE_DATELINE_TILES # this is specific to boreal_tiles
+        
+        # For topo, you need the bbox of the selected tiles in their orig projection
+        if stack_tile_id in dateline_tile_list:
+            # This will allow dateline tiles to work
+            in_bbox = covar_tiles_selection.total_bounds
+            BBOX_TYPE = "total bounds of covar tiles selection for dateline tile..."
+        else:
+            # ..but here this is optimized by limiting to total bounds of the tile converted to the covar crs and buffered (returns smaller total extent around relevant extent
+            tile_parts["geom_covar_buffered"] = tile_parts["geom_orig_buffered"].to_crs(covar_tiles_selection.crs)
+            in_bbox = tile_parts["geom_covar_buffered"].total_bounds
+            BBOX_TYPE = BBOX_TYPE + " using total bounds after reprojecting to covar tile crs - this creates a smaller bbox for mosaic_reader for non-dateline tiles" 
+            
+        # For topo, you also need the input covar crs
+        tile_parts["covar_tile_crs"] = CRS.from_wkt(covar_tiles_selection.crs.to_wkt())
+
+        # Use session, get the minimum resolution (which varies with lat)
+        with rio_env_session:
+            with rasterio.open(files_list_s3[0]) as dataset:
+                s3_res = min(dataset.res) # This reset the res - over-riding the input res (needed when doing topo)
+
+        # Resets height, width based on bbox computerd with tile buffer; needed to handle topo runs
+        print(f'Getting output height and width from {BBOX_TYPE}...')
+        height, width = get_shape(in_bbox, s3_res)
+
+    else:
+        # Create a mosaic from all the images
+        in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+        print(f"in_bbox: {in_bbox}")
+        print(f'Getting output height and width from input shape arg even though bbox is {BBOX_TYPE}...')
+        
+    print(f"{height} x {width}")
+
+    #
+    # Mosiac: use rio_tiler to read in a list of files and return a mosaic
+    #
+    # Get the band indexes associated with the band names of interest
+    if band_indexes_list is None:
+        band_indexes_list = list(range(1, len(bandnames_list) + 1)) #[1,2,3,4,7,8]# get_band_indices(files_list_s3[0], bandnames_list)
+    print(f'Band indexes list: {band_indexes_list}')
+    bandnames_list = [bandnames_list[i-1] for i in band_indexes_list]
+    print(bandnames_list)
+    
+    print('\n'.join(files_list_s3))
+    
+    # Decide the CRS of the mosaic that comes out of mosaic_reader()    
+    # for everything except topo, this will be tile_parts['tile_crs']
+    if not topo_off:
+        # For topo, need to build mosaic in native crs and reproject after you make_topo_stack_cog()
+        mosaic_crs = covar_tiles.crs
+    else:
+        # This is the crs of the tile system you want to end up with
+        mosaic_crs = tile_parts['tile_crs']
         
     with rio_env_session:
-        # updated call to manage memory and accomodate subsetting by bands (indexes)
+        # Updated call to manage memory and accomodate subsetting by bands (indexes)
         # works for ~56 files of float COGs with arrays of 9 x ~700 x ~700 to return mosaic COGs with arrays of 9 x 3000 x 3000
         MAX_FILES = 30
         NUM_THREADS_MOSAIC = 5
-        
+
         if len(files_list_s3) > MAX_FILES:
             print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
-            img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
+            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
         else:
-            img = mosaic_reader(files_list_s3, reader, in_bbox, tile_parts['tile_crs'], tile_parts['tile_crs'], height, width, band_indexes_list)
-        
-    mosaic = (img[0].as_masked())
-    
-    print(f'Stack (mosaic) shape: {mosaic.shape}')
-    out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
+            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list)
 
+    # This is the array of the mosaiced input files that overlap the in bbox
+    mosaic = img[0].as_masked()
+    #### NOTE:  Alternatively, you could build a vrt of the input files here
+        
+    print(f"Mosaic shape: {mosaic.shape}")       
+    print(f"Mosaic bbox: {in_bbox}") 
+    tile_parts['mosaic_trans'] = rasterio.transform.from_bounds(*in_bbox, width, height)
+    
     #
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
     #
@@ -190,34 +299,42 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     print(f'Writing stack as cloud-optimized geotiff: {cog_fn}')
 
     # Don't clip yet if doing a topo run 
-    DO_ALIGN=True
+    DO_ALIGN=False
+    if clip: DO_ALIGN=True
+    cog_crs = tile_parts['tile_crs']
+    
     if topo_off and clip:
-        print("Clipping to feature polygon...")
+        print("With clip=True, align=True; COG will align to the total bounds of the clip geom (tile) - since tile is in orig projection this clips to the tile extent.")
         clip_geom = tile_parts['geom_orig']
         clip_crs = tile_parts['tile_crs']
+        res = input_res
     else:
-        # Do not clip and align what
-        # for topo runs that need extra pixels outside of tile_parts['geom_orig'] in order to calc slope, tsri, etc
-        # tile_parts needed for final clip is still passed to write_cog() via make_topo_stack()
+        ##################### 
+        # Topo Stack Scenario
+        #   Do not clip and align YET
+        #   topo runs need extra pixels outside of tile_parts['geom_orig'] in order to calc slope, tsri, etc
+        #   tile_parts needed for final clip is still passed to write_cog() via make_topo_stack_cog()
         clip_geom = None
         clip_crs = None
         DO_ALIGN = False
+        cog_crs = tile_parts["covar_tile_crs"]
+        res = s3_res
 
     if not topo_off:
         bandnames_list = ["elevation"]
-    #else:
-    #   bandnames_list = covar_src_name_list
 
+    # Final COG - if Topo, then this is tmp 
+    # TODO : i expect this to be the full mosaic of orig covar_tiles intersecting the tile_part['geom_orig'].. but its not?
     write_cog(mosaic, 
               cog_fn, 
-              tile_parts['tile_crs'], 
-              out_trans, 
+              cog_crs, 
+              tile_parts['mosaic_trans'], 
               bandnames_list, 
-              out_crs=tile_parts['tile_crs'], 
+              out_crs=cog_crs, 
               resolution=(res, res), 
               clip_geom=clip_geom, 
               clip_crs=clip_crs, 
-              align=DO_ALIGN, # manually turn this on for some testing
+              align=DO_ALIGN, 
               input_nodata_value=input_nodata_value
              )
 
@@ -230,16 +347,21 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
         topo_stack_cog_fn = os.path.join(os.path.splitext(cog_fn)[0] + '_topo_stack.tif')
         if output_dir is not None:
             topo_stack_cog_fn = os.path.join(output_dir, os.path.split(os.path.splitext(cog_fn)[0])[1] + '_topo_stack.tif')
-            
-        topo_stack, topo_stack_names = make_topo_stack_cog(cog_fn, topo_stack_cog_fn, tile_parts, res)
+        #
+        # Final COG for Topo written here    
+        #
+        topo_stack, topo_stack_names = make_topo_stack_cog(cog_fn, topo_stack_cog_fn, tile_parts, input_res)
         print(f"Output topo covariate stack COG: {topo_stack_cog_fn}")
-        print(f"Removing tmp file: {cog_fn}")
         os.remove(cog_fn)
-        os.remove(cog_fn + '.msk')
+        cog_fn = topo_stack_cog_fn
 
-        return(topo_stack_cog_fn)
-    else:
-        return(cog_fn)
+    # Clean up
+    for fn in os.listdir(os.path.dirname(cog_fn)):
+        if 'tmp.tif' in fn or '.msk' in fn:
+            print(f"Removing tmp file: {fn}")
+            os.remove(os.path.join(os.path.dirname(cog_fn), fn))
+        
+    return(cog_fn)
 
 def build_stack_list(covar_dict_list, vector_dict,
                      #stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, 

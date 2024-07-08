@@ -11,6 +11,8 @@ from rio_cogeo.cogeo import cog_translate
 from rio_tiler.models import ImageData
 from rio_tiler.mosaic import mosaic_reader
 from rio_tiler.io import COGReader
+import rasterio
+import rasterio.mask
 import geopandas
 import os
 import boto3
@@ -127,7 +129,7 @@ def get_shape(bbox, res=30):
     height = int((top-bottom)/res)
     return height,width
 
-def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False, input_nodata_value:int=None):
+def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_crs=None, resolution: tuple=(30, 30), clip_geom=None, clip_crs=None, align:bool=False, input_nodata_value:int=None, resampling='nearest'):
     '''
     Write a cloud optimized geotiff with compression from a numpy stack of bands with labels
     Reproject if needed, Clip to bounding box if needed.
@@ -140,7 +142,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     in_crs: str
         CRS of input raster
     src_transform: Affine
-        Affine transform of imput raster
+        Affine transform of input raster
     bandnames: list[str]
         List of bandnames in band/dimension order that matches stack
     out_crs: CRS, optional
@@ -157,6 +159,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     '''
     
     #TODO: remove print statements, add debugging
+    
+    print('Shape of input:\t\t\t',stack.shape)
     
     if out_crs is None:
         out_crs = in_crs
@@ -183,7 +187,11 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         vrt_params["src_crs"] = in_crs
         vrt_params["dtype"] = str(stack.dtype)
         vrt_params["nodata"] = input_nodata_value
-        vrt_params["resampling"] = enums.Resampling.nearest # <---hard-coded nearest neighbor resampling prevents contamination from nan values and maintains numerical categories
+        vrt_params["resampling"] = enums.Resampling.nearest # nearest prevents contamination from nan values and maintains numerical categories
+        if resampling == 'cubic': vrt_params["resampling"] = enums.Resampling.cubic # needed for topo
+        if resampling == 'bilinear': vrt_params["resampling"] = enums.Resampling.bilinear # needed for topo
+        
+        print(f"Resampling:\t\t\t {vrt_params['resampling']}\t[0=nearest, 1=blinear, 2=cubic]")
         
         #TODO: Add  transform with resolution specification
         if out_crs != in_crs:
@@ -201,8 +209,10 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 height = src_profile["height"],
                 resolution = resolution
                 )
+            print(f"Shape after transform:\t\t({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
         if align is True:
-            left, bottom, right, top = clip_geom.total_bounds
+            # TODO: here, clip_geom will only work as a cutline *if* [1] its a box and [2] it's in its original prj
+            left, bottom, right, top = clip_geom.total_bounds # tot bounds only works if this is in the final grid you want - but its not - so a cutline in the FINAL crs is still needed
             vrt_params["transform"], vrt_params["width"], vrt_params["height"] = calculate_default_transform(
                 src_crs = in_crs,
                 dst_crs = out_crs,
@@ -214,8 +224,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 height = src_profile["height"],
                 resolution = resolution
                 )
+            print(f"Shape after clip & transform:\t ({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
             
-    print('Orig stack shape:\t\t',stack.shape)
     print('Output resolution:\t\t',resolution)
         
     # Get the rio-cogeo profile for deflate compression, modify some of the options
@@ -232,20 +242,41 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
             mem.write(stack)
 
             if clip_geom is not None:
-                # Do the clip to geometry (rasterio takes this; not in_bbox)
-                # # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
-                print(f"Clipping (in memory) with geom...")
-                clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
-                vrt_params["cutline"] = create_cutline(mem, clip_geom_json, geometry_crs = clip_crs)
-            
-                               
+                if False:
+                    print('\tDEBUGFix clip attempt #1: try rasterio.mask.mask')
+                    # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
+                    # Try rasterio mask
+                    clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
+                    clipped_stack, out_transform = rasterio.mask.mask(mem, [clip_geom_json], crop=True, nodata=input_nodata_value)
+                    vrt_params.update({
+                                #"driver": "GTiff",
+                                 "height": vrt.shape[1],
+                                 "width": vrt.shape[2],
+                                 "transform": out_transform})
+                    print(f"Current stack shape:\t\t({mem.profile['count']},{vrt_params['width']},{vrt_params['height']})")
+                
+                # NOTE: This is now OFF - which fixes the jagged effect of nodata at clipline edges!!
+                if False:
+                    # TODO: Here is what topo needs to get the clip correct - but not working as expected yet
+                    if out_crs != in_crs:
+                        print('Reprojecting clip geom ...')
+                        clip_geom = clip_geom.to_crs(out_crs)
+                        clip_crs = out_crs
+                        # Do the clip to geometry (rasterio takes this; not in_bbox)
+                        # # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
+                        print(f"Clipping (in memory) with geom...")
+                        print("\tDEBUG: TODO - is this actually working?")
+                        print('\tDEBUG: Fix clip attempt #2: get cutline working')
+                        clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
+                        vrt_params["cutline"] = create_cutline(mem, clip_geom_json, geometry_crs = clip_crs)
+                             
             print('Writing img to memory...')
             
             for n in range(len(bandnames)):
                 mem.set_band_description(n+1, bandnames[n])
         
             with WarpedVRT(mem,  **vrt_params) as vrt:
-                print(vrt.profile)
+                print(f"Current stack shape:\t\t({vrt.profile['count']},{vrt.profile['width']},{vrt.profile['height']})")                
                 cog_translate(
                     vrt,
                     # To avoid rewriting over the infile

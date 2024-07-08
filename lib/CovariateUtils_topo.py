@@ -1,40 +1,17 @@
-#import sys
-#import json
 import os
-
 from osgeo import gdal
-
-#import boto3
-
-#import matplotlib.pyplot as plt
-#from matplotlib.pyplot import imshow
 import numpy as np
 import numpy.ma as ma
-#from pyproj import Proj, Transformer
-
-
-
-#import geopandas as gpd
-#import shapely as shp
-#import folium
-#from shapely.geometry import box
-#from fiona.crs import from_epsg
 import rasterio as rio
 from rasterio.transform import Affine
-#from rasterio.session import AWSSession 
-#from rasterio.plot import show
 from rasterio.mask import mask
 from rasterio.warp import * #TODO: limit to specific needed modules
-#from rasterio.merge import merge
-#from rasterio import windows
-#from rasterio.io import MemoryFile
 from rasterio.crs import CRS
-#from rasterio.vrt import WarpedVRT
 from rio_cogeo.profiles import cog_profiles
 from rio_tiler.utils import create_cutline
 from rio_cogeo.cogeo import cog_translate
 
-from CovariateUtils import write_cog, get_index_tile
+from CovariateUtils import write_cog, get_index_tile, get_shape
 
 # Functions 
 # copied from pygeotools/iolib.py TODO: full citation
@@ -140,18 +117,44 @@ def water_slope_mask(slope_ma):
     print("Slope mask created to indicate water where slope = 0")
     return m
 
-def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
+def make_topo_stack(dem_ma, tile_parts, res, do_scale=True):
+    return None
+    
+
+def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=True, nodata_value=-9999):
     '''Calcs the topo covars, returns them as masked arrays, masks all where slope=0, stacks, clips, writes
+    
+    Note:
+    do_scale: True (default) expect 'north-up' DEM data to slope on XY in degrees with Z in meters is scales correctly and it latitudinally specific
     '''
+    print("\n\nMaking a topo stack...")
     print("Opening DEM...")
     dem_ds = gdal.Open(str(dem_fn))
     dem_ma = ds_getma(dem_ds)
+    
+    # Get input transform to correctly write_cog()
+    # TODO : this src transform is no longer in the output tile projection - which is needed to write the output COG
     src_transform = Affine.from_gdal(*dem_ds.GetGeoTransform())
-    print(src_transform)
-
-    # Slope
-    print("Calculating Slope...")
-    slope_ds = gdal.DEMProcessing('', dem_ds, 'slope', format='MEM')
+    pixelSizeX, pixelSizeY = (src_transform[0], -src_transform[4])
+    print(f"Source res [x,y]:\t{pixelSizeX}, {pixelSizeY}")
+    
+    # Get output tiles transform
+    #in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
+    in_bbox = tile_parts['bbox_orig']
+    height, width = get_shape(in_bbox, res)
+    out_trans =  rasterio.transform.from_bounds(*in_bbox, width, height)
+    
+    # Slope - need to ensure scale factor is correct - latitude-dependent
+    # https://gis.stackexchange.com/questions/222378/working-with-dems-which-should-i-do-first-calculate-slope-or-reproject
+    if do_scale:
+        print('Scaling slope calc. based on latitude...')
+        # Get latitude from transform
+        latitude = list(src_transform)[5]
+        slope_ds = gdal.DEMProcessing('', dem_ds, 'slope', format='MEM', scale=111320. * np.cos(latitude*np.pi/180))
+    else:
+        print('Not scaling slope calc...')
+        slope_ds = gdal.DEMProcessing('', dem_ds, 'slope', format='MEM')
+        
     slope_ma = ds_getma(slope_ds)
     slope_ma = np.ma.masked_where(slope_ma==0, slope_ma)
     
@@ -162,14 +165,14 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
     tpi_ma = ds_getma(tpi_ds)
     tpi_ma = np.ma.masked_where(slope_ma==0, tpi_ma)
     
-    # TSRI
+    # TSRI - need to ensure that calc happens on original (north up) data and not reprojected (not north up)
     # topo solar radiation index (a transformation of aspect; 0 - 1) TSRI = 0.5−cos((π/180)(aspect−30))/2
     # Matasci et al 2018: https://doi.org/10.1016/j.rse.2017.12.020
     print("Calculating TSRI...")
     aspect_ds = gdal.DEMProcessing('', dem_ds, 'aspect', format='MEM')
     aspect_ma = ds_getma(aspect_ds)
     tsri_ma = 0.5 - np.cos((np.pi/180.) * (aspect_ma - 30.))/2.
-    tsri_ma = np.ma.masked_where(tsri_ma==-9999, tsri_ma)
+    tsri_ma = np.ma.masked_where(tsri_ma==nodata_value, tsri_ma)
     
     # Try this for removing water
     valid_mask = water_slope_mask(slope_ma)
@@ -180,28 +183,73 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res):
     # Close the gdal datasets
     dem_ds = slope_ds = aspect_ds = tpi_ds = None
     
-    # TODO: CLip stack to in_bbox
-    # TODO: Mask the file with the in_bbox?! - MaskArrays wants a file list, not a masked array list (which is what I have given it...)
-    #topo_covar_file_list_bbox = [MaskArrays(topo_covar_file_list[i], in_bbox) for i in range(len(topo_covar_file_list))]
-    
     # Stack
     # move axis of the stack so bands is first
     topo_stack = np.transpose([dem_ma, slope_ma, tsri_ma, tpi_ma, valid_mask], [0,1,2])
-    
-    #topo_stack = np.transpose(topo_covar_file_list_bbox, [0,1,2])
     topo_stack_names = ["elevation","slope","tsri","tpi", "slopemask"]
     
-    # TODO: to be safe out_crs should be read from the gdal dataset
+    print("Write COG (w/ reprj), read COG (with clip), write final COG...")
+    ######    
+    # 1st write using write_cog()
+    # Note: this assumes array is in 4326 (good assumption since this is topo data)
+    out_tmp_fn = os.path.splitext(topo_stack_cog_fn)[0]+'_tmp.tif'
+    print("Writing a tmp stack w/ reproj and a clip with 4326 geom...")
     write_cog(topo_stack, 
-              topo_stack_cog_fn, 
-              tile_parts['tile_crs'], 
+              out_tmp_fn, 
+              tile_parts['geom_4326'].crs, # Here you need the covar (in) tiles crs
               src_transform,
               topo_stack_names, 
-              clip_geom = tile_parts['geom_orig'],
-              clip_crs = tile_parts['tile_crs'],
+              out_crs = tile_parts['geom_orig'].crs,
+              clip_geom = tile_parts['geom_4326'],    
+              clip_crs = tile_parts['geom_4326'].crs, #
               resolution = (res, res),
-              align = True)
-    
+              align = True, 
+              input_nodata_value=nodata_value,
+              resampling='cubic'
+             )
+
+    ######    
+    # Read COG back in and clip (geom_orig - the geom of the projected tile system into which you put data)
+    from rio_tiler.io import COGReader
+    from rasterio.crs import CRS
+    from typing import List
+    from rio_tiler.models import ImageData
+
+    def reader(src_path: str, bbox: List[float], epsg: CRS, dst_crs: CRS, height: int, width: int) -> ImageData:
+        with COGReader(src_path) as cog:
+            print('Image read and clipped:\t\t', src_path)
+            return cog.part(bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
+
+    bbox = tile_parts['geom_orig'].bounds.iloc[0].to_list()
+    height, width = get_shape(bbox, res)
+
+    img = reader(out_tmp_fn, bbox, tile_parts['geom_orig'].crs, tile_parts['geom_orig'].crs, height, width)
+    topo_stack = img.as_masked().data
+
+    ######
+    # 2nd write (to a COG), this time the data is already clipped and reprojected - so neither of those should be needed - but they are when align=true.
+    print(f"Current stack shape:\t\t({img.count},{img.width},{img.height})")
+    # Translate to a COG
+    # Get the rio-cogeo profile for deflate compression, modify some of the options
+    dst_profile = cog_profiles.get("deflate")
+    dst_profile['blockxsize']=256
+    dst_profile['blockysize']=256
+    dst_profile['predictor']=1 # originally set to 2, which fails with 'int'; 1 tested successfully for 'int' and 'float64'
+    dst_profile['zlevel']=7
+    dst_profile['height']=img.height
+    dst_profile['width']=img.width
+    dst_profile['count']=img.count
+    dst_profile['dtype']=str(topo_stack.dtype)
+    dst_profile['crs']=img.crs
+    dst_profile['resolution']=res
+    dst_profile['transform']=out_trans
+    dst_profile['nodata']=nodata_value
+
+    with rio.open(topo_stack_cog_fn, 'w+', **dst_profile) as final_cog:
+        final_cog.descriptions = tuple(topo_stack_names)
+        final_cog.write(topo_stack)
+    print('Image written to disk:\t\t', topo_stack_cog_fn)
+
     return(topo_stack, topo_stack_names)
 
 def hillshade(array,azimuth,angle_altitude):
