@@ -383,7 +383,19 @@ DICT_BUILD_TINDEX_AGE2020 = {
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
-
+DICT_BUILD_TINDEX_GLO30 = {
+    'SET' : 'TOPO',
+    'USER' : 'montesano',
+    'ALG_NAME' : 'run_build_stack_topo',
+    'ALG_VERSION' : 'build_stack_v2024_1',
+    'VAR' : 'TOPO',
+    # In my bucket, this is ALWAYS used to identify output
+    'BATCH_NAME' : f'CopernicusGLO30',
+    'YEAR': 2024,
+    'DPS_MONTH_LIST' : '07',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
 ###################################
 ## Functions
 def print_tindex_vars(local_vars):

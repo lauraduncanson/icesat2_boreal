@@ -24,7 +24,8 @@ import pandas as pd
 try:
     from maap.maap import MAAP
     # create MAAP class
-    maap = MAAP(maap_host='api.maap-project.org')
+    #maap = MAAP(maap_host='api.maap-project.org')
+    maap = MAAP()
     HAS_MAAP = True
 except ImportError:
     print('NASA MAAP is unavailable')

@@ -30,8 +30,8 @@ from CovariateUtils_topo import *
 import mosaiclib
 
 from maap.maap import MAAP
-maap = MAAP(maap_host='api.maap-project.org')
-
+#maap = MAAP(maap_host='api.maap-project.org')
+maap = MAAP()
 #Check for file existence
 def fn_check(fn):
     """Wrapper to check for file existence
