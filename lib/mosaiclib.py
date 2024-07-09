@@ -248,7 +248,8 @@ TOPO_MOSAIC_JSON_FN_DICT = {
     # Final Topo for c2020 in Phase 2 (ORNL DAAC); these do not have dateline tiles; some are not be exactly 3000x3000 (chk near southern Ontario?)
     'c2020orig'    : 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
     # Updated for Phase 3; these have dateline tiles; all tiles are 3000x3000 BUT this causes some notdata at borders of some tiles?? (chk border edges of some northern Siberia tiles?)
-    'c2020updated' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2023_2/CopernicusGLO30/Topo_tindex_master_mosaic.json'
+    'c2020updated' :  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2023_2/CopernicusGLO30/Topo_tindex_master_mosaic.json',
+    'c2020updated_v2':'s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2024_1/CopernicusGLO30/Topo_tindex_master_mosaic.json',
 }
 TOPO_TINDEX_FN_DICT = dict()
 for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
@@ -387,8 +388,8 @@ DICT_BUILD_TINDEX_GLO30 = {
     'SET' : 'TOPO',
     'USER' : 'montesano',
     'ALG_NAME' : 'run_build_stack_topo',
-    'ALG_VERSION' : 'build_stack_v2024_1',
-    'VAR' : 'TOPO',
+    'ALG_VERSION' : 'build_stack_v2024_2',
+    'VAR' : 'Topo',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'CopernicusGLO30',
     'YEAR': 2024,

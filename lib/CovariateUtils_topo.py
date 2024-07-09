@@ -244,10 +244,10 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=Tru
     dst_profile['resolution']=res
     dst_profile['transform']=out_trans
     dst_profile['nodata']=nodata_value
-
     with rio.open(topo_stack_cog_fn, 'w+', **dst_profile) as final_cog:
         final_cog.descriptions = tuple(topo_stack_names)
         final_cog.write(topo_stack)
+        cog_translate(final_cog, topo_stack_cog_fn, dst_profile, overview_resampling='cubic')
     print('Image written to disk:\t\t', topo_stack_cog_fn)
 
     return(topo_stack, topo_stack_names)
