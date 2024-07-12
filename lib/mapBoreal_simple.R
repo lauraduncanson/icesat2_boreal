@@ -1002,6 +1002,41 @@ mapBoreal<-function(rds_models,
         }
     #remove first col - removed this when switched to v6
     #all_train_data <- all_train_data[,-1]
+    str(all_train_data)
+    #remove height outliers based on more than 4SD from the landcover mean
+    lcs <- unique(all_train_data$segment_landcover)
+    means <- lcs*0
+    thresholds <- means
+    n_lcs <- length(lcs)
+    
+    for(i in 1:n_lcs){
+    data_in <- all_train_data[which(all_train_data$segment_landcover==lcs[i]),]
+    mean <- mean(data_in$h_canopy, na.rm=TRUE)
+    threshold <- mean+(3*sd(data_in$h_canopy, na.rm=TRUE))
+
+    bad_data <- which(data_in$h_canopy > threshold)
+    n_bad <- length(bad_data)
+    if(n_bad>1){
+        data_filt <- data_in[-bad_data,]
+    } 
+    if(n_bad==0){
+        data_filt <- data_in
+        }
+        
+    if(i==1){
+        data_filt_out <- data_filt
+        }
+    if(i>1){
+        data_filt_out <- rbind(data_filt, data_filt_out)
+        } 
+    }
+    
+    all_train_data <- data_filt_out
+    str(all_train_data)
+    rm(data_filt_out)
+    
+    #apply filters
+    
     
     tile_data_output <- tile_data
     print(paste0('table for model training generated with ', nrow(all_train_data), ' observations'))
