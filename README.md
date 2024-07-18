@@ -11,7 +11,7 @@ Laura Duncanson (PI, ABoVE project)
 Amy Neuenschwander (PI, ICESat-2 Science Team project)  
 Paul Montesano  
 Nathan Thomas  
-Eric Guenther
+Eric Guenther  
 Carlos Silva  
 Steve Hancock  
 Joanne White  
