@@ -2,14 +2,15 @@ import os
 
 ######
 ######
-###### Library of all mosaic json files associated with various iterations of the ABoVE Boreal AGB Density maps
+###### LIBRARY OF MASTER TINDEX & MOSAIC JSON files associated with various iterations of the ABoVE Boreal AGB Density maps
 ######
-###### variables hold the paths to the mosaic json files on MAAP
+###### variables hold the paths to the tindex csv & mosaic json files on MAAP
 ###### import this into other notebooks: from mosaiclib import *
 
 boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg'
 MINI_DATELINE_TILES  = [400400,391600,382300,372800,363400,354000,4199500,4180700,4161900]
 LARGE_DATELINE_TILES = [3540,3634,3728,3823,3916,4004,41995,41807,41619]
+MERIDIAN_TILES       = [22938, 23219, 23828, 24109, 23548, 23782, 24670, 24389, 24108, 23501, 23547]
 
 ######
 ###### Boreal ATL08 granules list (from PhoReal)
@@ -88,8 +89,14 @@ AGB_winter2023_noground_tindex_master_fn = 's3://maap-ops-workspace/shared/natha
 AGB_winter2023_noground_mosaic_json_fn   = 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/AGB/winter2023/map_boreal_2022_rh_noground_v4/AGB_tindex_master_mosaic.json'
 
 ## TODO: make these dicts
-AGB_MOSAIC_JSON_FN_DICT = dict()
+AGB_MOSAIC_JSON_FN_DICT = {
+    'c2020_v1.0': '',
+    '2020_v2.0' : ''
+}
 AGB_TINDEX_FN_DICT = dict()
+for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
+    if '_mosaic.json' in value:
+        AGB_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
 
 ######
 ###### Boreal Height mosaics
@@ -249,7 +256,7 @@ TOPO_MOSAIC_JSON_FN_DICT = {
     'c2020orig'    : 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
     # Updated for Phase 3; these have dateline tiles; all tiles are 3000x3000 BUT this causes some notdata at borders of some tiles?? (chk border edges of some northern Siberia tiles?)
     'c2020updated' :  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2023_2/CopernicusGLO30/Topo_tindex_master_mosaic.json',
-    'c2020updated_v2':'s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2024_1/CopernicusGLO30/Topo_tindex_master_mosaic.json',
+    'c2020updated_v2':'s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2024_2/CopernicusGLO30/Topo_tindex_master_mosaic.json',
 }
 TOPO_TINDEX_FN_DICT = dict()
 for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
