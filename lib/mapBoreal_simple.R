@@ -1367,25 +1367,34 @@ lc <- rast(LC_mask_file)
 # make sure data are linked properly
 #check extents
 nrow_topo = nrow(topo)
+nrow_lc = nrow(lc)
 nrow_l8 = nrow(l8)
 nrow_diff <- abs(nrow_topo-nrow_l8)
-print(nrow_diff)
+nrow_diff2 <- abs(nrow_topo-nrow_lc)
 
 ncol_topo <- ncol(topo)
 ncol_l8 <- ncol(l8)
-ncol_diff <- abs(ncol_topo-ncol_l8)
+ncol_lc <- ncol(lc)
 
-if(nrow_diff>0 || ncol_diff>0){
+ncol_diff <- abs(ncol_topo-ncol_l8)
+ncol_diff2 <- abs(ncol_topo-ncol_lc)
+
+print(ncol_diff)
+if(nrow_diff>0 || ncol_diff>0 || nrow_diff2>0 || ncol_diff2>0){
    #resample
     topo <- resample(topo, l8, method='near')
     lc <- resample(lc, l8, method='near')
 } 
-
 ext(topo) <- ext(l8)
 ext(lc) <- ext(l8)
 
+str(lc)
+str(topo)
+str(l8)
+
 stack<-c(l8,topo, lc)
 
+print('ok 2')
 if(DO_MASK_WITH_STACK_VARS){
     print("Masking stack...")
     # Bricking the stack will make the masking faster (i think)
