@@ -1016,13 +1016,14 @@ mapBoreal<-function(rds_models,
 
     bad_data <- which(data_in$h_canopy > threshold)
     n_bad <- length(bad_data)
-    if(n_bad>1){
+
+    if(n_bad>0){
         data_filt <- data_in[-bad_data,]
     } 
     if(n_bad==0){
         data_filt <- data_in
         }
-        
+       
     if(i==1){
         data_filt_out <- data_filt
         }
@@ -1394,7 +1395,6 @@ str(l8)
 
 stack<-c(l8,topo, lc)
 
-print('ok 2')
 if(DO_MASK_WITH_STACK_VARS){
     print("Masking stack...")
     # Bricking the stack will make the masking faster (i think)
