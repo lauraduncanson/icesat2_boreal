@@ -552,7 +552,7 @@ if(rep>1){
 
     # rf modeling
     if(predict_var=='Ht'){
-        y_fit <- xtable$RH98
+        y_fit <- xtable$RH_98
     }
     if(predict_var=='AGB'){
         y_fit <- xtable$AGB
@@ -1033,7 +1033,6 @@ mapBoreal<-function(rds_models,
     }
     
     all_train_data <- data_filt_out
-    str(all_train_data)
     rm(data_filt_out)
     
     #apply filters
@@ -1388,10 +1387,6 @@ if(nrow_diff>0 || ncol_diff>0 || nrow_diff2>0 || ncol_diff2>0){
 } 
 ext(topo) <- ext(l8)
 ext(lc) <- ext(l8)
-
-str(lc)
-str(topo)
-str(l8)
 
 stack<-c(l8,topo, lc)
 
