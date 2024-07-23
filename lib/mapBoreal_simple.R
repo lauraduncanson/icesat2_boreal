@@ -223,7 +223,6 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
         print('Height successfully predicted!')
         print('Height mosaics completed!')
         tile_means <- final_map[[2]]
-
         # Make a 2-band stack as a COG
 
         out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
@@ -255,7 +254,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
-            combined_totals <- tile_means
+            combined_totals <- mean_Ht
     }
     return(combined_totals)
 }
@@ -719,20 +718,16 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         map_pred <- mask(map_pred, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
 
         Ht_mean <- global(map_pred, 'mean', na.rm=TRUE)$mean
-        print(Ht_mean)
     
         #calculate just the boreal total
-        boreal_ht_temp <- extract(map_pred, boreal_poly, na.rm=TRUE)
-        Ht_mean_boreal <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
-        print(Ht_mean_boreal)
+        boreal_ht_temp <- extract(map_pred, boreal_poly, fun=mean, na.rm=TRUE)
+        Ht_mean_boreal <- boreal_ht_temp$lyr1[1]
         rm(boreal_ht_temp)
         
         mean_map <- map_pred[[1]]
 
     #loop over predicting for tile with each model in list
     n_models <- length(model_list)
-    print('n_models:')
-    print(n_models)
     if(n_models>1){
         for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
@@ -747,11 +742,10 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         Ht_mean <- c(Ht_mean, Ht_mean_temp)
         
         #repeat for just boreal
-        boreal_ht_temp <- extract(map_pred_temp, boreal_poly, na.rm=TRUE)
+        boreal_ht_temp <- extract(map_pred_temp, boreal_poly, fun=mean, na.rm=TRUE)
         rm(map_pred_temp)
 
-        Ht_boreal_temp <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
-        print(Ht_boreal_temp)
+        Ht_boreal_temp <- boreal_ht_temp$lyr1[1]
         Ht_mean_boreal <- c(Ht_mean_boreal, Ht_boreal_temp)
         rm(boreal_ht_temp)        
         }
@@ -1126,6 +1120,7 @@ print(pred_vars)
                 }    
             rm(new_final_map)
             combined_totals <- c(combined_totals, combined_totals_new)
+                print('did we get here???')
             var_diff <- check_var(combined_totals)
                 print('check length')
                 print(length(combined_totals))
