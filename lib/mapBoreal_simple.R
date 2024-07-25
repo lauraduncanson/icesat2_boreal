@@ -161,6 +161,7 @@ applyModels <- function(models=models,
             }
             
             out_map <- temp_map[[1]]
+
             tile_total <- temp_map[[2]]
             rm(temp_map)
         }
@@ -706,7 +707,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     #predict directly on raster using terra
     pred_stack <- na.omit(stack)
 
-    if(length(unique(values(pred_stack$Red)))>1){
+    if(length(unique(values(pred_stack$NDVI)))>1){
         map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
         #set slope and valid mask to zero
         map_pred <- mask(map_pred, pred_stack$slopemask, maskvalues=0, updatevalue=0)
@@ -719,8 +720,6 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         Ht_mean_boreal <- boreal_ht_temp$lyr1[1]
         rm(boreal_ht_temp)
         
-        mean_map <- map_pred[[1]]
-
     #loop over predicting for tile with each model in list
     n_models <- length(model_list)
     print('n_models:')
@@ -747,10 +746,11 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         rm(boreal_ht_temp)        
         }
     #take the average and sd per pixel
-    mean_map <- app(map_pred, mean)
+    #mean_map <- app(map_pred, mean)
     sd_map <- app(map_pred, sd)
     }
-    
+    mean_map <- map_pred[[1]]
+
     #model with all data for mapping
  
     Ht_mean_out <- as.data.frame(cbind(Ht_mean, Ht_mean_boreal))
@@ -763,7 +763,8 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     write.csv(file=out_fn_total, Ht_mean_out, row.names=FALSE)
 
     if(n_models>1){
-        ht_maps <- list(c(mean_map, sd_map), Ht_mean_out)
+        ht_maps <- list(c(mean_map, sd_map, map_pred), Ht_mean_out)
+
     } else{
         ht_maps <- list(c(mean_map), Ht_mean_out)
     }
