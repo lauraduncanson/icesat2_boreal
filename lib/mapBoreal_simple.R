@@ -133,7 +133,7 @@ applyModels <- function(models=models,
 
                  if((exists('out_map')==TRUE) & (length(maps)>1) & (tile>1)){
                      out_map <- mosaic(maps[[1]], out_map, fun="max")
-                     if(exists('tile_mean')==FALSE){tile_mean <- 0.0}
+                     if(exists('tile_mean')==FALSE){tile_mean <- maps[[2]]$Tile_Mean}
                      print('tile mean:')
                      tile_mean <- mean(c(tile_mean, maps[[2]]$Tile_Mean))
                      print(tile_mean)
@@ -285,8 +285,6 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
         }    
     }
     
-print('n for model fits:')
-print(nrow(xtable_i))
     
   #if(DO_MASK){
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
@@ -630,8 +628,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         #calculate just the boreal total
 
         boreal_total_temp <- extract(AGB_tot_map, boreal_poly, fun=sum, na.rm=TRUE)
-        print('boreal_extract:')
-        print(boreal_total_temp)
+
         
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         
@@ -665,13 +662,11 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
             
             boreal_total_temp <- extract(map_pred_tot_temp, boreal_poly, fun=sum, na.rm=TRUE)
 print('boreal_extract:')
-            print(boreal_total_temp)
             rm(map_pred_tot_temp)
             rm(map_pred_temp)
 
             #AGB_boreal_temp <- global(boreal_map_temp$lyr1, 'sum', na.rm=TRUE)$sum
             AGB_boreal_temp <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
-            print(AGB_boreal_temp)
             AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp)
         }
     #take the average and sd per pixel
@@ -728,6 +723,8 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
 
     #loop over predicting for tile with each model in list
     n_models <- length(model_list)
+    print('n_models:')
+    print(n_models)
     if(n_models>1){
         for (i in 2:length(model_list)){
         fit.rf <- model_list[[i]]
@@ -764,6 +761,7 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     out_fn_total <- paste0(out_fn_stem, '_mean.csv')
 
     write.csv(file=out_fn_total, Ht_mean_out, row.names=FALSE)
+
     if(n_models>1){
         ht_maps <- list(c(mean_map, sd_map), Ht_mean_out)
     } else{
@@ -778,8 +776,7 @@ check_var <- function(totals){
         #calc sd iteratively
         sd <- totals*0.0
         nrow <- length(totals)
-        print('nrow:')
-        print(nrow)
+
         n <- seq(1, nrow)
         for (i in 1:nrow){
             temp_tot <- totals[1:i]
@@ -1059,7 +1056,7 @@ print(pred_vars)
     print('model fitting complete!')
 
     final_map <- applyModels(models, stack, pred_vars, predict_var, tile_num)
-    
+
     xtable <- models[[1]]
 
     if(ppside > 1){
@@ -1102,28 +1099,27 @@ print(pred_vars)
                             predict_var=predict_var)
                 
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
-            
+
             if(ppside > 1){
                 combined_totals_new <- combine_temp_files(new_final_map, predict_var, tile_num)
             }
                 
             temp <- new_final_map[[2]]
             
+            
             #combine original map with new iterations map
             out_map_all <- c(out_map_all, subset(new_final_map[[1]], 3:nlyr(new_final_map[[1]])))
-                
+
                 if(predict_var=='AGB'){
                     new_tile_totals <- new_final_map[[2]]$Tile_Total
                 }
                 if(predict_var=='Ht'){
-                    new_tile_totals <- new_final_map[[2]]$Tile_Mean
+                    new_tile_totals <- new_final_map[[2]]
                 }    
             rm(new_final_map)
             combined_totals <- c(combined_totals, combined_totals_new)
-                print('did we get here???')
             var_diff <- check_var(combined_totals)
-                print('check length')
-                print(length(combined_totals))
+
             if(length(combined_totals)>75){
                 var_thresh <- 0.06
                 }
@@ -1207,9 +1203,13 @@ print(pred_vars)
     #change -9999 to NA
     #out_map <- classify(out_map, cbind(-9999.000, NA))
     out_map <- subst(out_map, -9999, NA)
+
     out_sd <- app(out_map_all, sd)
+
     out_sd <- subst(out_sd, -9999, NA)
+
     out_map <- c(out_map, out_sd)
+
                   
     NAflag(out_map)
     
@@ -1374,7 +1374,6 @@ ncol_lc <- ncol(lc)
 ncol_diff <- abs(ncol_topo-ncol_l8)
 ncol_diff2 <- abs(ncol_topo-ncol_lc)
 
-print(ncol_diff)
 if(nrow_diff>0 || ncol_diff>0 || nrow_diff2>0 || ncol_diff2>0){
    #resample
     topo <- resample(topo, l8, method='near')
