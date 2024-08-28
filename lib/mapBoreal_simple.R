@@ -133,7 +133,7 @@ applyModels <- function(models=models,
 
                  if((exists('out_map')==TRUE) & (length(maps)>1) & (tile>1)){
                      out_map <- mosaic(maps[[1]], out_map, fun="max")
-                     if(exists('tile_mean')==FALSE){tile_mean <- 0.0}
+                     if(exists('tile_mean')==FALSE){tile_mean <- maps[[2]]$Tile_Mean}
                      print('tile mean:')
                      tile_mean <- mean(c(tile_mean, maps[[2]]$Tile_Mean))
                      print(tile_mean)
@@ -161,6 +161,7 @@ applyModels <- function(models=models,
             }
             
             out_map <- temp_map[[1]]
+
             tile_total <- temp_map[[2]]
             rm(temp_map)
         }
@@ -223,7 +224,6 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
         print('Height successfully predicted!')
         print('Height mosaics completed!')
         tile_means <- final_map[[2]]
-
         # Make a 2-band stack as a COG
 
         out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d"), str_pad(tile_num, 4, pad = "0"), sep="_")
@@ -255,7 +255,7 @@ combine_temp_files <- function(final_map, predict_var, tile_num){
             out_fn_stem = paste("output/boreal_ht", format(Sys.time(),"%Y%m%d%s"), str_pad(tile_num, 4, pad = "0"), sep="_")
             out_fn_total <- paste0(out_fn_stem, '_mean_all.csv')
             write.csv(file=out_fn_total, mean_Ht_out, row.names=FALSE)
-            combined_totals <- tile_means
+            combined_totals <- mean_Ht
     }
     return(combined_totals)
 }
@@ -286,8 +286,6 @@ GEDI2AT08AGB<-function(rds_models,models_id, in_data, offset=100, DO_MASK=FALSE,
         }    
     }
     
-print('n for model fits:')
-print(nrow(xtable_i))
     
   #if(DO_MASK){
   #    in_data = in_data %>% dplyr::filter(slopemask ==1 & ValidMask == 1)
@@ -552,7 +550,7 @@ if(rep>1){
 
     # rf modeling
     if(predict_var=='Ht'){
-        y_fit <- xtable$RH98
+        y_fit <- xtable$RH_98
     }
     if(predict_var=='AGB'){
         y_fit <- xtable$AGB
@@ -631,8 +629,7 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
         #calculate just the boreal total
 
         boreal_total_temp <- extract(AGB_tot_map, boreal_poly, fun=sum, na.rm=TRUE)
-        print('boreal_extract:')
-        print(boreal_total_temp)
+
         
         #AGB_total_boreal <- global(boreal_total_temp, 'sum', na.rm=TRUE)$sum
         
@@ -666,13 +663,11 @@ agbMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=sta
             
             boreal_total_temp <- extract(map_pred_tot_temp, boreal_poly, fun=sum, na.rm=TRUE)
 print('boreal_extract:')
-            print(boreal_total_temp)
             rm(map_pred_tot_temp)
             rm(map_pred_temp)
 
             #AGB_boreal_temp <- global(boreal_map_temp$lyr1, 'sum', na.rm=TRUE)$sum
             AGB_boreal_temp <- sum(boreal_total_temp$lyr.1, na.rm=TRUE)
-            print(AGB_boreal_temp)
             AGB_total_boreal <- c(AGB_total_boreal, AGB_boreal_temp)
         }
     #take the average and sd per pixel
@@ -712,23 +707,19 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     #predict directly on raster using terra
     pred_stack <- na.omit(stack)
 
-    if(length(unique(values(pred_stack$Red)))>1){
+    if(length(unique(values(pred_stack$NDVI)))>1){
         map_pred <- predict(pred_stack, model_list[[1]], na.rm=TRUE)
         #set slope and valid mask to zero
         map_pred <- mask(map_pred, pred_stack$slopemask, maskvalues=0, updatevalue=0)
         map_pred <- mask(map_pred, pred_stack$ValidMask, maskvalues=0, updatevalue=0)   
 
         Ht_mean <- global(map_pred, 'mean', na.rm=TRUE)$mean
-        print(Ht_mean)
     
         #calculate just the boreal total
-        boreal_ht_temp <- extract(map_pred, boreal_poly, na.rm=TRUE)
-        Ht_mean_boreal <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
-        print(Ht_mean_boreal)
+        boreal_ht_temp <- extract(map_pred, boreal_poly, fun=mean, na.rm=TRUE)
+        Ht_mean_boreal <- boreal_ht_temp$lyr1[1]
         rm(boreal_ht_temp)
         
-        mean_map <- map_pred[[1]]
-
     #loop over predicting for tile with each model in list
     n_models <- length(model_list)
     print('n_models:')
@@ -747,19 +738,19 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
         Ht_mean <- c(Ht_mean, Ht_mean_temp)
         
         #repeat for just boreal
-        boreal_ht_temp <- extract(map_pred_temp, boreal_poly, na.rm=TRUE)
+        boreal_ht_temp <- extract(map_pred_temp, boreal_poly, fun=mean, na.rm=TRUE)
         rm(map_pred_temp)
 
-        Ht_boreal_temp <- mean(boreal_ht_temp$lyr.1, na.rm=TRUE)
-        print(Ht_boreal_temp)
+        Ht_boreal_temp <- boreal_ht_temp$lyr1[1]
         Ht_mean_boreal <- c(Ht_mean_boreal, Ht_boreal_temp)
         rm(boreal_ht_temp)        
         }
     #take the average and sd per pixel
-    mean_map <- app(map_pred, mean)
+    #mean_map <- app(map_pred, mean)
     sd_map <- app(map_pred, sd)
     }
-    
+    mean_map <- map_pred[[1]]
+
     #model with all data for mapping
  
     Ht_mean_out <- as.data.frame(cbind(Ht_mean, Ht_mean_boreal))
@@ -770,8 +761,10 @@ HtMapping<-function(x=x,y=y,model_list=model_list, tile_num=tile_num, stack=stac
     out_fn_total <- paste0(out_fn_stem, '_mean.csv')
 
     write.csv(file=out_fn_total, Ht_mean_out, row.names=FALSE)
+
     if(n_models>1){
-        ht_maps <- list(c(mean_map, sd_map), Ht_mean_out)
+        ht_maps <- list(c(mean_map, sd_map, map_pred), Ht_mean_out)
+
     } else{
         ht_maps <- list(c(mean_map), Ht_mean_out)
     }
@@ -784,8 +777,7 @@ check_var <- function(totals){
         #calc sd iteratively
         sd <- totals*0.0
         nrow <- length(totals)
-        print('nrow:')
-        print(nrow)
+
         n <- seq(1, nrow)
         for (i in 1:nrow){
             temp_tot <- totals[1:i]
@@ -1016,13 +1008,14 @@ mapBoreal<-function(rds_models,
 
     bad_data <- which(data_in$h_canopy > threshold)
     n_bad <- length(bad_data)
-    if(n_bad>1){
+
+    if(n_bad>0){
         data_filt <- data_in[-bad_data,]
     } 
     if(n_bad==0){
         data_filt <- data_in
         }
-        
+       
     if(i==1){
         data_filt_out <- data_filt
         }
@@ -1032,7 +1025,6 @@ mapBoreal<-function(rds_models,
     }
     
     all_train_data <- data_filt_out
-    str(all_train_data)
     rm(data_filt_out)
     
     #apply filters
@@ -1065,7 +1057,7 @@ print(pred_vars)
     print('model fitting complete!')
 
     final_map <- applyModels(models, stack, pred_vars, predict_var, tile_num)
-    
+
     xtable <- models[[1]]
 
     if(ppside > 1){
@@ -1108,27 +1100,27 @@ print(pred_vars)
                             predict_var=predict_var)
                 
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
-            
+
             if(ppside > 1){
                 combined_totals_new <- combine_temp_files(new_final_map, predict_var, tile_num)
             }
                 
             temp <- new_final_map[[2]]
             
+            
             #combine original map with new iterations map
             out_map_all <- c(out_map_all, subset(new_final_map[[1]], 3:nlyr(new_final_map[[1]])))
-                
+
                 if(predict_var=='AGB'){
                     new_tile_totals <- new_final_map[[2]]$Tile_Total
                 }
                 if(predict_var=='Ht'){
-                    new_tile_totals <- new_final_map[[2]]$Tile_Mean
+                    new_tile_totals <- new_final_map[[2]]
                 }    
             rm(new_final_map)
             combined_totals <- c(combined_totals, combined_totals_new)
             var_diff <- check_var(combined_totals)
-                print('check length')
-                print(length(combined_totals))
+
             if(length(combined_totals)>75){
                 var_thresh <- 0.06
                 }
@@ -1212,9 +1204,13 @@ print(pred_vars)
     #change -9999 to NA
     #out_map <- classify(out_map, cbind(-9999.000, NA))
     out_map <- subst(out_map, -9999, NA)
+
     out_sd <- app(out_map_all, sd)
+
     out_sd <- subst(out_sd, -9999, NA)
+
     out_map <- c(out_map, out_sd)
+
                   
     NAflag(out_map)
     
@@ -1367,20 +1363,23 @@ lc <- rast(LC_mask_file)
 # make sure data are linked properly
 #check extents
 nrow_topo = nrow(topo)
+nrow_lc = nrow(lc)
 nrow_l8 = nrow(l8)
 nrow_diff <- abs(nrow_topo-nrow_l8)
-print(nrow_diff)
+nrow_diff2 <- abs(nrow_topo-nrow_lc)
 
 ncol_topo <- ncol(topo)
 ncol_l8 <- ncol(l8)
-ncol_diff <- abs(ncol_topo-ncol_l8)
+ncol_lc <- ncol(lc)
 
-if(nrow_diff>0 || ncol_diff>0){
+ncol_diff <- abs(ncol_topo-ncol_l8)
+ncol_diff2 <- abs(ncol_topo-ncol_lc)
+
+if(nrow_diff>0 || ncol_diff>0 || nrow_diff2>0 || ncol_diff2>0){
    #resample
     topo <- resample(topo, l8, method='near')
     lc <- resample(lc, l8, method='near')
 } 
-
 ext(topo) <- ext(l8)
 ext(lc) <- ext(l8)
 
