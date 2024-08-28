@@ -105,7 +105,11 @@ def get_index_tile(vector_path: str, id_col: str, tile_id: int, buffer: float = 
 
     if layer is None:
         layer = os.path.splitext(os.path.basename(vector_path))[0]
-    tile_index = geopandas.read_file(vector_path, layer=layer)
+        
+    if '.parquet' in vector_path:
+        tile_index = geopandas.read_parquet(vector_path)
+    else:
+        tile_index = geopandas.read_file(vector_path, layer=layer)
 
     tile_parts["geom_orig"] = tile_index[tile_index[id_col]==tile_id]
     tile_parts["geom_orig_buffered"] = tile_parts["geom_orig"]["geometry"].buffer(buffer)
@@ -199,6 +203,8 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
             left, bottom, right, top = array_bounds(height = src_profile["height"],
                    width = src_profile["width"], 
                    transform = src_profile["transform"])
+            #print('\n\n\n\nDEBUG----------\n\n\n\n')
+            #print(f"{left}, {bottom}, {right}, {top}")            
             vrt_params["transform"], vrt_params["width"], vrt_params["height"] = calculate_default_transform(
                 src_crs = in_crs,
                 dst_crs = out_crs,

@@ -210,39 +210,47 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     BBOX_TYPE = f"buffered ({tile_buffer_m} m) original tile geometry"
     # This is added to allow the output size to be forced to a certain size - this avoids have some tiles returned as 2999 x 3000 due to rounding issues.
     # Most tiles dont have this problem and thus dont need this forced shape, but some consistently do. 
+    dateline_tile_list = []
     if height is None or not topo_off:
-        
-        dateline_tile_list = mosaiclib.MINI_DATELINE_TILES + mosaiclib.LARGE_DATELINE_TILES # this is specific to boreal_tiles
-        
-        # For topo, you need the bbox of the selected tiles in their orig projection
-        if stack_tile_id in dateline_tile_list:
-            # This will allow dateline tiles to work
-            in_bbox = covar_tiles_selection.total_bounds
-            BBOX_TYPE = "total bounds of covar tiles selection for dateline tile..."
+        dateline_tile_list += mosaiclib.MINI_DATELINE_TILES + mosaiclib.LARGE_DATELINE_TILES #+ mosaiclib.MERIDIAN_TILES  # this is specific to boreal_tiles
+        if not topo_off:
+            # For topo, you need the bbox of the selected tiles in their orig projection
+            if stack_tile_id in dateline_tile_list:
+                # This will allow dateline tiles to work
+                in_bbox = covar_tiles_selection.total_bounds
+                BBOX_TYPE = "total bounds of covar tiles selection for dateline tile..."
+            else:
+                # ..but here this is optimized by limiting to total bounds of the tile converted to the covar crs and buffered (returns smaller total extent around relevant extent
+                # but this wont work for 'dateline' tiles that cross antimeridian
+                tile_parts["geom_covar_buffered"] = tile_parts["geom_orig_buffered"].to_crs(covar_tiles_selection.crs)
+                in_bbox = tile_parts["geom_covar_buffered"].total_bounds
+                BBOX_TYPE = BBOX_TYPE + " using total bounds after reprojecting to covar tile crs - this creates a smaller bbox for mosaic_reader for non-dateline tiles" 
+
+            # For topo, you also need the input covar crs
+            tile_parts["covar_tile_crs"] = CRS.from_wkt(covar_tiles_selection.crs.to_wkt())
+
+            # Use session, get the minimum resolution (which varies with lat)
+            with rio_env_session:
+                with rasterio.open(files_list_s3[0]) as dataset:
+                    s3_res = min(dataset.res) # This reset the res - over-riding the input res (needed when doing topo)
+
+            # Resets height, width based on bbox computerd with tile buffer; needed to handle topo runs
+            print(f'Getting output height and width from {BBOX_TYPE}...')
+            height, width = get_shape(in_bbox, s3_res)
         else:
-            # ..but here this is optimized by limiting to total bounds of the tile converted to the covar crs and buffered (returns smaller total extent around relevant extent
-            tile_parts["geom_covar_buffered"] = tile_parts["geom_orig_buffered"].to_crs(covar_tiles_selection.crs)
-            in_bbox = tile_parts["geom_covar_buffered"].total_bounds
-            BBOX_TYPE = BBOX_TYPE + " using total bounds after reprojecting to covar tile crs - this creates a smaller bbox for mosaic_reader for non-dateline tiles" 
-            
-        # For topo, you also need the input covar crs
-        tile_parts["covar_tile_crs"] = CRS.from_wkt(covar_tiles_selection.crs.to_wkt())
-
-        # Use session, get the minimum resolution (which varies with lat)
-        with rio_env_session:
-            with rasterio.open(files_list_s3[0]) as dataset:
-                s3_res = min(dataset.res) # This reset the res - over-riding the input res (needed when doing topo)
-
-        # Resets height, width based on bbox computerd with tile buffer; needed to handle topo runs
-        print(f'Getting output height and width from {BBOX_TYPE}...')
-        height, width = get_shape(in_bbox, s3_res)
-
+            in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list() 
+            height, width = get_shape(in_bbox, res)
+            print(f'Getting output height and width from buffered (buffer={tile_buffer_m}) original poly geometry...')
     else:
-        # Create a mosaic from all the images
         in_bbox = tile_parts['geom_orig_buffered'].bounds.iloc[0].to_list()
-        print(f"in_bbox: {in_bbox}")
+        # TODO: catch condition where input polygon is not in projected coords 
+        # TODO: catch condition where shape and height are not specified
+        # If the input polygon is not in projected coords or shape and height not specified - then the output will be all nodata
+            
+        #else:
+        # Create a mosaic from all the images
         print(f'Getting output height and width from input shape arg even though bbox is {BBOX_TYPE}...')
-        
+    print(f"in_bbox: {in_bbox}")    
     print(f"{height} x {width}")
 
     #
@@ -304,10 +312,17 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     cog_crs = tile_parts['tile_crs']
     
     if topo_off and clip:
+        #TODO
+        #if ALIGN:
         print("With clip=True, align=True; COG will align to the total bounds of the clip geom (tile) - since tile is in orig projection this clips to the tile extent.")
         clip_geom = tile_parts['geom_orig']
         clip_crs = tile_parts['tile_crs']
         res = input_res
+        #TODO (if ALIGN=False, this means you want to clip to poly via cutline (not to bounds) 
+        # Need to update write_cog() to once again support this.
+        # need to add control of ALIGN
+        #else:
+        
     else:
         ##################### 
         # Topo Stack Scenario

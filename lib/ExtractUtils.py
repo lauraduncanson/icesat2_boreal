@@ -691,7 +691,7 @@ def build_mosaic_json(
 
     print(f'Tile index matches geodataframe for json: {tile_index_matches_gdf.shape}')
     # Step 2 get the tiles json rfom the gdf of matched tiles
-    tile_matches_geojson = build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=True)
+    tile_matches_geojson = build_tiles_json(tile_index_matches_gdf, tindex_master_fn, SHOW_MAP=False) # setting to false b/c Geopandas 1.0 cant get naturalearth datasets anymore.
 
     print(f"Building {out_mosaic_json_fn}")
     mosaicdata = MosaicJSON.from_features(tile_matches_geojson.get('features'), minzoom=6, maxzoom=18, accessor=get_accessor)

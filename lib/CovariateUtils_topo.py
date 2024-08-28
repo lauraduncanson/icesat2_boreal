@@ -199,7 +199,8 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=Tru
               tile_parts['geom_4326'].crs, # Here you need the covar (in) tiles crs
               src_transform,
               topo_stack_names, 
-              out_crs = tile_parts['geom_orig'].crs,
+              out_crs = tile_parts['geom_orig'].crs, # CURRENT WORKING
+              ####out_crs = tile_parts['geom_4326'].crs,     # CURRENT TESTING
               clip_geom = tile_parts['geom_4326'],    
               clip_crs = tile_parts['geom_4326'].crs, #
               resolution = (res, res),
@@ -223,7 +224,8 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=Tru
     bbox = tile_parts['geom_orig'].bounds.iloc[0].to_list()
     height, width = get_shape(bbox, res)
 
-    img = reader(out_tmp_fn, bbox, tile_parts['geom_orig'].crs, tile_parts['geom_orig'].crs, height, width)
+    img = reader(out_tmp_fn, bbox, tile_parts['geom_orig'].crs, tile_parts['geom_orig'].crs, height, width) # CURRENT WORKING
+    ####img = reader(out_tmp_fn, bbox, tile_parts['geom_4326'].crs, tile_parts['geom_orig'].crs, height, width)     # CURRENT TESTING
     topo_stack = img.as_masked().data
 
     ######
