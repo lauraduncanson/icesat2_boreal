@@ -91,7 +91,12 @@ AGB_winter2023_noground_mosaic_json_fn   = 's3://maap-ops-workspace/shared/natha
 ## TODO: make these dicts
 AGB_MOSAIC_JSON_FN_DICT = {
     'c2020_v1.0': '',
-    '2020_v2.0' : ''
+    '2019_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2019/2019_fullboreal_2019lidar/AGB_tindex_master_mosaic.json',
+    '2020_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2020/atl08_v6_fullboreal_min5000_90p_local/AGB_tindex_master_mosaic.json',
+    '2021_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2021/2021_fullboreal_2021lidar/AGB_tindex_master_mosaic.json',
+    '2022_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2022/2022_fullboreal_2022lidar/AGB_tindex_master_mosaic.json',
+    '2023_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2023/2023_full_2023lidar/AGB_tindex_master_mosaic.json',
+    '2020_v2.0' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/AGB_H30_2020/Version2_SD/AGB_tindex_master_mosaic.json',
 }
 AGB_TINDEX_FN_DICT = dict()
 for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
@@ -103,7 +108,18 @@ for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
 ######
 # c2020
 #Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/AGB_tindex_master_height_mosaic.json'
-Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2023_v3/Ht_L30_2020/local_training_full/HT_tindex_master_mosaic.json'
+#Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2023_v3/Ht_L30_2020/local_training_full/HT_tindex_master_mosaic.json'
+Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/Ht_H30_2020/Version2_SD/HT_tindex_master_mosaic.json'
+
+## TODO: make these dicts
+HT_MOSAIC_JSON_FN_DICT = {
+    'c2020_v1.0': '',
+    '2020_v2.0' : Ht_mosaic_json_fn
+}
+HT_TINDEX_FN_DICT = dict()
+for key, value in HT_MOSAIC_JSON_FN_DICT.items():
+    if '_mosaic.json' in value:
+        HT_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
 
 ######
 ###### Harmonized Landsat-Sentinel L30 mosaics (Landsat only)
