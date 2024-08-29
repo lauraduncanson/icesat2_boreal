@@ -110,8 +110,62 @@ def common_mask(ma_list, apply=False):
         return [np.ma.array(b, mask=mask) for b in ma_list] 
     else:
         return mask
+    
+def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
+    
+    src_fn, mask_fn = list_of_fn_pairs
+    
+    # Open the source raster
+    with rasterio.open(src_fn) as src_ds:
+        
+        # Read all bands
+        src_arr = src_ds.read()
+        bnames_list = list(src_ds.descriptions)
+        src_ndv = src_ds.nodata
+        
+        # Read metadata of the source raster
+        src_meta = src_ds.meta
+    
+    with rasterio.open(mask_fn) as mask_ds:
+    
+        mask_arr = mask_ds.read(1)
+        print(f"\mask_arr shape: {mask_arr.shape}")
+        
+    ## Apply the mask to each band in the source raster
+    #src_arr = np.where(mask_arr == mask_val, src_ndv, src_arr)
+    
+    # Apply the mask to each band
+    for band_index in range(src_arr.shape[0]):
+        band_arr = src_arr[band_index, :, :]
 
-def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H30_2023_2022', bnum=1, ndv=-9999, units='mg_ha',covar_fn_list=None):
+        # For each value in the mask, set those pixels to nodata
+        for mask_value in np.unique(mask_val_list):
+            band_arr[mask_arr == mask_value] = src_ndv
+
+        # Replace the original band data with the masked data
+        src_arr[band_index, :, :] = band_arr
+
+    # Update the metadata for the output raster
+    output_meta = src_meta.copy()
+    
+    # write COG to disk
+    if overwrite:
+        out_cog_fn = src_fn
+    else:
+        out_cog_fn = src_fn.replace(".tif", "_masked.tif")
+    
+    write_cog(
+                src_arr, 
+                out_cog_fn, 
+                output_meta['crs'], 
+                output_meta['transform'], 
+                bnames_list, 
+                input_nodata_value= src_ndv
+                 )
+    
+    return out_cog_fn
+
+def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H30_2023_2022', bnum=1, ndv=-9999, units='mg_ha', covar_fn_list=None):
     '''
     Write a difference map based on subtraction of first from second of 2 raster inputs
     '''
@@ -127,9 +181,10 @@ def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H3
             # Copy input metadata
             out_meta = ds.profile
             
+    covar_arr_list = []
+    covar_names_list = []     
     if covar_fn_list is not None:
-        covar_arr_list = []
-        covar_names_list = []
+
         for fn in covar_fn_list:
             with rasterio.open(fn) as ds:
                 bnames_list = list(ds.descriptions)
@@ -156,10 +211,45 @@ def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H3
                 out_meta['transform'], 
                 cog_names_list, 
                 out_crs=out_meta['crs'],
-                input_nodata_value= -9999
+                input_nodata_value= ndv
                  )
     
     return cog_fn
+
+def show_raster(s3_path, MAX_VALID=100, VMAX=100, VMIN=0, cmap='RdYlGn', title=''):
+    
+    ''' Show a raster on s3 or local with a colormap '''
+    
+    import matplotlib.pyplot as plt
+    import rasterio
+    from rasterio.plot import show, show_hist
+    import numpy as np
+    import numpy.ma as ma
+    
+    fig, ax = plt.subplots(figsize=(5, 5))
+    
+    with rasterio.env.Env(AWS_NO_SIGN_REQUEST = 'YES'):
+        
+        with rasterio.open(s3_path) as src:
+            print(src.nodata)
+            arr=src.read(1, masked=True)
+            arr = ma.masked_where(arr>MAX_VALID, ma.masked_where(arr==0, arr))
+            #show(arr, cmap=cmap)
+            # use imshow so that we have something to map the colorbar to
+            image_hidden = ax.imshow(arr, cmap=cmap, vmax=VMAX, vmin=VMIN)
+
+            # plot on the same axis with rio.plot.show
+            image = rio.plot.show(arr, 
+                                  transform=src.transform, 
+                                  ax=ax, 
+                                  cmap=cmap, vmax=VMAX, vmin=VMIN)
+            
+            ax.set_title(title)
+
+            # add colorbar using the now hidden image
+            fig.colorbar(image_hidden, ax=ax, shrink=0.8)
+            
+            return ax
 
 def get_temp_creds(provider):
     return requests.get(s3_cred_endpoint[provider]).json()
