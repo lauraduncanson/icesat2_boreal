@@ -111,7 +111,7 @@ def common_mask(ma_list, apply=False):
     else:
         return mask
     
-def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
+def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False, out_cog_fn=None):
     
     src_fn, mask_fn = list_of_fn_pairs
     
@@ -129,7 +129,7 @@ def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
     with rasterio.open(mask_fn) as mask_ds:
     
         mask_arr = mask_ds.read(1)
-        print(f"\mask_arr shape: {mask_arr.shape}")
+        # print(f"\mask_arr shape: {mask_arr.shape}")
         
     ## Apply the mask to each band in the source raster
     #src_arr = np.where(mask_arr == mask_val, src_ndv, src_arr)
@@ -149,10 +149,11 @@ def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
     output_meta = src_meta.copy()
     
     # write COG to disk
-    if overwrite:
-        out_cog_fn = src_fn
-    else:
-        out_cog_fn = src_fn.replace(".tif", "_masked.tif")
+    if out_cog_fn is None:
+        if overwrite:
+            out_cog_fn = src_fn
+        else:
+            out_cog_fn = src_fn.replace(".tif", "_masked.tif")
     
     write_cog(
                 src_arr, 

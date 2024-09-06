@@ -19,7 +19,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+lib/*.ipynb
 lib64/
 parts/
 sdist/

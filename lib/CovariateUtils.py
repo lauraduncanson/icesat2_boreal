@@ -1,3 +1,9 @@
+import logging
+logger = logging.getLogger(__name__)
+# Disable logging by default, but allow user to enable with
+# a call to the enable_logging function
+logger.addHandler(logging.NullHandler())
+
 import numpy
 from rasterio import enums
 from rasterio.io import MemoryFile
@@ -165,13 +171,13 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     
     #TODO: remove print statements, add debugging
     
-    print('Shape of input:\t\t\t',stack.shape)
+    logger.debug('Shape of input:\t\t\t',stack.shape)
     
     if out_crs is None:
         out_crs = in_crs
         
     if input_nodata_value is None:
-        print('Input nodata isnt provided; assuming NaN...')
+        logger.debug('Input nodata isnt provided; assuming NaN...')
         input_nodata_value = numpy.nan
    
     # Set the profile for the in memory raster based on the ndarry stack
@@ -196,7 +202,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
         if resampling == 'cubic': vrt_params["resampling"] = enums.Resampling.cubic # needed for topo
         if resampling == 'bilinear': vrt_params["resampling"] = enums.Resampling.bilinear # needed for topo
         
-        print(f"Resampling:\t\t\t {vrt_params['resampling']}\t[0=nearest, 1=blinear, 2=cubic]")
+        logger.debug(f"Resampling:\t\t\t {vrt_params['resampling']}\t[0=nearest, 1=blinear, 2=cubic]")
         
         #TODO: Add  transform with resolution specification
         if out_crs != in_crs:
@@ -216,7 +222,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 height = src_profile["height"],
                 resolution = resolution
                 )
-            print(f"Shape after transform:\t\t({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
+            logger.debug(f"Shape after transform:\t\t({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
         if align is True:
             # TODO: here, clip_geom will only work as a cutline *if* [1] its a box and [2] it's in its original prj
             left, bottom, right, top = clip_geom.total_bounds # tot bounds only works if this is in the final grid you want - but its not - so a cutline in the FINAL crs is still needed
@@ -231,9 +237,9 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                 height = src_profile["height"],
                 resolution = resolution
                 )
-            print(f"Shape after clip & transform:\t ({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
+            logger.debug(f"Shape after clip & transform:\t ({src_profile['count']},{vrt_params['width']},{vrt_params['height']})")
             
-    print('Output resolution:\t\t',resolution)
+    logger.debug('Output resolution:\t\t',resolution)
         
     # Get the rio-cogeo profile for deflate compression, modify some of the options
     dst_profile = cog_profiles.get("deflate")
@@ -250,7 +256,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
 
             if clip_geom is not None:
                 if False:
-                    print('\tDEBUGFix clip attempt #1: try rasterio.mask.mask')
+                    logger.debug('\tDEBUGFix clip attempt #1: try rasterio.mask.mask')
                     # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
                     # Try rasterio mask
                     clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
@@ -260,30 +266,30 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                                  "height": vrt.shape[1],
                                  "width": vrt.shape[2],
                                  "transform": out_transform})
-                    print(f"Current stack shape:\t\t({mem.profile['count']},{vrt_params['width']},{vrt_params['height']})")
-                
+                    logger.debug(f"Current stack shape:\t\t({mem.profile['count']},{vrt_params['width']},{vrt_params['height']})")
+
                 # NOTE: This is now OFF - which fixes the jagged effect of nodata at clipline edges!!
                 if False:
                     # TODO: Here is what topo needs to get the clip correct - but not working as expected yet
                     if out_crs != in_crs:
-                        print('Reprojecting clip geom ...')
+                        logger.debug('Reprojecting clip geom ...')
                         clip_geom = clip_geom.to_crs(out_crs)
                         clip_crs = out_crs
                         # Do the clip to geometry (rasterio takes this; not in_bbox)
                         # # https://rasterio.readthedocs.io/en/latest/topics/masking-by-shapefile.html
-                        print(f"Clipping (in memory) with geom...")
-                        print("\tDEBUG: TODO - is this actually working?")
-                        print('\tDEBUG: Fix clip attempt #2: get cutline working')
+                        logger.debug(f"Clipping (in memory) with geom...")
+                        logger.debug("\tDEBUG: TODO - is this actually working?")
+                        logger.debug('\tDEBUG: Fix clip attempt #2: get cutline working')
                         clip_geom_json = clip_geom.__geo_interface__['features'][0]['geometry']
                         vrt_params["cutline"] = create_cutline(mem, clip_geom_json, geometry_crs = clip_crs)
                              
-            print('Writing img to memory...')
+            logger.debug('Writing img to memory...')
             
             for n in range(len(bandnames)):
                 mem.set_band_description(n+1, bandnames[n])
         
             with WarpedVRT(mem,  **vrt_params) as vrt:
-                print(f"Current stack shape:\t\t({vrt.profile['count']},{vrt.profile['width']},{vrt.profile['height']})")                
+                logger.debug(f"Current stack shape:\t\t({vrt.profile['count']},{vrt.profile['width']},{vrt.profile['height']})")
                 cog_translate(
                     vrt,
                     # To avoid rewriting over the infile
@@ -291,9 +297,9 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
                     dst_profile,
                     add_mask=True,
                     in_memory=True,
-                    quiet=False)
+                    quiet=True)
 
-    print('Image written to disk:\t\t', out_fn)
+    logger.debug('Image written to disk:\t\t', out_fn)
     # TODO: return something useful
     return True
 
@@ -450,3 +456,32 @@ def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path', return
         stack_for_tile_fn = None
         
     return stack_for_tile_fn
+
+def enable_logging(level=logging.INFO, log_file=None):
+    """Enable logging for the module."""
+    # Remove all handlers associated with the logger (in case logging is enabled again)
+    logger.handlers = []
+
+    # Define a logging format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Set the logging level
+    logger.setLevel(level)
+
+    # Add a handler (console or file based on user input)
+    if log_file:
+        handler = logging.FileHandler(log_file)
+    else:
+        handler = logging.StreamHandler()
+
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    logger.info("Logging is enabled")
+
+def disable_logging():
+    """Disable logging for the module."""
+
+    logger.handlers = []
+    logger.addHandler(logging.NullHandler())  # Ensure no logging happens
+    logger.info("Logging is disabled")
