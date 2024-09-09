@@ -111,6 +111,14 @@ def common_mask(ma_list, apply=False):
     else:
         return mask
     
+def check_dims(fn_list: list):
+    for fn in fn_list:
+        # Open the source raster
+        with rasterio.open(fn) as src_ds:
+            # Read all bands
+            src_arr = src_ds.read()
+            print(f'{fn}: {src_arr.shape}')
+        
 def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
     
     src_fn, mask_fn = list_of_fn_pairs
@@ -120,6 +128,7 @@ def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
         
         # Read all bands
         src_arr = src_ds.read()
+        print(src_arr.shape)
         bnames_list = list(src_ds.descriptions)
         src_ndv = src_ds.nodata
         
@@ -130,9 +139,6 @@ def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
     
         mask_arr = mask_ds.read(1)
         print(f"\mask_arr shape: {mask_arr.shape}")
-        
-    ## Apply the mask to each band in the source raster
-    #src_arr = np.where(mask_arr == mask_val, src_ndv, src_arr)
     
     # Apply the mask to each band
     for band_index in range(src_arr.shape[0]):
