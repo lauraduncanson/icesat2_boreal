@@ -1,13 +1,13 @@
 algorithm_description: HLS compositing algorithm 2023 v1 that uses both L30 and S30
 algorithm_name: do_HLS_stack_3-1-2
 algorithm_version: HLS_stack_2023_v1
-build_command: icesat2_boreal/dps/build_command_main.sh
+build_command: icesat2_boreal/dps/build_command_4.0.0.sh
 disk_space: 16GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/vanilla:v3.0.1
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.0.0
 inputs:
   config: []
   file:
-  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/nathanmthomas/boreal_tiles_v003.gpkg
+  - default: https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/boreal_tiles_v004.gpkg
     description: a vector geopackage of polygons that define various tiles (AOI)
     name: in_tile_fn
     required: true
@@ -16,7 +16,7 @@ inputs:
     description: the unique id of a polygon tile (AOI)
     name: in_tile_num
     required: true
-  - default: boreal_tiles_v003
+  - default: boreal_tiles_v004
     description: the geopackage layer name
     name: in_tile_layer
     required: true
