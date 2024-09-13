@@ -70,9 +70,9 @@ def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s
         
         return local_catalog
 
-def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_product='L30', HLS_product_version='2.0'):
+def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product='L30', MS_product_version='2.0', MAX_N_RESULTS=500):
     
-    print('\nQuerying STAC...')
+    print('\nQuerying STAC for multispectral imagery...')
     catalog = Client.open(api)
     
     date_min = str(year) + '-' + start_month_day
@@ -86,22 +86,24 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_p
     print('start date, end date:\t\t', start, end)
     
     # Note: H30 this is our name for a HARMONIZED 30m composite with S30 and L30
-    if HLS_product != 'H30':
-        HLS_product_list = [f"HLS{HLS_product}.v{HLS_product_version}"]
-    else:
-        HLS_product_list = [f"HLSL30.v{HLS_product_version}", f"HLSS30.v{HLS_product_version}"]
+    if MS_product == 'L30' or MS_product == 'S30':
+        MS_product_list = [f"HLS{MS_product}.v{MS_product_version}"]
+    if MS_product == 'H30':
+        MS_product_list = [f"HLSL30.v{MS_product_version}", f"HLSS30.v{MS_product_version}"]
+    if MS_product == 'landsat-c2l2-sr':
+        MS_product_list = [MS_product]
         
-    print(f'\nConducting HLS search now...')
-    print(f'Searching for:\t\t\t{HLS_product_list}')
+    print(f'\nConducting multispectral image search now...')
+    print(f'Searching for:\t\t\t{MS_product_list}')
     
     search = catalog.search(
-        collections=HLS_product_list,
+        collections=MS_product_list,
         datetime=[start,end],
         bbox=bbox,
-        max_items=500, # for testing, and keep it from hanging
+        limit=MAX_N_RESULTS,
+        max_items=MAX_N_RESULTS, # for testing, and keep it from hanging
         # query={"eo:cloud_cover":{"lt":20}} #doesn't work
     )
-    #print(f"Search query parameters:\n{search}\n")
     results = search.get_all_items_as_dict()
     
     print("initial results:\t\t", len(results['features']))
@@ -151,7 +153,7 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
         print(f'bbox: {bbox}')
-        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, HLS_product=hls_product, HLS_product_version=hls_product_version) for year in years]
+        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product=hls_product, MS_product_version=hls_product_version) for year in years]
         
         print(len(response_by_year[0]['features']))
     

@@ -619,8 +619,8 @@ def main():
               bandnames, 
               out_crs=out_crs, 
               resolution=(res, res), 
-              align=False
-              #clip_geom=tile_id["geom_orig"] # this was added late to address some HLS output showing 2999 rows..now this matches how topo stacks are built. Does not correct issue.
+              align=True, ### Debug
+              clip_geom=tile_id["geom_orig"] # this was added late to address some HLS output showing 2999 rows..now this matches how topo stacks are built. Does not correct issue.
              )
     print(f"Wrote out stack:\t\t{out_stack_fn}\n")
     return(out_stack_fn)

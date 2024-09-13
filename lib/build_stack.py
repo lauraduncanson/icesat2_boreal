@@ -111,6 +111,26 @@ def common_mask(ma_list, apply=False):
     else:
         return mask
     
+def get_tile_fn_list(tindex_fn_list, path_col, FOCAL_TILE=None):
+    
+    list_fn_pairs = []
+    
+    if FOCAL_TILE is not None:
+        TILE_LIST = [FOCAL_TILE]
+    else:
+        tindex_first = pd.read_csv(tindex_fn_list[0])
+        TILE_LIST = tindex_first.tile_num.to_list()
+        
+    for FOCAL_TILE in TILE_LIST:
+        focal_tile_fn_list = []
+        for tindex_fn in tindex_fn_list:
+            tindex = pd.read_csv(tindex_fn)
+            r_fn = tindex[tindex.tile_num == FOCAL_TILE][path_col].to_list()[0]
+            focal_tile_fn_list += [r_fn]
+        list_fn_pairs.append(focal_tile_fn_list)
+    
+    return list_fn_pairs 
+    
 def check_dims(fn_list: list):
     for fn in fn_list:
         # Open the source raster
