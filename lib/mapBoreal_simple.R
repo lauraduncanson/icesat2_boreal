@@ -1060,7 +1060,7 @@ print(pred_vars)
 
     xtable <- models[[1]]
 
-    if(ppside > 1){
+    if(ppside >= 1){
         combined_totals <- combine_temp_files(final_map, predict_var, tile_num)
     }
     
@@ -1101,7 +1101,7 @@ print(pred_vars)
                 
             new_final_map <- applyModels(new_models, stack, pred_vars, predict_var, tile_num)
 
-            if(ppside > 1){
+            if(ppside >= 1){
                 combined_totals_new <- combine_temp_files(new_final_map, predict_var, tile_num)
             }
                 
