@@ -53,7 +53,7 @@ applyModels <- function(models=models,
         }
         x <- xtable[pred_vars]
         print('fit general model')
-        rf_single <- randomForest(y=y, x=x, ntree=500)
+        rf_single <- randomForest(y=y, x=x, ntree=NTREE)
         #rf_single <- ranger(y=y, x=x, num.trees=500, oob.error=TRUE)
         pred_stack <- na.omit(stack)
         
@@ -502,7 +502,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         }
         se <- xtable$se
 
-        fit.rf <- randomForest(y=y, x=x, ntree=500, mtry=6)
+        fit.rf <- randomForest(y=y, x=x, ntree=NTREE, mtry=6)
         
     }
     
@@ -522,7 +522,7 @@ agbModeling<-function(rds_models, models_id, in_data, pred_vars, offset=100, DO_
         #tune mtry
         #mtry_use <- tuneRF(x, y, ntreeTry=50, stepFactor=2, improve=0.05, trace=FALSE, plot=FALSE, doBest=FALSE)
         #fit the RF model that will actually be applied for mapping
-        fit.rf <- randomForest(y=y, x=x, ntree=500, mtry=6)
+        fit.rf <- randomForest(y=y, x=x, ntree=NTREE, mtry=6)
         #print(max(fit.rf$rsq, na.rm=TRUE))
     }
     
@@ -558,7 +558,7 @@ if(rep>1){
     }
     x_fit <- xtable[pred_vars]
         
-    fit.rf <- randomForest(y=y_fit, x=x_fit, ntree=250)
+    fit.rf <- randomForest(y=y_fit, x=x_fit, ntree=NTREE)
     
     model_list <- list.append(model_list, fit.rf)  
       }
@@ -1228,7 +1228,7 @@ print(pred_vars)
         out_table <- xtable[,c('lon', 'lat', 'AGB', 'SE')]
         write.csv(out_table, file=out_train_fn, row.names=FALSE)
         str(xtable)
-        rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=500, importance=TRUE, mtry=6)
+        rf_single <- randomForest(y=xtable$AGB, x=xtable[pred_vars], ntree=NTREE, importance=TRUE, mtry=6)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$AGB[1:nrow_tile], na.rm=TRUE)
 
     }
@@ -1236,7 +1236,7 @@ print(pred_vars)
     if(predict_var=='Ht'){
         out_table = xtable[c('lon','lat','RH_98')]    
         write.csv(out_table, file=out_train_fn, row.names=FALSE)
-        rf_single <- randomForest(y=xtable$RH_98, x=xtable[pred_vars], ntree=500, importance=TRUE, mtry=6)
+        rf_single <- randomForest(y=xtable$RH_98, x=xtable[pred_vars], ntree=NTREE, importance=TRUE, mtry=6)
         local_model <- lm(rf_single$predicted[1:nrow_tile] ~ xtable$RH_98[1:nrow_tile], na.rm=TRUE)
 
     }
@@ -1417,6 +1417,9 @@ print("modelling begins")
 
 print('file name:')
 print(data_sample_file)
+
+set.seed(123)
+NTREE = 30
 
 maps<-mapBoreal(rds_models=rds_models,
                 models_id=models_id,
