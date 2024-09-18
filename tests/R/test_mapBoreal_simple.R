@@ -74,3 +74,98 @@ test_that("expand_training_around_growing_season returns the correct data when e
   # Note that we can't find 5 samples in this case, but this is the best we can do
   expect_equal(result, tile_data[c(1, 2, 3, 4), ])
 })
+
+test_that("reduce_sample_size returns correct sample size", {
+
+  tile_data <- data.frame(A = 1:10, B = 11:20)
+  sample_size <- 5
+  result <- reduce_sample_size(tile_data, sample_size)
+
+  expect_equal(nrow(result), sample_size)
+})
+
+test_that("reduce_sample_size samples valid rows", {
+
+  df <- data.frame(A = 1:10, B = 11:20)
+  sample_size <- 5
+  result <- reduce_sample_size(df, sample_size)
+
+  expect_true(all(result$A %in% df$A))
+})
+
+test_that("reduce_sample_size handles edge cases", {
+
+  df <- data.frame(A = 1:10, B = 11:20)
+
+  # Test when sample size is the total number of rows
+  result <- reduce_sample_size(df, 10)
+  expect_equal(nrow(result), 10)
+
+  # Test when sample size is larger than available rows
+  expect_error(reduce_sample_size(df, 15),
+               "cannot take a sample larger than the population when 'replace = FALSE'")
+})
+
+test_that("remove_stale_columns works as expected", {
+
+  df <- data.frame(a = 1:3, b = 4:6, c = 7:9)
+  result <- remove_stale_columns(df, c("a"))
+
+  expected <- data.frame(b = 4:6, c = 7:9)
+  expect_true(identical(result, expected))
+})
+
+test_that("remove_stale_columns works as expected when removing multiple columns that exist", {
+
+  df <- data.frame(a = 1:3, b = 4:6, c = 7:9)
+  result <- remove_stale_columns(df, c("a", "c"))
+
+  expected <- data.frame(b = 4:6)
+  expect_true(identical(result, expected))
+})
+
+test_that("remove_stale_columns works as expected when removing a column that does not exist", {
+  df <- data.frame(a = 1:3, b = 4:6, c = 7:9)
+  result <- remove_stale_columns(df, c("d"))
+
+  expect_equal(result, df)  # No change expected
+})
+
+test_that("remove_stale_columns works as expected when removing both existing and non-existing columns", {
+
+  df <- data.frame(a = 1:3, b = 4:6, c = 7:9)
+  result <- remove_stale_columns(df, c("a", "d"))
+
+  expected <- data.frame(b = 4:6, c = 7:9)
+  expect_true(identical(result, expected))
+})
+
+test_that("remove_stale_columns works as expected when no columns to remove (empty column_names)", {
+
+  df <- data.frame(a = 1:3, b = 4:6, c = 7:9)
+  result <- remove_stale_columns(df, character(0))
+
+  expect_equal(result, df)  # No change expected
+})
+
+test_that("remove_stale_columns works as expected when  empty data frame", {
+
+  empty_df <- data.frame()
+  result <- remove_stale_columns(empty_df, c("a"))
+  expect_equal(result, empty_df)  # No change expected for empty data frame
+})
+
+test_that("remove_stale_columns works as expected when Data frame with only one column, removing that column", {
+
+  single_col_df <- data.frame(a = 1:3)
+  # dropping column a doesn't remove the row names, hence check.attributes=False below
+  result <- remove_stale_columns(single_col_df, c("a"))
+
+  expected <- data.frame()  # Expect an empty data frame
+  expect_true(isTRUE(all.equal(result, expected, check.attributes = FALSE)))
+})
+
+test_that("remove_stale_columns works as expected when Non-data frame input (testing if error is handled)", {
+
+  expect_error(remove_stale_columns(list(a = 1:3), c("a")), "incorrect number of dimensions")
+})
