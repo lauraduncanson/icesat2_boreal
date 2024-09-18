@@ -866,6 +866,22 @@ expand_training_around_growing_season <- function(tile_data, minDOY, maxDOY, max
   return(tile_data[early_season_filter_and_doy$filter,])
 }
 
+reduce_sample_size <- function(df, sample_size){
+
+  sample_ids <- seq(1, nrow(df))
+  df_sample_ids <- sample(sample_ids, sample_size, replace=FALSE)
+
+  return(df[df_sample_ids,])
+}
+
+remove_stale_columns <- function(df, column_names) {
+
+  columns_to_remove <- intersect(names(df), column_names)
+  df <- df[, !names(df) %in% columns_to_remove, drop=FALSE]
+
+  return(df)
+}
+
 mapBoreal<-function(rds_models,
                     models_id,
                     ice2_30_atl08_path, 
@@ -904,67 +920,23 @@ mapBoreal<-function(rds_models,
     n_avail <- nrow(tile_data)
     print('n_avail training:')
     print(n_avail)
+    
+    # if(n_avail > max_n)
+    #   tile_data <- reduce_sample_size(tile_data, max_n)
 
-    #if(n_avail > max_n){        
-    #    samp_ids <- seq(1,n_avail)
-    #    tile_sample_ids <- sample(samp_ids, max_n, replace=FALSE)
-    #    tile_data <- tile_data[tile_sample_ids,]
-    #}
-    
-    #if bad cols exist, remove
-    
-    if("binsize" %in% names(tile_data)){
-        check_binsize <- which(names(tile_data) %in% "binsize")
-        tile_data <- tile_data[,-check_binsize]
-        rm(check_binsize)
-    }
-    if("num_bins" %in% names(tile_data)){
-        check_nbins <- which(names(tile_data) %in% "num_bins")
-        tile_data <- tile_data[,-check_nbins]
-        rm(check_nbins)
-    }
-    
-    #if("__index_level_0__" %in% names(tile_data)){
-    #    rm_temp <- which(names(tile_data) %in% "__index_level_0__")
-    #    tile_data <- tile_data[,-rm_temp]
-    #    rm(rm_temp)
-    #}
-                
-    #tile_data = tile_data[,!(names(tile_data) %in% "geometry")]
-                
-    #order by name
-    #tile_data <- tile_data[,order(names(tile_data))]
-    
+    tile_data <- remove_stale_columns(tile_data, c("binsize", "num_bins"))
     n_avail <- nrow(tile_data)
-    
-    #combine for fitting
     broad_data <- read.csv(ice2_30_sample_path)
-    
-    if("X__index_level_0__" %in% names(broad_data)){
-        rm_temp <- which(names(broad_data) %in% "X__index_level_0__")
-        broad_data <- broad_data[,-rm_temp]
-        rm(rm_temp)
-    }
-                
-    broad_data = broad_data[,!(names(broad_data) %in% "geometry")]
-    
+    broad_data <- remove_stale_columns(broad_data, c("X__index_level_0__", "geometry"))
     print(ice2_30_sample_path)
-    
-    #remove first col of broad_data
-    #broad_data <- broad_data[,2:ncol(broad_data)]
+
     #take propertion of broad data we want based on local_train_perc
     sample_local <- n_avail * (local_train_perc/100)
-    
-    #if static broad, use all local train data
-    #sample_local <- n_tile
-
     print('sample_local:')
     print(n_avail)
-    if(sample_local < min_icesat2_samples){
-        samp_ids <- seq(1,sample_local)
-        tile_sample_ids <- sample(samp_ids, sample_local, replace=FALSE)
-        tile_data <- tile_data[tile_sample_ids,]
-    }
+
+    if (sample_local < min_icesat2_samples)
+      tile_data <- reduce_sample_size(tile_data, sample_local)
 
     #sample from broad data to complete sample size
     #this will work if either there aren't enough local samples for n_min OR if there is forced broad sampling
@@ -1264,11 +1236,10 @@ max_iters <- sq_local:')
     return(list(out_cog_fn, out_csv_fn))
 }
 
-####################### Run code ##############################
+# ####################### Run code ##############################
 
 # Get command line args
 # args = commandArgs(trailingOnly=TRUE)
-# 
 # #rds_filelist <- args[1]
 # data_table_file <- args[1]
 # topo_stack_file <- args[2]
@@ -1288,9 +1259,7 @@ max_iters <- sq_local:')
 # predict_var <- args[16]
 # max_n <- args[17]
 # pred_vars <- args[18]
-# 
 # print(pred_vars)
-# 
 # print('max_n:')
 # print(max_n)
 pred_vars = '~/Downloads/dps_output/pred_vars.txt'
@@ -1333,7 +1302,7 @@ max_sol_el <- as.double(max_sol_el)
 local_train_perc <- as.double(local_train_perc)
 
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
-                          
+
 #MASK_LANDCOVER_NAMES = c(0,13,15,16)
 MASK_LANDCOVER_NAMES = c(50,70,80,100)
 
@@ -1380,7 +1349,7 @@ if(nrow_diff>0 || ncol_diff>0 || nrow_diff2>0 || ncol_diff2>0){
    #resample
     topo <- resample(topo, l8, method='near')
     lc <- resample(lc, l8, method='near')
-} 
+}
 ext(topo) <- ext(l8)
 ext(lc) <- ext(l8)
 
@@ -1392,7 +1361,7 @@ if(DO_MASK_WITH_STACK_VARS){
     #brick = rast(stack)
     for(LYR_NAME in MASK_LYR_NAMES){
         m <- terra::subset(stack, grep(LYR_NAME, names(stack), value = T))
-        
+
         stack <- mask(stack, m == 0, maskvalue=TRUE)
 
     }
