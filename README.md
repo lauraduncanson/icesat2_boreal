@@ -19,5 +19,6 @@
 | Laura Duncanson | PI |  Dept. Geographical Sciences, U. Maryland-College Park
 | Paul Montesano |  Co-I | NASA Goddard Space Flight Center |
 | Nathan Thomas  |  Co-I | Edge Hill University |
-| Alex Mandel    |  Collaborator | DevelopmentSeed, Inc.
+| Alex Mandel    |  Collaborator | DevelopmentSeed, Inc. |
+| Ali Zarringhalam | Collaborator | Dept. Geographical Sciences, U. Maryland-College Park
 
