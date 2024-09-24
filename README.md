@@ -1,6 +1,6 @@
 # `icesat2_boreal`
 
-**Modeling and mapping of aboveground woody biomass for the circumpolar boreal forest using ICESat-2, Harmonized Landsat-Sentinel2, and Copernicus Digital Elevation Model**
+**Modeling and mapping of aboveground woody biomass for the circumpolar boreal forest using ICESat-2/ATLAS, Harmonized Landsat/Sentinel-2, and Copernicus GLO30 Digital Elevation Model**
 
 ![image](https://github.com/user-attachments/assets/24e28e19-3a37-45b4-8504-f216941a6e4e)
 
