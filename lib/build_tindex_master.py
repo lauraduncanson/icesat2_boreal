@@ -260,7 +260,8 @@ def main():
                     ends_with_str = ".parquet"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_2020_*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                #dps_out_searchkey_list = [s for s in dps_out_searchkey_list if '_2020_' in s] # TMP - remove after tests
                 ends_with_str = ".tif"
                 
         else:
@@ -333,7 +334,7 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'AGB' in TYPE or 'HT' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
+            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'Topo' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
