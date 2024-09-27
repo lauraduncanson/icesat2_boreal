@@ -65,8 +65,115 @@ def GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style={'
         )
     return boreal_tile_index_layer
 
+def MAP_REGISTERED_DPS_RESULTS( 
+                    boreal_tile_index, 
+                    tile_index_check, 
+                    CHECK_TILES_NAME='Check tiles', 
+                    ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
+                    tiles_remove = [41995, 41807, 41619], # geo abyss,
+                    SHOW_WIDGETS=False,
+                    map_width=1000, map_height=500,
+                    ADD_TILELAYER = None,
+                   ):
+    
+    if ADD_TILELAYER is not None:
+        if isinstance(ADD_TILELAYER, list):
+            ADD_TILELAYER_LIST = ADD_TILELAYER
+        else:
+            ADD_TILELAYER_LIST = [ADD_TILELAYER]
+            
+        colormap_ADDED_TILELAYER_list = []
+        for ADD_TILELAYER in ADD_TILELAYER_LIST:
+            cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
+            colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
+            colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
+            colormap_ADDED_TILELAYER_list.append(colormap_ADDED_TILELAYER)
 
-def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index, 
+    # Style Vector Layers
+    ecoboreal_style = {'fillColor': 'gray', 'color': 'gray'}
+    boreal_style = {'fillColor': 'gray', 'color': 'gray'}
+    boreal_subset_style = {'fillColor': 'red', 'color': 'red'}
+
+    if ecoboreal_geojson is not None:
+
+        ecoboreal = geopandas.read_file(ecoboreal_geojson)
+        # Reproject Vector Layers
+        p1, p2, clat, clon = [50, 70, 40, 160]
+        proj_str_aea = '+proj=aea +lat_1={:.2f} +lat_2={:.2f} +lat_0={:.2f} +lon_0={:.2f}'.format(p1, p2, clat, clon)
+        ecoboreal_aea = ecoboreal.to_crs(proj_str_aea)
+        # Apply a buffer
+        ecoboreal_aea_buf = ecoboreal_aea["geometry"].buffer(1e5)
+        # Go back to GCS
+        ecoboreal_buf = ecoboreal_aea_buf.to_crs(boreal_tile_index.crs)
+        ecoboreal_layer = GeoJson(ecoboreal, name="Boreal extent from Ecoregions", style_function=lambda x:ecoboreal_style)
+
+    # Map the Layers
+    #Map_Figure=Figure(width=map_width,height=map_height)
+    Map_Figure=Figure()
+    #------------------
+    m1 = Map(
+        width=map_width,height=map_height,
+        #tiles="Stamen Toner",
+        tiles='',
+        location=(60, 5),
+        zoom_start=3, 
+        control_scale = True
+    )
+    Map_Figure.add_child(m1)
+
+    boreal_tiles_style = {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0}
+    dps_subset_style = {'fillColor': '#377eb8', 'color': '#377eb8', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}
+    dps_check_style = {'fillColor': 'red', 'color': 'red'}
+
+    boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style)
+
+    if tile_index_check is not None and len(tile_index_check) > 0:
+        tile_index_check_layer = GeoJson(
+                data=tile_index_check,
+                style_function=lambda x:dps_check_style,
+                name=f"{CHECK_TILES_NAME} tiles"
+            ) 
+
+    if ADD_TILELAYER is not None:
+        for i, ADD_TILELAYER in enumerate(ADD_TILELAYER_LIST):
+            ADD_TILELAYER["layer"].add_to(m1)
+            print(f"Adding layer {ADD_TILELAYER['caption']}...")
+            if ADD_TILELAYER["show_cbar"]:
+                m1.add_child(colormap_ADDED_TILELAYER_list[i])
+        
+        
+    # Add custom basemaps
+    basemaps['Google Terrain'].add_to(m1)
+    basemaps['Imagery'].add_to(m1)
+    basemaps['ESRINatGeo'].add_to(m1)
+    basemaps['basemap_gray'].add_to(m1)
+
+    if ecoboreal_geojson is not None:
+        ecoboreal_layer.add_to(m1)
+
+    # Layers are added on top. Last layer is top layer
+    boreal_tile_index_layer.add_to(m1)
+
+    if tile_index_check is not None and len(tile_index_check) > 0:
+        tile_index_check_layer.add_to(m1) 
+    
+    if SHOW_WIDGETS:
+        plugins.Geocoder().add_to(m1)
+        
+    LayerControl().add_to(m1)
+    plugins.Geocoder(position='bottomright').add_to(m1)
+    plugins.Fullscreen(position='bottomleft').add_to(m1)
+    plugins.MousePosition().add_to(m1)
+    
+    if SHOW_WIDGETS:
+        minimap = plugins.MiniMap()
+        m1.add_child(minimap)
+        #m1.add_child(colormap_AGBSE)
+
+    return m1
+
+def MAP_DPS_RESULTS(tiler_mosaic, 
+                    boreal_tile_index, 
                     tile_index_matches,  
                     tile_index_check, 
                     MATCH_TILES_NAME='Match tiles', 
@@ -145,7 +252,7 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     boreal_style = {'fillColor': 'gray', 'color': 'gray'}
     boreal_subset_style = {'fillColor': 'red', 'color': 'red'}
 
-    if True:
+    if ecoboreal_geojson is not None:
 
         ecoboreal = geopandas.read_file(ecoboreal_geojson)
         # Reproject Vector Layers
@@ -244,15 +351,16 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
 
     boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style)
 
-    tile_matches_layer = GeoJson(
-            data=tile_index_matches,
-            style_function=lambda x:dps_subset_style,
-            name=f"{MATCH_TILES_NAME} completed",
-            tooltip=features.GeoJsonTooltip(
-                fields=['tile_num'],
-                aliases=['Tile num:'],
+    if tile_index_matches is not None and len(tile_index_matches) > 0:
+        tile_matches_layer = GeoJson(
+                data=tile_index_matches,
+                style_function=lambda x:dps_subset_style,
+                name=f"{MATCH_TILES_NAME} completed",
+                tooltip=features.GeoJsonTooltip(
+                    fields=['tile_num'],
+                    aliases=['Tile num:'],
+                    )
             )
-        )
 
     if tile_index_check is not None and len(tile_index_check) > 0:
         tile_index_check_layer = GeoJson(
@@ -426,16 +534,17 @@ def MAP_DPS_RESULTS(tiler_mosaic, boreal_tile_index,
     basemaps['ESRINatGeo'].add_to(m1)
     basemaps['basemap_gray'].add_to(m1)
 
-    ecoboreal_layer.add_to(m1)
+    if ecoboreal_geojson is not None:
+        ecoboreal_layer.add_to(m1)
 
     # Layers are added on top. Last layer is top layer
     boreal_tile_index_layer.add_to(m1)
-    tile_matches_layer.add_to(m1)
+    
+    if tile_index_matches is not None and len(tile_index_matches) > 0:
+        tile_matches_layer.add_to(m1)
 
     if tile_index_check is not None and len(tile_index_check) > 0:
-        tile_index_check_layer.add_to(m1)
-
-    #tile_matches_n_obs.add_to(m1)    
+        tile_index_check_layer.add_to(m1) 
     
     # Add reference plots
     if plots is not None and len(plots) > 0:

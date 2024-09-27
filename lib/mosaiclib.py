@@ -13,6 +13,42 @@ LARGE_DATELINE_TILES = [3540,3634,3728,3823,3916,4004,41995,41807,41619]
 MERIDIAN_TILES       = [22938, 23219, 23828, 24109, 23548, 23782, 24670, 24389, 24108, 23501, 23547]
 
 ######
+###### Titiler mosaic registrations
+######
+TITILER_MOSAIC_REG_DICT = {
+    'LC':
+        {'c2020updated':'bc22b016-9cf2-46e1-bbbe-3da41a0b821a',
+        },
+    'TOPO':
+        {'c2020updated_v2':'2b7aac49-7248-43d0-9c6c-a7ecb0c08ace',
+        },
+    'HLS':  
+        {'2016':None ,
+         '2017':None,
+         '2018':None,
+         '2019':None,
+         '2020':None,
+         '2021':None,
+         '2022':None,
+         '2023':None,
+         '2024':None
+        },
+    'AGB':{
+        '2020_v2.0': None, #'aca62291-9aad-4ee8-8aa6-8ed46b20db6f',
+        #'2020_v2.0_masked': '8aa09548-e68a-4974-8238-6f576a2f6e31',
+    },
+    'HT':{
+        '2020_v2.0':None,
+    },
+    'TCC':{
+        '2020':None,
+    },
+    'TCCTREND':{
+        '2020':'fbfa85ec-1bbc-4870-9a3f-ca985860088a'
+    },
+}
+
+######
 ###### Boreal ATL08 granules list (from PhoReal)
 ######
 ATL08_GRANULE_TINDEX_FN_DICT = {
@@ -181,7 +217,8 @@ HLS_MOSAIC_JSON_FN_DICT = {
     '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2020/HLS_tindex_master_mosaic.json',
     '2021': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2021/HLS_tindex_master_mosaic.json',
     '2022': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2022/HLS_tindex_master_mosaic.json',
-    '2023': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2023/HLS_tindex_master_mosaic.json'
+    '2023': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2023/HLS_tindex_master_mosaic.json',
+    '2024': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2024/HLS_tindex_master_mosaic.json',
 }
 
 HLS_TINDEX_FN_DICT = dict()
