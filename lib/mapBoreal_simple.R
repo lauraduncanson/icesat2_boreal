@@ -1333,7 +1333,7 @@ local_train_perc <- as.double(local_train_perc)
 MASK_LYR_NAMES = c('slopemask', 'ValidMask')
                           
 #MASK_LANDCOVER_NAMES = c(0,13,15,16)
-MASK_LANDCOVER_NAMES = c(50,70,80,100)
+MASK_LANDCOVER_NAMES = c(50, 60, 70,80,100)
 
 print(paste0("Do mask? ", DO_MASK_WITH_STACK_VARS))
 
