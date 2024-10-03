@@ -1,4 +1,5 @@
 import os
+import maplib_folium
 
 ######
 ######
@@ -34,11 +35,11 @@ TITILER_MOSAIC_REG_DICT = {
          '2024':None
         },
     'AGB':{
-        '2020_v2.0': None, #'aca62291-9aad-4ee8-8aa6-8ed46b20db6f',
+        '2020_v2.0': '24a89b17-d3ae-4e49-825d-0f91fea86621',
         #'2020_v2.0_masked': '8aa09548-e68a-4974-8238-6f576a2f6e31',
     },
     'HT':{
-        '2020_v2.0':None,
+        '2020_v2.0':'623f8f82-ffe7-4348-ab48-d920e4b34763',
     },
     'TCC':{
         '2020':None,
@@ -314,6 +315,8 @@ TOPO_MOSAIC_JSON_FN_DICT = {
 TOPO_TINDEX_FN_DICT = dict()
 for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
     TOPO_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
+    
+
 
 ######
 ###### Build tindex dictionaries - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
