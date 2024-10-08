@@ -29,7 +29,7 @@ AGB_2020_MOSAIC_JSON_FN = f's3://maap-ops-workspace/shared/montesano/DPS_tile_li
 AGB_2020_TILE_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                                        mosaiclib.TITILER_MOSAIC_REG_DICT['AGB']['2020_v2.0'], 
                                                        None, #AGB_2020_MOSAIC_JSON_FN, 
-                                                       "AGB 2020", 
+                                                       "AGB [Mg/ha] 2020", 
                                                        SHOW_CBAR=True, 
                                                        PARAMS_DICT = {"rescale": f"0,{MAX_AGB}", "bidx":"1", "colormap_name": f"{CMAP_AGB}"})
 
@@ -41,7 +41,7 @@ HT_2020_MOSAIC_JSON_FN = f's3://maap-ops-workspace/shared/montesano/DPS_tile_lis
 HEIGHT_2020_TILE_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_v2.0'], 
                                                     None, #HT_2020_MOSAIC_JSON_FN, 
-                                                    "Height 2020", SHOW_CBAR=True, 
+                                                    "Height [m] 2020", SHOW_CBAR=True, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0,{MAX_HT}", "bidx":"1", "colormap_name": f"{CMAP_HT}"}
                                                    )

@@ -111,7 +111,7 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
     
     return tiles
 
-def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=False, PARAMS_DICT = {"rescale": "0,30", "bidx":"1", "colormap_name": "inferno"}):
+def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=False, PARAMS_DICT = {"rescale": "0,30", "bidx":"1", "colormap_name": "inferno"}, PRINT=False):
     
     '''Use mosaic json to check for registration, register, build tiles layer url with parameters
         A NAME will help identify the tiles layer in the legend and under the colorbar
@@ -174,7 +174,8 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
         "show_cbar": SHOW_CBAR
     }
     
-    print(f'{NAME} tiles ({CMAP}): {tiles}')
+    if PRINT:
+        print(f'{NAME} tiles ({CMAP}): {tiles}')
     
     return TILES_LAYER_DICT
 
