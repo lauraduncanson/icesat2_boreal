@@ -260,7 +260,7 @@ def main():
                     ends_with_str = ".parquet"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9].tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".tif"
                 
         else:
@@ -333,14 +333,21 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'AGB' in TYPE or 'HT' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
+            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'Topo' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
         if 'Landsat' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif') 
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
+            
+        # Get righ of rows with tile_num=NaN derived from bad file str indexing
+        print(f"Rows before NaN removal: {df.shape[0]}")
+        df_nulls = df[df.isnull().tile_num]
+        print(f"Paths creating null tile_nums: {df_nulls.s3_path.to_list()}")
+        df = df[~df.isnull().tile_num]
+        print(f"Rows after NaN removal: {df.shape[0]}")
         
         if 'ATL08' in TYPE:
             
@@ -400,6 +407,8 @@ def main():
         RETURN_CREATION_TIME = True
         if args.RETURN_DUPS:    
             if TYPE == 'S1_subtile': RETURN_CREATION_TIME=False # This might help reduce time of run?
+            # An exception will be caught and handled if attempting to get creation time from another user's dps_output
+            # eg, user montesano trying to get user lduncanson AGB or HT output
             try:
                 df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
             except:
@@ -410,8 +419,8 @@ def main():
         else:
             df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
         if DEBUG: print(df.head())
-            
-        print(f'Writing tindex master csv: {out_tindex_fn}')
+         
+        print(f"Writing tindex master csv: {local_to_s3(out_tindex_fn, user='montesano', type='public')}")
         df.to_csv(out_tindex_fn, mode='w', index_label='index')
         
         if 'S1' not in TYPE:

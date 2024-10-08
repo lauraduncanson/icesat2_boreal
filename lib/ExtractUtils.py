@@ -557,7 +557,7 @@ def get_tile_matches_gdf(tindex_master_fn,
     
     return tile_index_matches_gdf
 
-def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn = '/projects/shared-buckets/montesano/databank/arc/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
+def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', TITLE='', boundary_layer_fn = '/projects/shared-buckets/montesano/databank/arc/wwf_circumboreal_Dissolve.geojson', LIST_4326_VERTS = [(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)]):
     
     '''Plot a gdf (in 4326) on a world map'''
     import shapely
@@ -571,7 +571,8 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
     gdf = gdf.to_crs("EPSG:4326")
     
     #legend_kwds={"orientation": "horizontal"}
-    legend_kwds={'bbox_to_anchor': (1.3, 1)}
+    #legend_kwds={'bbox_to_anchor': (1.3, 1)}
+    #legend_kwds={'loc': 4}
     
     # Get world
     world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
@@ -591,15 +592,15 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', boundary_layer_fn
         ax = gdf.plot(column=MAP_COL, cmap = "nipy_spectral", legend=True, linewidth=0.1, 
                        #legend_kwds=legend_kwds, 
                        #cax=cax,
-                       ax=ax
-                     )
+                       ax=ax                     )
     else:
         #print(gdf.plot(color='orange', ax=ax))
         ax = gdf.plot(color='orange',
                       #legend_kwds=legend_kwds,
                       ax=ax
                      )
-        
+
+    ax.set_title(TITLE)
     #ax.legend(loc='lower left')
               
     return ax
