@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -202,7 +202,7 @@ def main():
             os.makedirs(args.outdir)
     
     if args.type == 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HLS','LC','HT']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HLS','LC','HT']
     else:
         TYPE_LIST = [args.type]
     
@@ -341,13 +341,6 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
-            
-        # Get righ of rows with tile_num=NaN derived from bad file str indexing
-        print(f"Rows before NaN removal: {df.shape[0]}")
-        df_nulls = df[df.isnull().tile_num]
-        print(f"Paths creating null tile_nums: {df_nulls.s3_path.to_list()}")
-        df = df[~df.isnull().tile_num]
-        print(f"Rows after NaN removal: {df.shape[0]}")
         
         if 'ATL08' in TYPE:
             
@@ -377,6 +370,13 @@ def main():
                 df = df.join(df_nobs[['tile_num','n_obs']].set_index('tile_num'), how='left', on='tile_num')
             else:
                 df['tile_num'] =  'NA'
+                
+        # Get right num of rows with tile_num=NaN derived from bad file str indexing
+        print(f"Rows before NaN removal: {df.shape[0]}")
+        df_nulls = df[df.isnull().tile_num]
+        print(f"Paths creating null tile_nums: {df_nulls.s3_path.to_list()}")
+        df = df[~df.isnull().tile_num]
+        print(f"Rows after NaN removal: {df.shape[0]}")
                     
         num_with_duplicates = df.shape[0]
         if DEBUG: print(df.head())

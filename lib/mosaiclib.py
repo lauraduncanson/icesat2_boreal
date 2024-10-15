@@ -35,11 +35,11 @@ TITILER_MOSAIC_REG_DICT = {
          '2024':None
         },
     'AGB':{
-        '2020_v2.0': '2cc6a704-255f-4e3f-a36b-5b278d24296d',
+        '2020_v2.0': 'ea5bff1b-a5bf-497b-a01c-5dda868cb499', #'2cc6a704-255f-4e3f-a36b-5b278d24296d',
         #'2020_v2.0_masked': '8aa09548-e68a-4974-8238-6f576a2f6e31',
     },
     'HT':{
-        '2020_v2.0':'623f8f82-ffe7-4348-ab48-d920e4b34763',
+        '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',
     },
     'TCC':{
         '2020':None,
@@ -74,11 +74,11 @@ ATL08_FILT_TINDEX_FN_DICT = {
     'c2020fall2022v2' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv',
     # in Phase 3 with same ATL08 v005 - ONLY dateline tiles
     'c2020_v005'      : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/tile_atl08/c2020_v005/ATL08_filt_tindex_master.csv',
-    '2019'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2019/ATL08_filt_tindex_master.csv', # topo + HLS H30 + S1
-    '2020'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2020/ATL08_filt_tindex_master.csv', # topo + HLS H30 + S1 * agg tile 10 has missing S1 subtiles that should be fixed - not high priority
-    '2021'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2021/ATL08_filt_tindex_master.csv', # waiting for S1 subtile tranfer from GEE ...
-    '2022'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2022/ATL08_filt_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
-    '2023'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2023/ATL08_filt_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
+    '2019'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2019/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1
+    '2020'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2020/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1 * agg tile 10 has missing S1 subtiles that should be fixed - not high priority
+    '2021'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2021/ATL08_filt_extract_tindex_master.csv', # waiting for S1 subtile tranfer from GEE ...
+    '2022'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2022/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
+    '2023'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2023/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
 }
 
 ######
@@ -317,9 +317,8 @@ for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
     TOPO_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
     
 
-
 ######
-###### Build tindex dictionaries - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
+###### Dictionaries for building tindex files - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
 ######
 DICT_BUILD_TINDEX_ATL08_FILT = {
   'SET': 'ATL08',
@@ -331,20 +330,57 @@ DICT_BUILD_TINDEX_ATL08_FILT = {
  'YEAR': 2024,
  'DPS_MONTH_LIST': '02',
  'DPS_DAY_MIN': 1,
- 'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'}
-DICT_BUILD_TINDEX_HLS_L30_c2020_datelines = {
-    'SET' : 'HLS',
-    'USER' : 'montesano',
-    'ALG_NAME' : 'do_HLS_stack_3-1-2',
-    'ALG_VERSION' : 'HLS_stack_2023_v1',
-    'VAR' : 'HLS',
-    # In my bucket, this is ALWAYS used to identify output
-    'BATCH_NAME' : f'HLS_L30_c2020',
+ 'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'
+}
+DICT_BUILD_TINDEX_ATL08_FILT_EXTRACT = {
+  'SET': 'ATL08',
+ 'USER': 'montesano',
+ 'ALG_NAME': 'run_extract_atl08_covars', 
+ 'ALG_VERSION': 'extract_atl08_covars',
+ 'VAR': 'ATL08_filt_extract',
+ 'BATCH_NAME': '2020',
+ 'YEAR': 2024,
+ 'DPS_MONTH_LIST': '02 03',
+ 'DPS_DAY_MIN': 1,
+ 'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'
+}
+DICT_BUILD_TINDEX_AGB = {
+    'SET' : 'BOREAL_MAP',
+    'USER' : 'lduncanson',
+    'ALG_NAME' : 'run_boreal_biomass_map',
+    'ALG_VERSION' : 'boreal_agb_2024_v6', 
+    'VAR' : 'AGB',
+    'BATCH_NAME' : 'AGB_H30_2020/Version2_SD',
     'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
+    'DPS_MONTH_LIST' : '07 08 09 10',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
+DICT_BUILD_TINDEX_HT = {
+    'SET' : 'BOREAL_MAP',
+    'USER' : 'lduncanson',
+    'ALG_NAME' : 'run_boreal_biomass_map',
+    'ALG_VERSION' : 'boreal_agb_2024_v6', 
+    'VAR' : 'HT',
+    'BATCH_NAME' : 'Ht_H30_2020/Version2_SD',
+    'YEAR': 2024,
+    'DPS_MONTH_LIST' : '07 08 09 10',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
+# DICT_BUILD_TINDEX_HLS_L30_c2020_datelines = {
+#     'SET' : 'HLS',
+#     'USER' : 'montesano',
+#     'ALG_NAME' : 'do_HLS_stack_3-1-2',
+#     'ALG_VERSION' : 'HLS_stack_2023_v1',
+#     'VAR' : 'HLS',
+#     # In my bucket, this is ALWAYS used to identify output
+#     'BATCH_NAME' : f'HLS_L30_c2020',
+#     'YEAR': 2024,
+#     'DPS_MONTH_LIST' : '02',        
+#     'DPS_DAY_MIN' : 1 ,
+#     'TILES_INDEX_PATH': boreal_tile_index_path
+# }
 # DICT_BUILD_TINDEX_AGB = {
 #     'SET' : 'BOREAL_MAP',
 #     'USER' : 'lduncanson',
@@ -369,19 +405,19 @@ DICT_BUILD_TINDEX_HLS_L30_c2020_datelines = {
 #     'DPS_DAY_MIN' : 1 ,
 #     'TILES_INDEX_PATH': boreal_tile_index_path
 # }
-DICT_BUILD_TINDEX_AGB = {
-    'SET' : 'BOREAL_MAP',
-    'USER' : 'lduncanson',
-    'ALG_NAME' : 'run_boreal_biomass_map',
-    'ALG_VERSION' : 'boreal_agb_2024_v2',
-    'VAR' : 'AGB',
-    # In my bucket, this is ALWAYS used to identify output
-    'BATCH_NAME' : f'AGB_L30_2020/add_maxn_fullboreal',
-    'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
-    'DPS_DAY_MIN' : 1 ,
-    'TILES_INDEX_PATH': boreal_tile_index_path
-}
+# DICT_BUILD_TINDEX_AGB = {
+#     'SET' : 'BOREAL_MAP',
+#     'USER' : 'lduncanson',
+#     'ALG_NAME' : 'run_boreal_biomass_map',
+#     'ALG_VERSION' : 'boreal_agb_2024_v2',
+#     'VAR' : 'AGB',
+#     # In my bucket, this is ALWAYS used to identify output
+#     'BATCH_NAME' : f'AGB_L30_2020/add_maxn_fullboreal',
+#     'YEAR': 2024,
+#     'DPS_MONTH_LIST' : '02',        
+#     'DPS_DAY_MIN' : 1 ,
+#     'TILES_INDEX_PATH': boreal_tile_index_path
+# }
 DICT_BUILD_TINDEX_SAR = {
     'SET' : 'SAR',
     'USER' : 'montesano',
