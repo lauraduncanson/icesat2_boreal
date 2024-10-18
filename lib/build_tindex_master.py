@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -202,7 +202,7 @@ def main():
             os.makedirs(args.outdir)
     
     if args.type == 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'AGB','HLS','LC','HT']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HLS','LC','HT']
     else:
         TYPE_LIST = [args.type]
     
@@ -260,7 +260,7 @@ def main():
                     ends_with_str = ".parquet"
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9].tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".tif"
                 
         else:
@@ -333,14 +333,14 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'AGB' in TYPE or 'HT' in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
+            df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'Topo' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
         if 'Landsat' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
-            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif') 
+            df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
         
         if 'ATL08' in TYPE:
             
@@ -370,6 +370,13 @@ def main():
                 df = df.join(df_nobs[['tile_num','n_obs']].set_index('tile_num'), how='left', on='tile_num')
             else:
                 df['tile_num'] =  'NA'
+                
+        # Get right num of rows with tile_num=NaN derived from bad file str indexing
+        print(f"Rows before NaN removal: {df.shape[0]}")
+        df_nulls = df[df.isnull().tile_num]
+        print(f"Paths creating null tile_nums: {df_nulls.s3_path.to_list()}")
+        df = df[~df.isnull().tile_num]
+        print(f"Rows after NaN removal: {df.shape[0]}")
                     
         num_with_duplicates = df.shape[0]
         if DEBUG: print(df.head())
@@ -400,6 +407,8 @@ def main():
         RETURN_CREATION_TIME = True
         if args.RETURN_DUPS:    
             if TYPE == 'S1_subtile': RETURN_CREATION_TIME=False # This might help reduce time of run?
+            # An exception will be caught and handled if attempting to get creation time from another user's dps_output
+            # eg, user montesano trying to get user lduncanson AGB or HT output
             try:
                 df, dropped = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
             except:
@@ -410,8 +419,8 @@ def main():
         else:
             df = handle_duplicates(df, focal_field_name_list, TYPE, args.RETURN_DUPS, RETURN_CREATION_TIME=RETURN_CREATION_TIME)
         if DEBUG: print(df.head())
-            
-        print(f'Writing tindex master csv: {out_tindex_fn}')
+         
+        print(f"Writing tindex master csv: {local_to_s3(out_tindex_fn, user='montesano', type='public')}")
         df.to_csv(out_tindex_fn, mode='w', index_label='index')
         
         if 'S1' not in TYPE:
