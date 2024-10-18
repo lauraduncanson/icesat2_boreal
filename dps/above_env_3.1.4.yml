@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - geopandas
+  - pandas
   - rasterio
   - importlib_resources
   - contextily
@@ -18,13 +19,9 @@ dependencies:
   #- rio-tiler==2.1.4
   - morecantile
   - pystac-client
-  - pygeos
+  #- pygeos
   - rtree
   - numpy
   - pycurl
   - rasterstats
   - pyarrow
-  #- cogeo_mosaic==6.2.0
-#  - r-rockchalk
-#  - r-terra
-#  - r-randomForest
