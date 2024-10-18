@@ -4,7 +4,20 @@ import mosaiclib
 #####
 ##### XYZ tiles mosaics from project results
 #####
-
+S1_2020summer_TILES_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['S1']['2020 HV summer'], 
+                                            mosaiclib.SAR_MOSAIC_JSON_FN_DICT['2020'], 
+                                            "HV from S1 summer composite: 2020", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"0,0.1", "bidx":"4", "colormap_name": "cubehelix"}
+                                           )
+S1_2019summer_TILES_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['S1']['2019 HV summer'], 
+                                            mosaiclib.SAR_MOSAIC_JSON_FN_DICT['2019'], 
+                                            "HV from S1 summer composite: 2019", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"0,0.1", "bidx":"4", "colormap_name": "cubehelix"}
+                                           )
 LC_TILES_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                             mosaiclib.TITILER_MOSAIC_REG_DICT['LC']['c2020updated'], 
                                             None, 
@@ -21,24 +34,33 @@ TOPO_TILES_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                              )
 #TOPO_TILES_LAYER_DICT['layer'].options.update({'opacity': 0.25})
 
-MAX_AGB = 125
-CMAP_AGB = 'viridis'
-AGB_2020_MOSAIC_JSON_FN = f's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/AGB_H30_2020/Version2_SD/AGB_tindex_master_mosaic.json'
+HLS_TILES_LAYER_DICT = {
+                        '2016': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NDVI']['2016'],
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2016'],
+                                                    "HLS 2016 NDVI", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0.3, 0.8", "bidx":"7", "colormap_name": "hsv"}),
+                        '2020': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NDVI']['2020'],
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2020'],
+                                                    "HLS 2020 NDVI", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0.3, 0.8", "bidx":"7", "colormap_name": "BrBG"})
+}
+
 AGB_2020_TILE_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                                        mosaiclib.TITILER_MOSAIC_REG_DICT['AGB']['2020_v2.0'], 
-                                                       AGB_2020_MOSAIC_JSON_FN, 
+                                                       mosaiclib.AGB_MOSAIC_JSON_FN_DICT['2020_v2.0'], 
                                                        "AGB [Mg/ha] 2020", 
                                                        SHOW_CBAR=True, 
-                                                       PARAMS_DICT = {"rescale": f"0,{MAX_AGB}", "bidx":"1", "colormap_name": f"{CMAP_AGB}"})
+                                                       PARAMS_DICT = {"rescale": f"0, 125", "bidx":"1", "colormap_name": "viridis"})
 
-MAX_HT = 30
-CMAP_HT = 'inferno'
-HT_2020_MOSAIC_JSON_FN = f's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/Ht_H30_2020/Version2_SD/HT_tindex_master_mosaic.json'
-HEIGHT_2020_TILE_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
+HT_2020_TILE_LAYER_DICT = maplib_folium.make_tiles_layer_dict(
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_v2.0'], 
-                                                    HT_2020_MOSAIC_JSON_FN, 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_v2.0'], 
                                                     "Height [m] 2020", 
                                                     SHOW_CBAR=True, 
                                                     # Success only with standard colormap_name
-                                                    PARAMS_DICT = {"rescale": f"0,{MAX_HT}", "bidx":"1", "colormap_name": f"{CMAP_HT}"}
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
                                                    )

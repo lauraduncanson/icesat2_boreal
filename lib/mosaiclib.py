@@ -17,18 +17,22 @@ MERIDIAN_TILES       = [22938, 23219, 23828, 24109, 23548, 23782, 24670, 24389, 
 ###### Titiler mosaic registrations
 ######
 TITILER_MOSAIC_REG_DICT = {
+    'S1':
+        {'2019 HV summer': '90e85cea-26b0-4f9a-844c-81864c8df7a9',
+         '2020 HV summer': '7422ac5e-d93d-4def-b31a-2c069b519d34',
+        },
     'LC':
         {'c2020updated':'bc22b016-9cf2-46e1-bbbe-3da41a0b821a',
         },
     'TOPO':
         {'c2020updated_v2':'2b7aac49-7248-43d0-9c6c-a7ecb0c08ace',
         },
-    'HLS':  
-        {'2016':None ,
+    'HLS NDVI':  
+        {'2016':'124b68df-17de-48e3-8d51-8ec3a9067f74' ,
          '2017':None,
          '2018':None,
          '2019':None,
-         '2020':None,
+         '2020':'48282962-c503-42a0-b464-3811879daa15',
          '2021':None,
          '2022':None,
          '2023':None,
