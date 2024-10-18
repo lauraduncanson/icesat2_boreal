@@ -242,7 +242,7 @@ def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H3
     
     return cog_fn
 
-def show_raster(s3_path, MAX_VALID=100, VMAX=100, VMIN=0, cmap='RdYlGn', title=''):
+def show_raster(s3_path, BNUM=1, MAX_VALID=100, VMAX=100, VMIN=0, cmap='RdYlGn', title=''):
     
     ''' Show a raster on s3 or local with a colormap '''
     
@@ -258,7 +258,7 @@ def show_raster(s3_path, MAX_VALID=100, VMAX=100, VMIN=0, cmap='RdYlGn', title='
         
         with rasterio.open(s3_path) as src:
             print(src.nodata)
-            arr=src.read(1, masked=True)
+            arr=src.read(BNUM, masked=True)
             arr = ma.masked_where(arr>MAX_VALID, ma.masked_where(arr==0, arr))
             #show(arr, cmap=cmap)
             # use imshow so that we have something to map the colorbar to
