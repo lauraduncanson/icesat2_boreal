@@ -2,7 +2,7 @@
 # this is intended for running DPS jobs
 
 #source activate icesat2_boreal
-source activate pangeo
+#source activate pangeo
 
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
