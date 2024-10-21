@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - importlib_resources
-  - pydantic<2
+  #- pydantic<2
   - cachetools
   #- rio-cogeo
   - rio-tiler
