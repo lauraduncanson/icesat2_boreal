@@ -1,0 +1,15 @@
+name: python
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - importlib_resources
+  - pydantic<2
+  - cachetools
+  #- rio-cogeo
+  - rio-tiler
+  #- rio-cogeo==2.3.1
+  #- rio-tiler==2.1.4
+  - morecantile
+  - pystac-client
+  #- pygeos
