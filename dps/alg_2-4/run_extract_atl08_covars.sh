@@ -1,8 +1,10 @@
 #!/bin/bash
 # this is intended for running DPS jobs
 
+# Useful to explicitly source the env you created in the build command right here
 #source activate icesat2_boreal
 #source activate pangeo
+source activate python
 
 set -x
 basedir=$( cd "$(dirname "$0")" ; pwd -P )
