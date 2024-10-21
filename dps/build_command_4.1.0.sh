@@ -14,7 +14,7 @@ pushd ${HOME}
 # # needed for ee asset export
 # conda install --name icesat2_boreal -c conda-forge earthengine-api --solver=libmamba
 
-pip install git+https://github.com/MAAP-Project/maap-py.git@v4.0.0
+pip install git+https://github.com/MAAP-Project/maap-py.git#@v4.0.0
 
 # source activate base
 # conda install -c conda-forge r-rockchalk
