@@ -7,9 +7,9 @@ dependencies:
   #- pydantic<2
   - cachetools
   #- rio-cogeo
-  - rio-tiler
+  #- rio-tiler
   #- rio-cogeo==2.3.1
   #- rio-tiler==2.1.4
-  - morecantile
-  - pystac-client
+  #- morecantile
+  #- pystac-client
   #- pygeos

@@ -5,7 +5,11 @@
 # these libs are NOT included in the base image (vanilla: https://mas.maap-project.org/root/ade-base-images/-/blob/vanilla/docker/Dockerfile)
 #conda install -yq -c conda-forge geopandas rio-cogeo rio-tiler importlib_resources
 set -x
-source activate icesat2_boreal
+#source activate icesat2_boreal
+
+# Activate this image: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+# that is lightly updated in: build_command_4.1.0.sh
+source activate python
 
 unset PROJ_LIB
 #conda list

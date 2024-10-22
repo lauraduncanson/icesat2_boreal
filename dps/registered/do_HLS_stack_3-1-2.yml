@@ -1,9 +1,9 @@
 algorithm_description: HLS compositing algorithm 2023 v1 that uses both L30 and S30
 algorithm_name: do_HLS_stack_3-1-2
 algorithm_version: HLS_stack_2023_v1
-build_command: icesat2_boreal/dps/build_command_4.0.0.sh
+build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 16GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.0.0
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
 inputs:
   config: []
   file:
