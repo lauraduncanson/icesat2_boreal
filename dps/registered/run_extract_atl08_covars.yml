@@ -3,7 +3,7 @@ algorithm_name: run_extract_atl08_covars
 algorithm_version: extract_atl08_covars
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 10GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.1
 inputs:
   config: []
   file: []
