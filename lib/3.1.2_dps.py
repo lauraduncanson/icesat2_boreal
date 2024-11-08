@@ -21,15 +21,7 @@ import datetime
 from CovariateUtils import get_creds, get_creds_DAAC
 
 from maap.maap import MAAP
-# Updated with new host
 maap = MAAP()
-
-# def get_shape(bbox, res=30):
-#     left, bottom, right, top = bbox
-#     width = int((right-left)/res)
-#     height = int((top-bottom)/res)
-#     #return height,width
-#     return 3000,3000
 
 def get_json(s3path, output):
     '''
@@ -80,23 +72,19 @@ def GetBandLists(inJSON, bandnum, comp_type):
         except Exception as e:
             print(e)
                 
-    BandList.sort()
+    #BandList.sort()
     #print(BandList)
     return BandList
-
-# Please look at the HLS user guide for more details. 
-# https://lpdaac.usgs.gov/documents/1326/HLS_User_Guide_V2.pdf
-HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}
 
 def HLS_MASK(ma_fmask, 
              MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high'], 
              HLS_QA_BIT = {'cirrus': 0, 'cloud': 1, 'adj_cloud': 2, 'cloud shadow':3, 'snowice':4, 'water':5, 'aerosol_l': 6, 'aerosol_h': 7}):
+    
     # This function takes the HLS Fmask layer as a masked array and exports the desired mask image array. 
     # The mask_list assigns the QA conditions you would like to mask.
     # The default mask_list setting is coded for a vegetation application, so it also removes water and snow/ice.
+    # See HLS user guide for more details: https://lpdaac.usgs.gov/documents/1326/HLS_User_Guide_V2.pdf
     
-    # TODO: test this change in input. Changed from a path to a masked array (ma), because a 
-    #arr = read_img(mask_img_path)
     arr = ma_fmask.data
     msk = np.zeros_like(arr)#.astype(np.bool)
     for m in MASK_LIST:
@@ -119,18 +107,13 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     or
     Return the image crs and transform (incl_trans=True).
     Note: could be renamed to Get_MaskArray_Subset() '''
-    #print(file)
     
     with COGReader(file) as cog:
         img = cog.part(in_bbox, bounds_crs=epsg, max_size=None, dst_crs=dst_crs, height=height, width=width)
     if incl_trans:
         return img.crs, img.transform
-    # Surface reflectance collection 2 scaling offset and bias
-    # 0.0000275 + -0.2
     
     if comp_type=="HLS":
-        #print("HLS")
-        #print("HLS COGReader:", np.shape((np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)))
         if do_mask:
             # Returns the integer Fmask whose bits can be converted to a datamask
             return (np.squeeze(img.as_masked().astype(int)) )
@@ -138,6 +121,7 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
             return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
         
     elif comp_type=="LS8":
+        # Surface reflectance collection 2 scaling offset (0.0000275) and bias (- 0.2)
         return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
     else:
         print("composite type not recognized")
@@ -170,14 +154,13 @@ def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width,
     '''Calculate NDVI for each source scene'''
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
-    #print(ndvi.shape)
     return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
 
-# insert the bands as arrays (made earlier)
-## creates a single layer by using the binary mask
-## and a sum function to collapse n-dims to 2-dims
 def CollapseBands(inArr, NDVItmp, BoolMask):
+    '''
+    Inserts the bands as arrays (made earlier)
+    Creates a single layer by using the binary mask and a sum function to collapse n-dims to 2-dims
+    '''
     inArr = np.ma.masked_equal(inArr, 0)
     inArr[np.logical_not(NDVItmp)]=0 
     compImg = np.ma.masked_array(inArr.sum(0), BoolMask)
@@ -198,14 +181,12 @@ def createJulianDate(file, height, width):
     dt = datetime.datetime.strptime(date, fmt)
     tt = dt.timetuple()
     jd = tt.tm_yday
-    
     date_arr = np.full((height, width), jd,dtype=np.float32)
     return date_arr
     
 def JulianComposite(file_list, NDVItmp, BoolMask, height, width):
     JulianDateImages = [createJulianDate(file_list[i], height, width) for i in range(len(file_list))]
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
-    
     return JulianComposite
 
 def createJulianDateHLS(file, height, width):
@@ -216,7 +197,6 @@ def createJulianDateHLS(file, height, width):
 def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
     JulianDateImages = [createJulianDateHLS(file_list[i], height, width) for i in range(len(file_list))]
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
-    
     return JulianComposite
 
 def year_band(file, height, width, comp_type):
@@ -232,11 +212,7 @@ def year_band(file, height, width, comp_type):
 def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
     year_imgs = [year_band(file_list[i], height, width, comp_type) for i in range(len(file_list))]
     year_composite = CollapseBands(year_imgs, NDVItmp, BoolMask)
-    
     return year_composite
-
-# Co-var functions
-# Reads in bands on the fly, as needed
 
 # Vegetation Indices Calculations
 # https://www.usgs.gov/landsat-missions/landsat-surface-reflectance-derived-spectral-indices
@@ -358,11 +334,11 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
-    # Feb 2023
     parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
+    parser.add_argument("-min_n", "--min_n_filt_results", type=int, default=0, help="Min number of filtered search results (HLS only) desired before hitting max cloud limit.")
     parser.add_argument('--search_only', dest='search_only', action='store_true', help='Only perform search and return response json. No composites made.')
     parser.set_defaults(search_only=False)
     #parser.add_argument("-bnames", "--bandnames_list", nargs="+", default='Blue Green Red NIR SWIR SWIR2 NDVI SAVI MSAVI NDMI EVI NBR NBR2 TCB TCG TCW ValidMask Xgeo Ygeo JulianDate yearDate', help="List of bandnames for composite.")
@@ -387,6 +363,12 @@ def main():
     Note: 
     HLS info:
     https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/harmonized-landsat-sentinel-2-hls-overview/  
+    
+    LDPAAC Forum:
+    https://forum.earthdata.nasa.gov/viewforum.php?f=7
+    
+    GitHub CMR issue:
+    https://github.com/nasa/cmr-stac/issues
 
     EXAMPLE CALL
     python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
@@ -438,11 +420,12 @@ def main():
             print("MUST SPECIFY -o FOR JSON PATH")
             os._exit(1)
         elif args.composite_type == 'HLS':
-            
-            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, args.hls_product, args.hls_product_version)
+            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+                                       args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, 
+                                       args.hls_product, args.hls_product_version, args.min_n_filt_results)
         elif args.composite_type == 'LS8':
-            
-            master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+                                       args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
         else:
             print("specify the composite type (HLS, LS8)")
             os._exit(1)

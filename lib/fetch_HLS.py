@@ -12,14 +12,14 @@ import botocore
 import boto3
 from pystac_client import Client
 from maap.maap import MAAP
-maap = MAAP(maap_host='api.maap-project.org')
+maap = MAAP()
 
-'''TODO: the bands var may need to be a dict, with the band names dependent on whether S30 or L30'''
 def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s3_path="s3://"):
     
     '''
     Given path to a response json from a sat-api query, make a copy changing urls to local paths
-    updated: now works with a mix of HLS product types, because bands names (specific to each product type) are retreived with a dictionary for each feature ID of the set of search results
+    updated: now works with a mix of HLS product types, because bands names (specific to each product type) 
+    are retreived with a dictionary for each feature ID of the set of search results
     '''
     
     creds = maap.aws.earthdata_s3_credentials('https://data.lpdaac.earthdatacloud.nasa.gov/s3credentials')
@@ -62,7 +62,7 @@ def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s
                     print(f"The object does not exist. {output_file}")
                 else:
                     raise
-        # save and updated catalog with local paths
+        # Save and update catalog with local paths
         asset_catalog['features'] = clean_features
         local_catalog = catalog.replace('response', 'local-s3')
         with open(local_catalog,'w') as jsonfile:
@@ -70,10 +70,12 @@ def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s
         
         return local_catalog
 
-def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product='L30', MS_product_version='2.0', MAX_N_RESULTS=500):
+def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product='L30', MS_product_version='2.0', 
+               MAX_N_RESULTS=100, MIN_N_FILT_RESULTS = 50, MAX_CLOUD_INC = 5, LIM_MAX_CLOUD = 90):
     
-    print('\nQuerying STAC for multispectral imagery...')
+    print(f'\nQuerying STAC for multispectral imagery...')
     catalog = Client.open(api)
+    print(f'Catalog title: {catalog.title}')
     
     date_min = str(year) + '-' + start_month_day
 
@@ -86,41 +88,62 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
     print('start date, end date:\t\t', start, end)
     
     # Note: H30 this is our name for a HARMONIZED 30m composite with S30 and L30
+    # https://lpdaac.usgs.gov/news/important-update-to-cmr-stac-new-identifier-and-search-parameter-format/
     if MS_product == 'L30' or MS_product == 'S30':
-        MS_product_list = [f"HLS{MS_product}.v{MS_product_version}"]
+        MS_product_list = [f"HLS{MS_product}_{MS_product_version}"]
     if MS_product == 'H30':
-        MS_product_list = [f"HLSL30.v{MS_product_version}", f"HLSS30.v{MS_product_version}"]
+        MS_product_list = [f"HLSL30_{MS_product_version}", f"HLSS30_{MS_product_version}"]
     if MS_product == 'landsat-c2l2-sr':
         MS_product_list = [MS_product]
         
-    print(f'\nConducting multispectral image search now...')
-    print(f'Searching for:\t\t\t{MS_product_list}')
-    
-    search = catalog.search(
-        collections=MS_product_list,
-        datetime=[start,end],
-        bbox=bbox,
-        limit=MAX_N_RESULTS,
-        max_items=MAX_N_RESULTS, # for testing, and keep it from hanging
-        # query={"eo:cloud_cover":{"lt":20}} #doesn't work
-    )
-    results = search.get_all_items_as_dict()
-    
-    print("initial results:\t\t", len(results['features']))
-    
-    filtered_results = []
-    for i in results['features']:
-        if int(i['properties']['eo:cloud_cover']) <= max_cloud:
-            filtered_results.append(i)
-    
+    print(f"\nConducting multispectral image search now ...")
+    print(f"Searching for:\t\t\t{MS_product_list}")
+    print(f"Max cloudcover threshold starts at: {max_cloud}% and won't exceed {LIM_MAX_CLOUD}%")
+    print(f"Min number of filtered results: {MIN_N_FILT_RESULTS}")
+
+    while True:
+        results_list = []
+        # Doing this loop to get around CMR bug: https://github.com/nasa/cmr-stac/pull/357
+        # Loop can be removed and product list inserted back into 'collections' parameter when fixed
+        for MS_prod in MS_product_list:
+            
+            search = catalog.search(
+                    collections=MS_prod,
+                    datetime=[start , end],
+                    bbox = bbox,
+                    limit=MAX_N_RESULTS,
+                    max_items=None
+                    ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
+                )
+            results = search.get_all_items_as_dict()
+            print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
+            results_list.append(results)
+
+        # This flattens the results list as well as doing a secondary cloud_cover filtering
+        filtered_results = []
+        for results in results_list:
+            for i in results['features']:
+                if int(i['properties']['eo:cloud_cover']) <= max_cloud: # this filter can be removed now
+                    filtered_results.append(i)
+                    
+        # Get the # of filtered results: the total # of HLS scenes returned from search           
+        N_FILT_RESULTS = len(filtered_results)
+        if N_FILT_RESULTS >= MIN_N_FILT_RESULTS or max_cloud > LIM_MAX_CLOUD - MAX_CLOUD_INC:
+            break
+        max_cloud += MAX_CLOUD_INC
+        print(f"\tOnly {N_FILT_RESULTS} HLS scenes using lte {max_cloud} cloudcover for {start}-{end} for bbox.")
+        print(f"\tIncrease max_cloud by {MAX_CLOUD_INC}% until you get >= {MIN_N_FILT_RESULTS} scenes to composite or the {LIM_MAX_CLOUD}% cloudcover limit is reached.")
+        print(f"Max cloudcover threshold now at: {max_cloud}%")
+
     results['features'] = filtered_results
 
-    print("filtered results:\t\t", len(results['features']))
+    print(f"compelte results ({MS_product_list}):\t{len(results['features'])}")
     print('\nSearch complete.\n')
     return results
 
-
-def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, hls_product='L30', hls_product_version='2.0'):
+def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir, sat_api, 
+                 start_year, end_year, start_month_day, end_month_day, max_cloud, local=False, 
+                 hls_product='L30', hls_product_version='2.0', min_n_filt_results=0):
 
     # Need a dict that used HLS product to specify band names
     HLS_bands_dict = dict({
@@ -153,7 +176,8 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
     for bbox in bbox_list:
         # Geojson of total scenes - Change to list of scenes
         print(f'bbox: {bbox}')
-        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product=hls_product, MS_product_version=hls_product_version) for year in years]
+        response_by_year = [query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_product=hls_product, 
+                                       MS_product_version=hls_product_version, MIN_N_FILT_RESULTS=min_n_filt_results) for year in years]
         
         print(len(response_by_year[0]['features']))
     
@@ -167,7 +191,6 @@ def get_HLS_data(in_tile_fn, in_tile_layer, in_tile_id_col, in_tile_num, out_dir
         "features": list(itertools.chain.from_iterable([f["features"] for f in response_by_year])),
     }
 
-    
     #
     # Write local JSON that catalogs the HLS data retrieved from query
     #
