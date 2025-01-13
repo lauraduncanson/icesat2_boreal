@@ -403,7 +403,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
             img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list)
 
     # This is the array of the mosaiced input files that overlap the in bbox
-    mosaic = img[0].as_masked()
+    mosaic = img[0].array #.as_masked()
     #### NOTE:  Alternatively, you could build a vrt of the input files here
         
     print(f"Mosaic shape: {mosaic.shape}")       
