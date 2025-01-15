@@ -1,5 +1,4 @@
 import os
-import maplib_folium
 
 ######
 ######
@@ -31,8 +30,21 @@ TITILER_MOSAIC_REG_DICT = {
         {'2016':'124b68df-17de-48e3-8d51-8ec3a9067f74' ,
          '2017':None,
          '2018':None,
+         '2018_test':None,
          '2019':None,
          '2020':'48282962-c503-42a0-b464-3811879daa15',
+         '2021':None,
+         '2022':None,
+         '2023':None,
+         '2024':None, #'8a53fc64-37fb-4c12-8949-4b0c42a8a1db'
+        },
+    'HLS NBR2':  
+        {'2016':None ,
+         '2017':None,
+         '2018':None,
+         '2018_test':None,
+         '2019':None,
+         '2020':None,
          '2021':None,
          '2022':None,
          '2023':None,
@@ -41,15 +53,23 @@ TITILER_MOSAIC_REG_DICT = {
     'AGB':{
         '2020_v2.0': 'ea5bff1b-a5bf-497b-a01c-5dda868cb499', #'2cc6a704-255f-4e3f-a36b-5b278d24296d',
         #'2020_v2.0_masked': '8aa09548-e68a-4974-8238-6f576a2f6e31',
+        '2020_v2.1': None,                                 # Ali runs w/o moss/lichen mask
+        '2020_v2.2': None,                                 # Ali runs w/o moss/lichen mask w/ S1
     },
     'HT':{
-        '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',
+        '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',# Version2_SD runs w/ moss/lichen mask
+        '2020_v2.1_no_uncert': None,                        # Ali runs w/o moss/lichen mask and no uncerts
+        '2020_v2.1': None,                                 # Ali runs w/o moss/lichen mask
+        '2020_v2.2': 'd3985ed1-99df-422a-81e4-a9e27d8119fc' # Ali runs w/o moss/lichen mask w/ S1
     },
     'TCC':{
         '2020':None,
     },
     'TCCTREND':{
-        '2020':'fbfa85ec-1bbc-4870-9a3f-ca985860088a'
+        '2020': None, #'fbfa85ec-1bbc-4870-9a3f-ca985860088a'
+    },
+    'AGE':{
+        '2020': None,
     },
 }
 
@@ -71,15 +91,22 @@ ATL08_GRANULE_TINDEX_FN_DICT = {
 #ATL08_filt_tindex_master_fn = 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/ATL08_filt_tindex_master.csv'
 #ATL08_filt_tindex_master_fn = 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv'
 #ATL08_filt_tindex_json_fn= "/projects/my-public-bucket/DPS_tile_lists/ATL08_filt_tindex_master.json"
-ATL08_FILT_TINDEX_FN_DICT = {
+ATL08_FILT_EXTRACT_TINDEX_FN_DICT = {
     # Final ATL08_filt - NO dateline tiles
     'c2020spring2022' : 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/ATL08_filt/c2020/tile_atl08/ATL08_filt_tindex_master.csv', # note: in nathan's now
     'c2020fall2022v1' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_gedi_rh/ATL08_filt_tindex_master.csv',
     'c2020fall2022v2' : 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/with_atl03_rh/ATL08_filt_tindex_master.csv',
     # in Phase 3 with same ATL08 v005 - ONLY dateline tiles
     'c2020_v005'      : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/tile_atl08/c2020_v005/ATL08_filt_tindex_master.csv',
+    # These used TOPO_TINDEX_FN_DICT['c2020updated']
+    '2019_old'        : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars_old/2019/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1
+    '2020_old'        : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars_old/2020/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1 * agg tile 10 has missing S1 subtiles that should be fixed - not priority
+    '2021_old'        : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars_old/2021/ATL08_filt_extract_tindex_master.csv', # waiting for S1 subtile tranfer from GEE ...
+    '2022_old'        : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars_old/2022/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
+    '2023_old'        : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars_old/2023/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
+    # These used TOPO_TINDEX_FN_DICT['c2020updated_v2']
     '2019'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2019/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1
-    '2020'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2020/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1 * agg tile 10 has missing S1 subtiles that should be fixed - not high priority
+    '2020'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2020/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 + S1 * agg tile 10 has missing S1 subtiles that should be fixed - not priority
     '2021'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2021/ATL08_filt_extract_tindex_master.csv', # waiting for S1 subtile tranfer from GEE ...
     '2022'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2022/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
     '2023'            : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/ATL08/extract_atl08_covars/2023/ATL08_filt_extract_tindex_master.csv', # topo + HLS H30 -- could add S1, but very incomplete mosaic for this year
@@ -138,6 +165,8 @@ AGB_MOSAIC_JSON_FN_DICT = {
     '2022_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2022/2022_fullboreal_2022lidar/AGB_tindex_master_mosaic.json',
     '2023_v1.9' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v5/AGB_H30_2023/2023_full_2023lidar/AGB_tindex_master_mosaic.json',
     '2020_v2.0' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/AGB_H30_2020/Version2_SD/AGB_tindex_master_mosaic.json',
+    '2020_v2.1' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_H30_2020/full_run/AGB_tindex_master_mosaic.json',
+    '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_S1H30_2020/full_run_no_uncert/AGB_tindex_master_mosaic.json',
 }
 AGB_TINDEX_FN_DICT = dict()
 for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
@@ -150,12 +179,14 @@ for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
 # c2020
 #Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/fall2022/AGB_tindex_master_height_mosaic.json'
 #Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2023_v3/Ht_L30_2020/local_training_full/HT_tindex_master_mosaic.json'
-Ht_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/Ht_H30_2020/Version2_SD/HT_tindex_master_mosaic.json'
 
 ## TODO: make these dicts
 HT_MOSAIC_JSON_FN_DICT = {
     'c2020_v1.0': '',
-    '2020_v2.0' : Ht_mosaic_json_fn
+    '2020_v2.0' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/Ht_H30_2020/Version2_SD/HT_tindex_master_mosaic.json',
+    '2020_v2.1_no_uncert' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json',
+    '2020_v2.1' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
+    '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_S1H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json'
 }
 HT_TINDEX_FN_DICT = dict()
 for key, value in HT_MOSAIC_JSON_FN_DICT.items():
@@ -218,6 +249,7 @@ HLS_MOSAIC_JSON_FN_DICT = {
     '2016': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2016/HLS_tindex_master_mosaic.json',
     '2017': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2017/HLS_tindex_master_mosaic.json',
     '2018': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2018/HLS_tindex_master_mosaic.json',
+    '2018_test': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2018/mc0_mn50_07-01_08-31_2018_2018/HLS_tindex_master_mosaic.json',
     '2019': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2019/HLS_tindex_master_mosaic.json',
     '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2020/HLS_tindex_master_mosaic.json',
     '2021': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2021/HLS_tindex_master_mosaic.json',
@@ -319,7 +351,12 @@ TOPO_MOSAIC_JSON_FN_DICT = {
 TOPO_TINDEX_FN_DICT = dict()
 for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
     TOPO_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
-    
+
+MISC_MOSAIC_JSON_FN_DICT = {
+    'AGE_TP_2020':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/AGE/build_stack_v2023_2/AGE_TP_2020/AGE_tindex_master_mosaic.json',
+    'TCCTREND_TP_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTREND/build_stack_v2023_2/TCCTREND_TP_2020/TCCTREND_tindex_master_mosaic.json',
+    'TCC_TP_2020':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCC/build_stack_v2023_2/TCC_TP_2020/TCC_tindex_master_mosaic.json',
+}
 
 ######
 ###### Dictionaries for building tindex files - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
