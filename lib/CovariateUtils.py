@@ -241,6 +241,7 @@ def write_cog(stack, out_fn: str, in_crs, src_transform, bandnames: list, out_cr
     dst_profile['blockysize']=256
     dst_profile['predictor']=1 # originally set to 2, which fails with 'int'; 1 tested successfully for 'int' and 'float64'
     dst_profile['zlevel']=7
+    dst_profile["nodata"] = input_nodata_value # Updated to get nodata value into output after turning off clip_geom functionality
     
     with MemoryFile() as memfile:
         with memfile.open(**src_profile) as mem:
