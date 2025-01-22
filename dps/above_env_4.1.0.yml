@@ -6,6 +6,7 @@ dependencies:
   - importlib_resources
   #- pydantic<2
   - cachetools
+  - h5netcdf
   #- rio-cogeo
   #- rio-tiler
   #- rio-cogeo==2.3.1

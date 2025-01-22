@@ -1,4 +1,5 @@
 import os, sys
+import h5netcdf
 import xarray as xr
 import fsspec
 
