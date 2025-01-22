@@ -24,7 +24,7 @@ inputs:
     description: the unique id of a polygon (AOI) in the vector file
     name: in_id_num
     required: true
-  - default: 2020
+  - default: '2020'
     description: the year of the forest age data
     name: year
     required: true
