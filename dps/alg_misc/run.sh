@@ -12,6 +12,7 @@ basedir=$( cd "$(dirname "$0")" ; pwd -P )
 # Work dir is always from where your script is called
 # Base dir is always the relative dir within the run*.sh script
 
+
 # Absolute path here
 # This PWD is wherever the job is run (where the .sh is called from) 
 OUTPUTDIR="${PWD}/output"
