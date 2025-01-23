@@ -10,23 +10,30 @@ import geopandas as gpd
 from shapely.geometry import mapping
 
 # Clip and plot
-def clip_to_tile(ds, boreal_tiles_sub, MIN_VAL=1.0):
+def clip_to_gdf(ds, gdf, NODATA_VAL):
     
     # Assign spatial reference and enable rioxarray for geospatial operations
     ds = ds.rio.write_crs("EPSG:4326") 
+    
     print(f'Clipping to vector...')
-    # Clip the dataset to the polygon
-    clipped_ds = ds.rio.clip([mapping(boreal_tiles_sub.to_crs(4326).iloc[0].geometry)])
-    clipped_ds = clipped_ds.where(clipped_ds >= MIN_VAL) 
+    # Clip the dataset to the polygon and handle nodata
+    clipped_ds = ds.rio.clip([mapping(gdf.to_crs(4326).iloc[0].geometry)], from_disk=True)
+    print(f'Setting nodata value to {NODATA_VAL}...')
+    # Set nodata value for pixels outside the clipped area
+    clipped_ds = clipped_ds.rio.write_nodata(NODATA_VAL) # not working as expected set nodata inside clipped area correctly to -9999 - but outside goes to 0.0
+    
+    #print(f'Handling data values: min = {MIN_VAL}, nodata = {NODATA_VAL}...')
+    #clipped_ds = clipped_ds.where(clipped_ds > MIN_VAL, clipped_ds, NODATA_VAL) # not working as expected
 
     return clipped_ds
 
-def process_ds_all(ds, tile_bounds, tiles_gdf_sub, TIME_IDX=1, VAR_NAME="forest_age"):
+def process_ds_all(ds, tile_bounds, gdf, TIME_IDX=1, VAR_NAME="forest_age"):
+    
     print(f'Performing time selection and general geo-slice for {VAR_NAME} with bound {tile_bounds}...')
     ds_sub = ds[VAR_NAME].isel(time=TIME_IDX).sel(longitude = slice(tile_bounds[0]-1, tile_bounds[2]+1), 
                                                               latitude =  slice(tile_bounds[3]+1, tile_bounds[1]-1))
 
-    clipped_ds = clip_to_tile(ds_sub, tiles_gdf_sub)
+    clipped_ds = clip_to_tile(ds_sub, gdf)
     
     return clipped_ds
 
@@ -35,6 +42,8 @@ def tile_forestage_(TILE_NUM,
                       VECTOR_FN,
                       ID_COL,
                       VAR_NAME = "forest_age",
+                        #MIN_VAL = 0.0,
+                        NODATA_VAL = 0.0,
                       YEAR = '2020',
                       OUTDIR = '/projects/my-public-bucket/local_output/forest_age',
                       RETURN_STACK=False):
@@ -42,9 +51,9 @@ def tile_forestage_(TILE_NUM,
     '''Given an ensemble forestage dataset (the dim called 'members') and vector , clip to a tile, calc mean and std layers, stack, and output a geotiff 
     '''
     
-    tiles_gdf = gpd.read_file(VECTOR_FN)
-    tiles_gdf_sub = tiles_gdf[tiles_gdf[ID_COL] == TILE_NUM]
-    tile_bounds = [round(d, 0) for d in tiles_gdf_sub.to_crs(4326).total_bounds]
+    gdf = gpd.read_file(VECTOR_FN)
+    gdf_sub = gdf[gdf[ID_COL] == TILE_NUM]
+    tile_bounds = [round(d, 0) for d in gdf_sub.to_crs(4326).total_bounds]
 
     TIME_IDX = 0
     if YEAR == '2020': TIME_IDX = 1
@@ -54,22 +63,38 @@ def tile_forestage_(TILE_NUM,
     with xr.open_dataset(fs.open(URL)) as ds:
         
         print(f'Opened the data: {URL}')
-        clipped_ds = process_ds_all(ds, tile_bounds, tiles_gdf_sub, TIME_IDX=TIME_IDX, VAR_NAME=VAR_NAME)
+        #clipped_ds = process_ds_all(ds, tile_bounds, gdf_sub, TIME_IDX=TIME_IDX, VAR_NAME=VAR_NAME)
+        print(f'Performing time selection and (for mem efficiency?) a general (bbox) geo-slice for {VAR_NAME} with bound {tile_bounds}...')
+        ds_sub = ds[VAR_NAME].isel(time=TIME_IDX).sel(longitude = slice(tile_bounds[0]-1, tile_bounds[2]+1), latitude =  slice(tile_bounds[3]+1, tile_bounds[1]-1))
+        # Clip
+        clipped_ds = clip_to_gdf(ds_sub, gdf_sub,
+                                 #MIN_VAL, 
+                                 NODATA_VAL)
         
         print(f'Calcing ensemble mean and std...')
-        out_stack = xr.concat([clipped_ds.mean(dim='members'), clipped_ds.std(dim='members')], 
+        clipped_array = xr.concat([clipped_ds.mean(dim='members'), clipped_ds.std(dim='members')], 
                               dim = 'time', compat="no_conflicts").rio.write_crs("EPSG:4326") 
-
-        # write stack
-        out_stack_fn = os.path.join(OUTDIR, f"{VAR_NAME.replace('_','')}_{YEAR}_{int(TILE_NUM):07}.tif")
-        print(f'Writing the geotiff: {out_stack_fn}...')
-        out_stack.rio.to_raster(out_stack_fn , tiled=True)
+        if True:
+            # Turn this DataArray into a Dataset so you can add bandnames
+            clipped_dataset = xr.Dataset()
+            bandnames_list = ['mean_forest_age_ensemble','std_forest_age_ensemble']
+            
+            for i, band in enumerate(bandnames_list):
+                clipped_dataset[band] = clipped_array[i]
+            clipped_array = clipped_dataset
+            clipped_dataset = None
+        
+        # write stack (an xarray dataset) as a multi-band tiff
+        clipped_fn = os.path.join(OUTDIR, f"{VAR_NAME.replace('_','')}_{YEAR}_{int(TILE_NUM):07}.tif")
+        
+        print(f'Writing the geotiff: {clipped_fn}...')
+        clipped_array.rio.to_raster(clipped_fn, tiled=True)
         print(f'Finished writing.')
         
         if RETURN_STACK:
-            return out_stack
+            return clipped_array
         else:
-            return out_stack_fn
+            return clipped_fn
 
 def main():
 
