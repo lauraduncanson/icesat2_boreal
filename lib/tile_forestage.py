@@ -8,6 +8,7 @@ import argparse
 import rioxarray
 import geopandas as gpd
 from shapely.geometry import mapping
+import numpy as np
 
 # Clip and plot
 def clip_to_gdf(ds, gdf, NODATA_VAL):
@@ -45,7 +46,7 @@ def tile_forestage_(TILE_NUM,
                       ID_COL,
                       VAR_NAME = "forest_age",
                       MIN_VAL = 1.0,
-                      NODATA_VAL = -9999.0,
+                      NODATA_VAL = np.nan,
                       YEAR = '2020',
                       OUTDIR = '/projects/my-public-bucket/local_output/forest_age',
                       RETURN_STACK=False):
