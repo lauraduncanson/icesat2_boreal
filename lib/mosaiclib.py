@@ -71,6 +71,12 @@ TITILER_MOSAIC_REG_DICT = {
     'AGE':{
         '2020': None,
     },
+    'FORESTAGE100m': {
+        '2020': None,
+    },
+    'FORESTAGE': {
+        '2020': None,
+    },
 }
 
 ######
@@ -353,9 +359,11 @@ for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
     TOPO_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
 
 MISC_MOSAIC_JSON_FN_DICT = {
-    'AGE_TP_2020':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/AGE/build_stack_v2023_2/AGE_TP_2020/AGE_tindex_master_mosaic.json',
-    'TCCTREND_TP_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTREND/build_stack_v2023_2/TCCTREND_TP_2020/TCCTREND_tindex_master_mosaic.json',
-    'TCC_TP_2020':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCC/build_stack_v2023_2/TCC_TP_2020/TCC_tindex_master_mosaic.json',
+    'AGE_TP_2020':        's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/AGE/build_stack_v2023_2/AGE_TP_2020/AGE_tindex_master_mosaic.json',
+    'TCCTREND_TP_2020':   's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTREND/build_stack_v2023_2/TCCTREND_TP_2020/TCCTREND_tindex_master_mosaic.json',
+    'TCC_TP_2020':        's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCC/build_stack_v2023_2/TCC_TP_2020/TCC_tindex_master_mosaic.json',
+    'FORESTAGE100m_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE100m/tile_forestage_v1/forestage_2020/FORESTAGE100m_tindex_master_mosaic.json',
+    'FORESTAGE_BES_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE/build_stack_v2023_2/FORESTAGE_BES_2020/FORESTAGE_tindex_master_mosaic.json',
 }
 
 ######
@@ -368,7 +376,7 @@ DICT_BUILD_TINDEX_ATL08_FILT = {
  'ALG_VERSION': 'process_atl08_boreal',
  'VAR': 'ATL08_filt',
  'BATCH_NAME': '030m/2020',
- 'YEAR': 2024,
+ 'YEAR_LIST': '2024',
  'DPS_MONTH_LIST': '02',
  'DPS_DAY_MIN': 1,
  'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'
@@ -380,7 +388,7 @@ DICT_BUILD_TINDEX_ATL08_FILT_EXTRACT = {
  'ALG_VERSION': 'extract_atl08_covars',
  'VAR': 'ATL08_filt_extract',
  'BATCH_NAME': '2020',
- 'YEAR': 2024,
+ 'YEAR_LIST': '2024',
  'DPS_MONTH_LIST': '02 03',
  'DPS_DAY_MIN': 1,
  'TILES_INDEX_PATH': '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'
@@ -392,7 +400,7 @@ DICT_BUILD_TINDEX_AGB = {
     'ALG_VERSION' : 'boreal_agb_2024_v6', 
     'VAR' : 'AGB',
     'BATCH_NAME' : 'AGB_H30_2020/Version2_SD',
-    'YEAR': 2024,
+    'YEAR_LIST': '2024',
     'DPS_MONTH_LIST' : '07 08 09 10',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
@@ -404,7 +412,7 @@ DICT_BUILD_TINDEX_HT = {
     'ALG_VERSION' : 'boreal_agb_2024_v6', 
     'VAR' : 'HT',
     'BATCH_NAME' : 'Ht_H30_2020/Version2_SD',
-    'YEAR': 2024,
+    'YEAR_LIST': '2024',
     'DPS_MONTH_LIST' : '07 08 09 10',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
@@ -417,7 +425,7 @@ DICT_BUILD_TINDEX_HT = {
 #     'VAR' : 'HLS',
 #     # In my bucket, this is ALWAYS used to identify output
 #     'BATCH_NAME' : f'HLS_L30_c2020',
-#     'YEAR': 2024,
+#     'YEAR_LIST': '2024',
 #     'DPS_MONTH_LIST' : '02',        
 #     'DPS_DAY_MIN' : 1 ,
 #     'TILES_INDEX_PATH': boreal_tile_index_path
@@ -454,7 +462,7 @@ DICT_BUILD_TINDEX_HT = {
 #     'VAR' : 'AGB',
 #     # In my bucket, this is ALWAYS used to identify output
 #     'BATCH_NAME' : f'AGB_L30_2020/add_maxn_fullboreal',
-#     'YEAR': 2024,
+#     'YEAR_LIST': '2024',
 #     'DPS_MONTH_LIST' : '02',        
 #     'DPS_DAY_MIN' : 1 ,
 #     'TILES_INDEX_PATH': boreal_tile_index_path
@@ -467,7 +475,7 @@ DICT_BUILD_TINDEX_SAR = {
     'VAR' : 'S1_subtile',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'SAR_S1_2020',
-    'YEAR': 2024,
+    'YEAR_LIST': '2024',
     'DPS_MONTH_LIST' : '01',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': '/projects/my-public-bucket/DPS_tile_lists/SAR/EXPORT_GEE_v6/SAR_S1_2019/S1_gee_subtiles.gpkg'
@@ -480,8 +488,8 @@ DICT_BUILD_TINDEX_TCC2020 = {
     'VAR' : 'TCC',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : 'TCC_TP_2020', # f'TCC_TP_{MAPYEAR}'
-    'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
+    'YEAR_LIST': '2024 2025',
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12', #'02',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
@@ -493,8 +501,8 @@ DICT_BUILD_TINDEX_TCC1984 = {
     'VAR' : 'TCC',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : 'TCC_TP_1984',
-    'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
+    'YEAR_LIST': '2024 2025',
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',         
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
@@ -506,8 +514,8 @@ DICT_BUILD_TINDEX_TCCTREND2020 = {
     'VAR' : 'TCCTREND',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'TCCTREND_TP_2020',
-    'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
+    'YEAR_LIST': '2024 2025',
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12', #'02',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
@@ -519,8 +527,8 @@ DICT_BUILD_TINDEX_AGE2020 = {
     'VAR' : 'AGE',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'AGE_TP_2020',
-    'YEAR': 2024,
-    'DPS_MONTH_LIST' : '02',        
+    'YEAR_LIST': '2024 2025',
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
@@ -532,8 +540,33 @@ DICT_BUILD_TINDEX_GLO30 = {
     'VAR' : 'Topo',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'CopernicusGLO30',
-    'YEAR': 2024,
+    'YEAR_LIST': '2024',
     'DPS_MONTH_LIST' : '07',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
+DICT_BUILD_TINDEX_FORESTAGE100m = {
+    'SET' : 'FORESTAGE100m',
+    'USER' : 'montesano', 
+    'ALG_NAME' : 'run_tile_forestage',
+    'ALG_VERSION' : 'tile_forestage_v1', 
+    'VAR' : 'FORESTAGE100m',
+    'BATCH_NAME' : 'forestage_2020',
+    'YEAR_LIST': '2025',
+    'DPS_MONTH_LIST' : '01',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
+DICT_BUILD_TINDEX_FORESTAGE2020 = {
+    'SET' : 'FORESTAGE',
+    'USER' : 'montesano',
+    'ALG_NAME' : 'run_build_stack',
+    'ALG_VERSION' : 'build_stack_v2023_2',
+    'VAR' : 'FORESTAGE',
+    # In my bucket, this is ALWAYS used to identify output
+    'BATCH_NAME' : f'FORESTAGE_BES_2020',
+    'YEAR_LIST': '2024 2025',
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }

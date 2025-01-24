@@ -41,14 +41,35 @@ MISC_TILES_LAYER_DICT = {
                                             mosaiclib.MISC_MOSAIC_JSON_FN_DICT['AGE_TP_2020'], 
                                             "Stand Age in 2020 (Landsat Record)", 
                                             SHOW_CBAR=True, 
-                                            PARAMS_DICT = {"rescale": f"0,35", "bidx":"1", "colormap_name": 'nipy_spectral'}
+                                            PARAMS_DICT = {"rescale": f"0,250", "bidx":"1", "colormap_name": 'nipy_spectral'}
                                             ),
                     'TCCTREND2020': maplib_folium.make_tiles_layer_dict(
                                             mosaiclib.TITILER_MOSAIC_REG_DICT['TCCTREND']['2020'], 
                                             mosaiclib.MISC_MOSAIC_JSON_FN_DICT['TCCTREND_TP_2020'], 
                                             "Tree canopy cover trend 1984-2020", 
                                             SHOW_CBAR=True, 
-                                            PARAMS_DICT = {"rescale": f"-2,2", "bidx":"1", "colormap_name": 'nipy_spectral'}
+                                            PARAMS_DICT = {"rescale": f"-2,2", "bidx":"1", "colormap_name": 'BrBG'}
+                                            ),
+                    'TCC2020': maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['TCC']['2020'], 
+                                            mosaiclib.MISC_MOSAIC_JSON_FN_DICT['TCC_TP_2020'], 
+                                            "Tree canopy cover 2020", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"0,75", "bidx":"1", "colormap_name": 'YlGn'}
+                                            ),
+                    'FORESTAGE100m2020': maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['FORESTAGE100m']['2020'], 
+                                            mosaiclib.MISC_MOSAIC_JSON_FN_DICT['FORESTAGE100m_2020'], 
+                                            "FORESTAGE [enemble mean, 1 ha.] 2020 (Besnard et al.)", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"1,250", "bidx":"1", "colormap_name": 'nipy_spectral'}
+                                            ),
+                    'FORESTAGE2020': maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['FORESTAGE']['2020'], 
+                                            mosaiclib.MISC_MOSAIC_JSON_FN_DICT['FORESTAGE_BES_2020'], 
+                                            "FORESTAGE [enemble mean, 30m] 2020 (Besnard et al.)", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"1,250", "bidx":"1", "colormap_name": 'nipy_spectral'}
                                             ),
 }
 #     if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
@@ -196,7 +217,7 @@ HT_TILE_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_v2.1'], 
                                                     mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_v2.1'], 
                                                     "Height [m] 2020 (HLS+Topo) v2.1", 
-                                                    SHOW_CBAR=False, 
+                                                    SHOW_CBAR=True, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
                                                    ),
@@ -204,7 +225,7 @@ HT_TILE_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_v2.2'], 
                                                     mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_v2.2'], 
                                                     "Height [m] 2020 (S1+HLS+Topo) v2.2", 
-                                                    SHOW_CBAR=False, 
+                                                    SHOW_CBAR=True, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
                                                    )

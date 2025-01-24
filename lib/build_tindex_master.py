@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -222,7 +222,13 @@ def main():
         str_exclude_list = ['SAMPLE', 'checkpoint']
         
         if HAS_MAAP:
-            
+            if "FORESTAGE" in TYPE:
+                if user is None: user = 'montesano' # *.VH_median_summer
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                if TYPE == 'FORESTAGE100m':
+                    ends_with_str = ".tif"
+                else:
+                    ends_with_str = "_cog.tif"
             if "S1" in TYPE:
                 if user is None: user = 'montesano' # *.VH_median_summer
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
@@ -341,6 +347,11 @@ def main():
             df['tile_num'] = df['file'].str.split('_', expand=True)[6].str.strip('*.tif')
         if 'HLS'in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[1].str.strip('*.tif')
+        if 'FORESTAGE' in TYPE:
+            if 'FORESTAGE100m' in TYPE:
+                df['tile_num'] = df['file'].str.split('_', expand=True)[2].str.strip('*.tif')
+            else:
+                df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         
         if 'ATL08' in TYPE:
             
@@ -447,8 +458,8 @@ def main():
             # mscomp_params_table_fn = ExtractUtils.write_mscomp_params_table(f'{args.outdir}/HLS_tindex_master.csv',  
             #                            MSCOMP_TYPE = 'HLS', mscomp_input_glob_str="output*context.json", mscomp_num_scenes_glob_str="master*.json", 
             #                            cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year'])
-            ExtractUtils.write_mscomp_table(f'{args.outdir}/HLS_tindex_master.csv', RETURN_DF=False,
-                                            MS_COMP_NAME = MS_COMP_NAME, 
+            ExtractUtils.write_mscomp_table(f'{args.outdir}/{TYPE}_tindex_master.csv', RETURN_DF=False,
+                                            MS_COMP_NAME = MS_COMP_NAME, # this wants something like 'HLS_H30_2024'
                                             mscomp_input_glob_str="output*context.json",
                                             mscomp_num_scenes_glob_str="master*.json", 
                                            cols_list=['in_tile_num','max_cloud','start_month_day','end_month_day','start_year','end_year']

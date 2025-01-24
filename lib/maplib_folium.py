@@ -66,7 +66,7 @@ def local_to_s3(url, user = 'nathanmthomas', type='public'):
 ######################
 # Functions to prepare tile layer dictionaries needed for mapping
 #
-def register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=True):
+def register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=False):
     '''
     Mosaic registration that is specific to TiTiler
     '''
@@ -84,9 +84,10 @@ def register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=Tr
     
     if print_info: 
         print(mosaic_links)
+        
     return mosaic_links
 
-def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_endpoint = "https://titiler.maap-project.org"):
+def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_endpoint = "https://titiler.maap-project.org", DEBUG=False):
     
     '''
     Identifies or generates a mosaic json registration id with TiTiler (use mosaiclib.TITILER_MOSAIC_REG_DICT[TYPE][YEAR])
@@ -97,15 +98,22 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
         os.exit(1)
     
     if mosaic_reg_id is None:
+
+        # colormap_name needs to be .lower() here
+        params_dict_tmp = params_dict.copy()
+        params_dict_tmp['colormap_name'] = params_dict_tmp['colormap_name'].lower()
         
-        print('Registering the mosaic with Titiler...')
-        mosaic_links = register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=True)
+        if DEBUG: print(f'Registering mosaic with Titiler: {mosiac_json_fn}')
+        
+        mosaic_links = register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=False)
         tilejson_endpoint = list(
                                 filter(lambda x: x.get("rel") == "tilejson", dict(mosaic_links)["links"])
                                 )
-        r_te_json = httpx.get(tilejson_endpoint[0]["href"], params=params_dict).json()
-        
+        r_te_json = httpx.get(tilejson_endpoint[0]["href"], params=params_dict_tmp).json()
+        if DEBUG: print(r_te_json)
+            
         tiles = f"{r_te_json['tiles'][0]}"
+        tiles = tiles.replace(params_dict_tmp['colormap_name'], params_dict['colormap_name'])
     else:
         tiles = "".join([titiler_endpoint, "/mosaics/", mosaic_reg_id, "/tiles/{z}/{x}/{y}", "@1x?", urllib.parse.urlencode(params_dict)])
     
@@ -116,12 +124,16 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
     '''Use mosaic json to check for registration, register, build tiles layer url with parameters
         A NAME will help identify the tiles layer in the legend and under the colorbar
     '''
-    
+    if PRINT: print(f'\n\n{PARAMS_DICT}\n\n')
     #mosaic_links = register_mosaic_json_titiler(mosaic_json_fn)
     tiles = build_tiles_with_params(mosaic_reg_id, mosaic_json_fn, params_dict = PARAMS_DICT, titiler_endpoint = "https://titiler.maap-project.org")
-    
+    MIN, MAX = eval(PARAMS_DICT["rescale"])
     if "colormap_name" in PARAMS_DICT:
-        CMAP = PARAMS_DICT['colormap_name'] 
+        if PRINT: print(f'\n\n{PARAMS_DICT}\n\n')
+        CMAP = PARAMS_DICT['colormap_name']
+        if PRINT: print(f'CMAP unaltered: {CMAP}')
+        tiles = tiles.split('rescale')[0] + f'rescale={MIN},{MAX}' + f"&bidx={PARAMS_DICT['bidx']}&colormap_name={CMAP.lower()}"
+        if PRINT: print(f'tiles with CMAP changed: {tiles}')
         tiles_layer  = TileLayer(
             #tiles= f"{tiler_mosaic}?url={mosaic_json_fn}&rescale={MIN},{MAX}&bidx={BANDNUM}&colormap_name={CMAP}",
             #tiles= f"{tiler_mosaic}&rescale={MIN},{MAX}&bidx={BANDNUM}&colormap_name={CMAP}",
@@ -137,6 +149,7 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
             #CMAP = PARAMS_DICT['colormap'].split(',')
             CMAP = cm.LinearColormap(colors = PARAMS_DICT['colormap'].split(','), vmin=float(PARAMS_DICT['rescale'].split(',')[0]), vmax=float(PARAMS_DICT['rescale'].split(',')[1]))#.to_step(n=len(forest_height_colors))
             rgbas = [[int(value) for value in rgb] for rgb in CMAP.to_rgba(x=bins[:-1], bytes=True)]
+            
     #         # Make sure its json serializable# https://chatgpt.com/c/66f40d2b-7594-800a-9940-3dd8c09b7ce0
     #         # Create a function to convert the colormap to a step list that Folium can use
     #         def create_color_stops(colormap, n=10):
@@ -169,7 +182,8 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
     TILES_LAYER_DICT = {
         "layer": tiles_layer,
         "cmap": CMAP,
-        "max_val": float(PARAMS_DICT['rescale'].split(',')[1]),
+        "min_val": MIN,
+        "max_val": MAX, #float(PARAMS_DICT['rescale'].split(',')[1]),
         "caption": tiles_layer.layer_name,
         "show_cbar": SHOW_CBAR
     }
@@ -200,6 +214,7 @@ def MAP_REGISTERED_DPS_RESULTS(
                     SHOW_WIDGETS=False,
                     map_width=1000, map_height=500,
                     ADD_TILELAYER = None,
+                    ADD_GEOJSONLAYER = None
                    ):
     
     if ADD_TILELAYER is not None:
@@ -211,9 +226,15 @@ def MAP_REGISTERED_DPS_RESULTS(
         colormap_ADDED_TILELAYER_list = []
         for ADD_TILELAYER in ADD_TILELAYER_LIST:
             cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
-            colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
+            colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(ADD_TILELAYER["min_val"], ADD_TILELAYER["max_val"])
             colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
             colormap_ADDED_TILELAYER_list.append(colormap_ADDED_TILELAYER)
+
+    if ADD_GEOJSONLAYER is not None:
+        if isinstance(ADD_GEOJSONLAYER, list):
+            ADD_GEOJSONLAYER_LIST = ADD_GEOJSONLAYER
+        else:
+            ADD_GEOJSONLAYER_LIST = [ADD_GEOJSONLAYER]
 
     # Style Vector Layers
     ecoboreal_style = {'fillColor': 'gray', 'color': 'gray'}
@@ -266,6 +287,10 @@ def MAP_REGISTERED_DPS_RESULTS(
             print(f"Adding layer {ADD_TILELAYER['caption']}...")
             if ADD_TILELAYER["show_cbar"]:
                 m1.add_child(colormap_ADDED_TILELAYER_list[i])
+
+    if ADD_GEOJSONLAYER is not None:
+        for i, ADD_GEOJSONLAYER in enumerate(ADD_GEOJSONLAYER_LIST):
+            ADD_GEOJSONLAYER.add_to(m1)
         
         
     # Add custom basemaps
@@ -285,11 +310,12 @@ def MAP_REGISTERED_DPS_RESULTS(
     
     if SHOW_WIDGETS:
         plugins.Geocoder().add_to(m1)
-        
-    LayerControl().add_to(m1)
-    plugins.Geocoder(position='bottomright').add_to(m1)
-    plugins.Fullscreen(position='bottomleft').add_to(m1)
-    plugins.MousePosition().add_to(m1)
+
+    m1 = MAP_CONTROL(m1)
+    # LayerControl().add_to(m1)
+    # plugins.Geocoder(position='bottomright').add_to(m1)
+    # plugins.Fullscreen(position='bottomleft').add_to(m1)
+    # plugins.MousePosition().add_to(m1)
     
     if SHOW_WIDGETS:
         minimap = plugins.MiniMap()
@@ -297,7 +323,14 @@ def MAP_REGISTERED_DPS_RESULTS(
         #m1.add_child(colormap_AGBSE)
 
     return m1
-
+    
+def MAP_CONTROL(m):
+    LayerControl().add_to(m)
+    plugins.Geocoder(position='bottomright').add_to(m)
+    plugins.Fullscreen(position='bottomleft').add_to(m)
+    plugins.MousePosition().add_to(m)
+    return m
+    
 # def MAP_DPS_RESULTS(tiler_mosaic, 
 #                     boreal_tile_index, 
 #                     tile_index_matches,  
