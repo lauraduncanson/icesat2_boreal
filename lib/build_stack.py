@@ -400,7 +400,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
             print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
             img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
         else:
-            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list, pixel_selection=defaults.HighestMethod())
+            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list) #, pixel_selection=defaults.HighestMethod())
 
     # This is the array of the mosaiced input files that overlap the in bbox
     mosaic = img[0].array #.as_masked()
