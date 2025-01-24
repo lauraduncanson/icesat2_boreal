@@ -18,9 +18,11 @@ def clip_to_gdf(ds, gdf, NODATA_VAL):
     print(f'Clipping to vector...')
     # Clip the dataset to the polygon and handle nodata
     clipped_ds = ds.rio.clip([mapping(gdf.to_crs(4326).iloc[0].geometry)], from_disk=True)
-    print(f'Setting nodata value to {NODATA_VAL}...')
-    # Set nodata value for pixels outside the clipped area
-    clipped_ds = clipped_ds.rio.write_nodata(NODATA_VAL) # not working as expected set nodata inside clipped area correctly to -9999 - but outside goes to 0.0
+    
+    if False:
+        print(f'Setting nodata value to {NODATA_VAL}...')
+        # Set nodata value for pixels outside the clipped area
+        clipped_ds = clipped_ds.rio.write_nodata(NODATA_VAL) # not working as expected set nodata inside clipped area correctly to -9999 - but outside goes to 0.0
     
     #print(f'Handling data values: min = {MIN_VAL}, nodata = {NODATA_VAL}...')
     #clipped_ds = clipped_ds.where(clipped_ds > MIN_VAL, clipped_ds, NODATA_VAL) # not working as expected
@@ -42,8 +44,8 @@ def tile_forestage_(TILE_NUM,
                       VECTOR_FN,
                       ID_COL,
                       VAR_NAME = "forest_age",
-                        #MIN_VAL = 0.0,
-                        NODATA_VAL = 0.0,
+                      MIN_VAL = 1.0,
+                      NODATA_VAL = -9999.0,
                       YEAR = '2020',
                       OUTDIR = '/projects/my-public-bucket/local_output/forest_age',
                       RETURN_STACK=False):
@@ -81,6 +83,11 @@ def tile_forestage_(TILE_NUM,
             
             for i, band in enumerate(bandnames_list):
                 clipped_dataset[band] = clipped_array[i]
+                
+                # Set nodata here
+                print(f'Setting data of band {band} that is less than {MIN_VAL} to nodata value of {NODATA_VAL}...')
+                clipped_dataset[band] = clipped_dataset[band].where(clipped_dataset[band]>=MIN_VAL, other=NODATA_VAL)
+                
             clipped_array = clipped_dataset
             clipped_dataset = None
         
