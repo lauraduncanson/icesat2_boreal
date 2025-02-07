@@ -5,6 +5,7 @@ import json
 import os
 import numpy as np
 import rasterio as rio
+import stacrs
 from rasterio.warp import *
 from CovariateUtils import get_index_tile, get_creds
 import itertools
@@ -13,6 +14,26 @@ import boto3
 from pystac_client import Client
 from maap.maap import MAAP
 maap = MAAP()
+
+
+HLS_GEOPARQUET_BUCKET = "maap-ops-workspace"
+HLS_GEOPARQUET_KEY = "shared/henrydevseed/hls_boreal_20190701-20190831_20220701-20220831_20230701-20230831.parquet"
+
+
+def get_hls_geoparquet() -> str:
+    """Download the HLS STAC GeoParquet archive
+
+    The archive contains all HLSS30 and HLSL30 records for the bounding box (-180, 30, 180, 80)
+    for the time periods 2019-07-01 - 2019-08-31, 2022-07-01 - 2022-08-31, 2023-07-01 - 2023-08-31
+    """
+    aws_session = boto3.session.Session()
+    s3 = aws_session.resource("s3")
+
+    output_file = os.path.join("/tmp", os.path.basename(HLS_GEOPARQUET_KEY))
+    if not os.path.exists(output_file):
+        s3.Bucket(HLS_GEOPARQUET_BUCKET).download_file(HLS_GEOPARQUET_KEY, output_file)
+
+    return output_file
 
 def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s3_path="s3://"):
     
@@ -74,8 +95,6 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
                MAX_N_RESULTS=100, MIN_N_FILT_RESULTS = 50, MAX_CLOUD_INC = 5, LIM_MAX_CLOUD = 90):
     
     print(f'\nQuerying STAC for multispectral imagery...')
-    catalog = Client.open(api)
-    print(f'Catalog title: {catalog.title}')
     
     date_min = str(year) + '-' + start_month_day
 
@@ -107,14 +126,16 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
         # Loop can be removed and product list inserted back into 'collections' parameter when fixed
         for MS_prod in MS_product_list:
             
-            search = catalog.search(
-                    collections=MS_prod,
-                    datetime=[start , end],
-                    bbox = bbox,
-                    limit=MAX_N_RESULTS,
-                    max_items=None
-                    ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
-                )
+            search = stacrs.search(
+                href=get_hls_geoparquet(),
+                collections=MS_prod,
+                datetime=f"{start}/{end}",
+                bbox = bbox,
+                limit=MAX_N_RESULTS,
+                max_items=None,
+                # query arg does not work with stacrs.search right now
+                # ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
+            )
             results = search.get_all_items_as_dict()
             print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
             results_list.append(results)
