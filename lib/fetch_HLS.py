@@ -124,19 +124,19 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
         results_list = []
         # Doing this loop to get around CMR bug: https://github.com/nasa/cmr-stac/pull/357
         # Loop can be removed and product list inserted back into 'collections' parameter when fixed
-        for MS_prod in MS_product_list:
-            
-            search = stacrs.search(
-                href=get_hls_geoparquet(),
-                collections=MS_prod,
-                datetime=f"{start}/{end}",
-                bbox = bbox,
-                limit=MAX_N_RESULTS,
-                max_items=None,
-                # query arg does not work with stacrs.search right now
-                # ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
-            )
-            results = search.get_all_items_as_dict()
+        for MS_prod in MS_product_list: 
+            results = {
+                "features": stacrs.search(
+                    href=get_hls_geoparquet(),
+                    collections=MS_prod,
+                    datetime=f"{start}/{end}",
+                    bbox = bbox,
+                    limit=MAX_N_RESULTS,
+                    max_items=None,
+                    # query arg does not work with stacrs.search right now
+                    # ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
+                )
+            }
             print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
             results_list.append(results)
 
