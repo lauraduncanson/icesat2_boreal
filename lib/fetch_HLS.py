@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import datetime
 import geopandas as gpd
@@ -19,21 +20,6 @@ maap = MAAP()
 HLS_GEOPARQUET_BUCKET = "maap-ops-workspace"
 HLS_GEOPARQUET_KEY = "shared/henrydevseed/hls_boreal_20190701-20190831_20220701-20220831_20230701-20230831.parquet"
 
-
-def get_hls_geoparquet() -> str:
-    """Download the HLS STAC GeoParquet archive
-
-    The archive contains all HLSS30 and HLSL30 records for the bounding box (-180, 30, 180, 80)
-    for the time periods 2019-07-01 - 2019-08-31, 2022-07-01 - 2022-08-31, 2023-07-01 - 2023-08-31
-    """
-    aws_session = boto3.session.Session()
-    s3 = aws_session.resource("s3")
-
-    output_file = os.path.join("/tmp", os.path.basename(HLS_GEOPARQUET_KEY))
-    if not os.path.exists(output_file):
-        s3.Bucket(HLS_GEOPARQUET_BUCKET).download_file(HLS_GEOPARQUET_KEY, output_file)
-
-    return output_file
 
 def write_local_data_and_catalog_s3(catalog, HLS_bands_dict, save_path, local, s3_path="s3://"):
     
@@ -125,18 +111,19 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
         # Doing this loop to get around CMR bug: https://github.com/nasa/cmr-stac/pull/357
         # Loop can be removed and product list inserted back into 'collections' parameter when fixed
         for MS_prod in MS_product_list: 
-            results = {
-                "features": stacrs.search(
-                    href=get_hls_geoparquet(),
+            async def do_search():
+                return await stacrs.search(
+                    href=f"s3://{HLS_GEOPARQUET_BUCKET}/{HLS_GEOPARQUET_KEY}",
                     collections=MS_prod,
                     datetime=f"{start}/{end}",
                     bbox = bbox,
                     limit=MAX_N_RESULTS,
                     max_items=None,
-                    # query arg does not work with stacrs.search right now
-                    # ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
                 )
-            }
+            
+            features = asyncio.run(do_search())
+            results = {"features": features}
+
             print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
             results_list.append(results)
 

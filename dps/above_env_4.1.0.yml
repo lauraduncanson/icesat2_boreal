@@ -7,7 +7,7 @@ dependencies:
   #- pydantic<2
   - cachetools
   - h5netcdf
-  - stacrs==0.4.0
+  - stacrs==0.5.3
   #- rio-cogeo
   #- rio-tiler
   #- rio-cogeo==2.3.1
