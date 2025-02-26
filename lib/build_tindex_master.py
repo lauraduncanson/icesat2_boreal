@@ -242,9 +242,9 @@ def main():
                 ends_with_str = "_cog.tif"
             if "HLS" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{args.dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list]
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
-                ends_with_str = "_dps.tif"
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/*/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
+                ends_with_str = ".tif"
             if "Landsat" in TYPE:
                 if user is None: user = 'nathanmthomas'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_dps.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
