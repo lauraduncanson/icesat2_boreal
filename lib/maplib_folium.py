@@ -91,11 +91,11 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
     
     '''
     Identifies or generates a mosaic json registration id with TiTiler (use mosaiclib.TITILER_MOSAIC_REG_DICT[TYPE][YEAR])
-    Builds a tiles layer for folium
+    Returns a tiles layer for folium
     '''
     if mosaic_reg_id is None and mosiac_json_fn is None:
         print('Need either a mosaic registration id or a valid mosaic json filename.\nExiting.')
-        os.exit(1)
+        sys.exit(1)
     
     if mosaic_reg_id is None:
 
@@ -121,8 +121,9 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
 
 def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=False, PARAMS_DICT = {"rescale": "0,30", "bidx":"1", "colormap_name": "inferno"}, PRINT=False):
     
-    '''Use mosaic json to check for registration, register, build tiles layer url with parameters
-        A NAME will help identify the tiles layer in the legend and under the colorbar
+    '''
+    Use mosaic json to check for registration, register, build tiles layer url with parameters
+    A NAME will help identify the tiles layer in the legend and under the colorbar
     '''
     if PRINT: print(f'\n\n{PARAMS_DICT}\n\n')
     #mosaic_links = register_mosaic_json_titiler(mosaic_json_fn)

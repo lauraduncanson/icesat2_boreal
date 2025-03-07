@@ -27,9 +27,23 @@ MISC_TILES_LAYER_DICT = {
                                             SHOW_CBAR=True, 
                                             PARAMS_DICT = {"rescale": f"10,100", "bidx":"1", "colormap_name": "tab20"}
                                            ),
+                    'LC2020CONUS': maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['LC']['2020CONUS'], 
+                                            mosaiclib.LC_MOSAIC_JSON_FN_DICT['2020CONUS'],  
+                                            "ESA Worldcover 2020 v1.0", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"10,100", "bidx":"1", "colormap_name": "tab20"}
+                                           ),
                     'TOPO2020': maplib_folium.make_tiles_layer_dict(
                                             mosaiclib.TITILER_MOSAIC_REG_DICT['TOPO']['c2020updated_v2'], 
                                             None, 
+                                            "Copernicus GLODEM", 
+                                            SHOW_CBAR=False, 
+                                            PARAMS_DICT = {"rescale": f"0,1", "bidx":"3", "colormap_name": 'gist_gray'}
+                    ),
+                    'TOPO2020CONUS': maplib_folium.make_tiles_layer_dict(
+                                            mosaiclib.TITILER_MOSAIC_REG_DICT['TOPO']['2020CONUS'], 
+                                            mosaiclib.TOPO_MOSAIC_JSON_FN_DICT['2020CONUS'], 
                                             "Copernicus GLODEM", 
                                             SHOW_CBAR=False, 
                                             PARAMS_DICT = {"rescale": f"0,1", "bidx":"3", "colormap_name": 'gist_gray'}
@@ -122,7 +136,13 @@ HLS_NDVI_TILES_LAYER_DICT = {
                                                     mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024'],
                                                     "HLS 2024 NDVI", 
                                                     SHOW_CBAR=True,
-                                                    PARAMS_DICT = {"rescale": f"0.3, 0.8", "bidx":"7", "colormap_name": "hsv"})
+                                                    PARAMS_DICT = {"rescale": f"0.3, 0.8", "bidx":"7", "colormap_name": "hsv"}),
+                        '2024CONUS': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NDVI']['2024CONUS'],
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024CONUS'],
+                                                    "HLS 2024 NDVI", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0.3, 0.8", "bidx":"7", "colormap_name": "hsv"}),
 }
 HLS_NBR2_TILES_LAYER_DICT = {
                         '2016': maplib_folium.make_tiles_layer_dict(
@@ -135,6 +155,12 @@ HLS_NBR2_TILES_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NBR2']['2018_test'],
                                                     mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2018_test'],
                                                     "HLS 2018_test NBR2", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
+                        '2019_orig': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NBR2']['2019'],
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2019_orig'],
+                                                    "HLS 2019 orig NBR2", 
                                                     SHOW_CBAR=True,
                                                     PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
                         '2019': maplib_folium.make_tiles_layer_dict(
@@ -172,7 +198,13 @@ HLS_NBR2_TILES_LAYER_DICT = {
                                                     mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024'],
                                                     "HLS 2024 NBR2", 
                                                     SHOW_CBAR=True,
-                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"})
+                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
+                        '2024CONUS': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NBR2']['2024CONUS'],
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024CONUS'],
+                                                    "HLS 2024 NBR2", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
 }
 
 AGB_TILE_LAYER_DICT = {
@@ -185,7 +217,7 @@ AGB_TILE_LAYER_DICT = {
                             '2020_v2.1': maplib_folium.make_tiles_layer_dict(
                                                        mosaiclib.TITILER_MOSAIC_REG_DICT['AGB']['2020_v2.1'], 
                                                        mosaiclib.AGB_MOSAIC_JSON_FN_DICT['2020_v2.1'], 
-                                                       "AGB [Mg/ha] (HLS+Topo) v2.1", 
+                                                       "AGB 2020 [Mg/ha] (HLS+Topo) v2.1", 
                                                        SHOW_CBAR=True, 
                                                        PARAMS_DICT = {"rescale": f"0, 125", "bidx":"1", "colormap_name": "viridis"}),
                             '2020_v2.2': maplib_folium.make_tiles_layer_dict(
@@ -193,6 +225,12 @@ AGB_TILE_LAYER_DICT = {
                                                        mosaiclib.AGB_MOSAIC_JSON_FN_DICT['2020_v2.2'], 
                                                        "AGB [Mg/ha] (S1+HLS+Topo) v2.2", 
                                                        SHOW_CBAR=True, 
+                                                       PARAMS_DICT = {"rescale": f"0, 125", "bidx":"1", "colormap_name": "viridis"}),
+                            '2024_v2.1': maplib_folium.make_tiles_layer_dict(
+                                                       mosaiclib.TITILER_MOSAIC_REG_DICT['AGB']['2024_v2.1'], 
+                                                       mosaiclib.AGB_MOSAIC_JSON_FN_DICT['2024_v2.1'], 
+                                                       "AGB 2024 [Mg/ha] (HLS+Topo) v2.1", 
+                                                       SHOW_CBAR=False, 
                                                        PARAMS_DICT = {"rescale": f"0, 125", "bidx":"1", "colormap_name": "viridis"}),
 }
 

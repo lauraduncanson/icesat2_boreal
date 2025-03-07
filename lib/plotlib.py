@@ -23,15 +23,30 @@ def rescale_pct_clip(array, pct=[1,80]):
     clip[clip>1]=1
     clip[clip<0]=0
     return clip
-
+    
+def rescale_abs_clip(array, MIN_MAX_LIST=[(0, 6000),(0, 2000),(0, 2000)]):
+    '''Re-scales data values of an array to absolute min and max values'''
+    # Apply limits by clipping the data
+    b1 = np.clip(array[0,:,:], *MIN_MAX_LIST[0])
+    b2 = np.clip(array[1,:,:], *MIN_MAX_LIST[1])
+    b3 = np.clip(array[2,:,:], *MIN_MAX_LIST[2])
+    clip_arr = np.stack((
+        (b1 - MIN_MAX_LIST[0][0]) / (MIN_MAX_LIST[0][1] - MIN_MAX_LIST[0][0]),
+        (b2 - MIN_MAX_LIST[1][0]) / (MIN_MAX_LIST[1][1] - MIN_MAX_LIST[1][0]),
+        (b3 - MIN_MAX_LIST[2][0]) / (MIN_MAX_LIST[2][1] - MIN_MAX_LIST[2][0])
+    ))
+    return clip_arr
+    
 def rescale_multiband_for_plot(fn, rescaled_multiband_fn, bandlist = [4,3,2], pct=[5,95], nodata=-9999.0):
     
     # add a reduced res: https://gis.stackexchange.com/questions/434441/specifying-target-resolution-when-resampling-with-rasterio
     
-    with rasterio.open(fn, "r+") as src1:
+    with rasterio.open(fn, "r") as src1:
         #print(src1.profile)
+
+        # This works only in r+ mode - which isnt possible when reading from private s3 bucket i think
+        #src1.nodata = nodata
         
-        src1.nodata = nodata
         arr_list = []
         for band in bandlist:
             arr = src1.read(band)

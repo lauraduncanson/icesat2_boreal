@@ -22,9 +22,11 @@ TITILER_MOSAIC_REG_DICT = {
         },
     'LC':
         {'c2020updated':'bc22b016-9cf2-46e1-bbbe-3da41a0b821a',
+         '2020CONUS': None,
         },
     'TOPO':
         {'c2020updated_v2':'2b7aac49-7248-43d0-9c6c-a7ecb0c08ace',
+         '2020CONUS': None,
         },
     'HLS NDVI':  
         {'2016':'124b68df-17de-48e3-8d51-8ec3a9067f74' ,
@@ -37,6 +39,7 @@ TITILER_MOSAIC_REG_DICT = {
          '2022':None,
          '2023':None,
          '2024':None, #'8a53fc64-37fb-4c12-8949-4b0c42a8a1db'
+         '2024CONUS': None,
         },
     'HLS NBR2':  
         {'2016':None ,
@@ -48,7 +51,8 @@ TITILER_MOSAIC_REG_DICT = {
          '2021':None,
          '2022':None,
          '2023':None,
-         '2024':None
+         '2024':None,
+         '2024CONUS': None,
         },
     'AGB':{
         '2020_v2.0': 'ea5bff1b-a5bf-497b-a01c-5dda868cb499', #'2cc6a704-255f-4e3f-a36b-5b278d24296d',
@@ -267,6 +271,7 @@ HLS_MOSAIC_JSON_FN_DICT = {
     '2022': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2022/HLS_tindex_master_mosaic.json',
     '2023': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2023/HLS_tindex_master_mosaic.json',
     '2024': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2024/HLS_tindex_master_mosaic.json',
+    '2024CONUS': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLSCONUS_H30_2024/HLS_tindex_master_mosaic.json',
 }
 
 HLS_TINDEX_FN_DICT = dict()
@@ -343,7 +348,8 @@ LC_MOSAIC_JSON_FN_DICT = {
     # Final LC for c2020 in Phase 2 (ORNL DAAC)
     'c2020orig'    : 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/LC/LC_tindex_master_mosaic.json',
     # updated for Phase 3; these have dateline tiles
-    'c2020updated' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023/LC_ESA_WC_2020/LC_tindex_master_mosaic.json'
+    'c2020updated' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023/LC_ESA_WC_2020/LC_tindex_master_mosaic.json',
+    '2020CONUS': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023_2/LCCONUS_ESA_WC_2020/LC_tindex_master_mosaic.json',
 }
 LC_TINDEX_FN_DICT = dict()
 for key, value in LC_MOSAIC_JSON_FN_DICT.items():
@@ -358,6 +364,7 @@ TOPO_MOSAIC_JSON_FN_DICT = {
     # Updated for Phase 3; these have dateline tiles; all tiles are 3000x3000 BUT this causes some notdata at borders of some tiles?? (chk border edges of some northern Siberia tiles?)
     'c2020updated' :  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2023_2/CopernicusGLO30/Topo_tindex_master_mosaic.json',
     'c2020updated_v2':'s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack_topo/build_stack_v2024_2/CopernicusGLO30/Topo_tindex_master_mosaic.json',
+    '2020CONUS': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TOPO/build_stack_v2024_2/CopernicusGLO30CONUS/Topo_tindex_master_mosaic.json',
 }
 TOPO_TINDEX_FN_DICT = dict()
 for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
