@@ -288,7 +288,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     
     # Need to preserve this input res - as var 'res' might be changed later
     input_res = res
-    
+
     # Return the 4326 representation of the input <tile_id> geometry that is buffered in meters with <tile_buffer_m>
     tile_parts = get_index_tile(vector_path=stack_tile_fn, id_col=in_tile_id_col, tile_id=stack_tile_id, buffer=tile_buffer_m, layer=stack_tile_layer)
     #tile_parts = get_index_tile(stack_tile_fn, stack_tile_id, buffer=tile_buffer_m)
@@ -400,7 +400,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
             print(f' ~~Entering memory management mode to complete run on 32 GB worker~~\nReducing threads to {NUM_THREADS_MOSAIC} since # files > {MAX_FILES}...')
             img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list, threads=NUM_THREADS_MOSAIC, pixel_selection=defaults.HighestMethod())
         else:
-            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list) #, pixel_selection=defaults.HighestMethod())
+            img = mosaic_reader(files_list_s3, reader, in_bbox, mosaic_crs, mosaic_crs, height, width, band_indexes_list, pixel_selection=defaults.HighestMethod())
 
     # This is the array of the mosaiced input files that overlap the in bbox
     mosaic = img[0].array #.as_masked()
