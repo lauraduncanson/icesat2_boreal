@@ -111,6 +111,7 @@ def main():
     parser.add_argument("-v", "--in_vector_fn", type=str, default='/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg')
     parser.add_argument("-n", "--in_id_num", type=int, help="The id number of an input vector tile that will define the bounds for stack creation")
     parser.add_argument("-y", "--year", type=str, default='2020', help="The year of the forest age data (2010, 2020)")
+    parser.add_argument("-ndv", "--no_data_val", type=float, default=-9999, help="No data value in data")
     parser.add_argument("--in_id_col", type=str, default="tile_num", help="The column of the tile layer name of the stack tiles dataset that holds the tile num")
     parser.add_argument("-o", "--output_dir", type=str, default=None, help="The path for the output stack")
     parser.add_argument("-tmp", "--tmp_out_path", type=str, default="/tmp", help="The tmp path for the output stack")
@@ -138,6 +139,7 @@ def main():
         VECTOR_FN = args.in_vector_fn,
         ID_COL = args.in_id_col,
         YEAR = args.year,
+        NODATA_VAL = args.no_data_val,
         OUTDIR = output_dir
                )
 

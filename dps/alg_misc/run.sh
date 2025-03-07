@@ -23,4 +23,5 @@ python ${basedir}/../../lib/tile_forestage.py \
 --in_id_col ${3} \
 --in_id_num ${4} \
 --year ${5} \
+--no_data_val ${6} \
 --output_dir ${OUTPUTDIR}

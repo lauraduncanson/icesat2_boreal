@@ -28,6 +28,10 @@ inputs:
     description: the year of the forest age data
     name: year
     required: true
+  - default: '-9999'
+    description: the nodata value
+    name: no_data_val
+    required: true
 queue: maap-dps-worker-16gb
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
 run_command: icesat2_boreal/dps/alg_misc/run.sh
