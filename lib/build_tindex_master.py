@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'DECIDFRAC','all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -140,6 +140,8 @@ def main():
     parser.set_defaults(RETURN_DUPS=False)
     parser.add_argument('--SLIDERULE_OUT', dest='SLIDERULE_OUT', action='store_true', help='Identifies filtered ATL08 output parquet files from sliderule')
     parser.set_defaults(SLIDERULE_OUT=False)
+    parser.add_argument('--NO_DPS', dest='NO_DPS', action='store_true', help='Identifies output in a data subdir and not dps_output')
+    parser.set_defaults(NO_DPS=False)
     parser.add_argument('--tindex_append', dest='tindex_append', action='store_true', help='Append data frame to existing tindex master csv')
     parser.set_defaults(tindex_append=False)
     parser.add_argument('--WRITE_TINDEX_MATCHES_GDF', dest='WRITE_TINDEX_MATCHES_GDF', action='store_true', help='Write a tindex gpkg from master json needed to build stack')
@@ -229,6 +231,10 @@ def main():
                     ends_with_str = ".tif"
                 else:
                     ends_with_str = "_cog.tif"
+            if "DECIDFRAC" in TYPE:
+                if user is None: user = 'montesano' # *.VH_median_summer
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                ends_with_str = "_cog.tif"
             if "S1" in TYPE:
                 if user is None: user = 'montesano' # *.VH_median_summer
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
@@ -267,6 +273,9 @@ def main():
             if "AGB" in TYPE or 'HT' in TYPE:
                 if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9].tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                ends_with_str = ".tif"
+            if args.NO_DPS:
+                dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.tif"]
                 ends_with_str = ".tif"
                 
         else:
@@ -352,7 +361,8 @@ def main():
                 df['tile_num'] = df['file'].str.split('_', expand=True)[2].str.strip('*.tif')
             else:
                 df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
-        
+        if 'DECIDFRAC' in TYPE:
+            df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         if 'ATL08' in TYPE:
             
             if 'ATL08_filt' in TYPE:
@@ -416,6 +426,9 @@ def main():
         if DEBUG: print(df.head())
         
         RETURN_CREATION_TIME = True
+        if DEBUG: 
+            print(df.tile_num.to_list())
+            df.to_csv( os.path.splitext(out_tindex_fn)[0] + '_DEBUG.csv', mode='w', index_label='index')
         if args.RETURN_DUPS:    
             if TYPE == 'S1_subtile': RETURN_CREATION_TIME=False # This might help reduce time of run?
             # An exception will be caught and handled if attempting to get creation time from another user's dps_output
