@@ -65,7 +65,10 @@ TITILER_MOSAIC_REG_DICT = {
         '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',# Version2_SD runs w/ moss/lichen mask
         '2020_v2.1_no_uncert': None,                        # Ali runs w/o moss/lichen mask and no uncerts
         '2020_v2.1': None,                                 # Ali runs w/o moss/lichen mask
-        '2020_v2.2': 'd3985ed1-99df-422a-81e4-a9e27d8119fc' # Ali runs w/o moss/lichen mask w/ S1
+        '2020_v2.2': 'd3985ed1-99df-422a-81e4-a9e27d8119fc', # Ali runs w/o moss/lichen mask w/ S1,
+        '2020_neon38': None,
+        '2020_neon38atl08': None,
+        '2020_neon38l2a': None,
     },
     'TCC':{
         '2020':None,
@@ -81,6 +84,9 @@ TITILER_MOSAIC_REG_DICT = {
     },
     'FORESTAGE': {
         '2020': None,
+    },
+    'DECPRED': {
+        '2015': None,
     },
 }
 
@@ -200,7 +206,10 @@ HT_MOSAIC_JSON_FN_DICT = {
     '2020_v2.0' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/Ht_H30_2020/Version2_SD/HT_tindex_master_mosaic.json',
     '2020_v2.1_no_uncert' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json',
     '2020_v2.1' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
-    '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_S1H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json'
+    '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_S1H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json',
+    '2020_neon38': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/CONUS/Ht_H30_2020/NEON_38/HT_tindex_master_mosaic.json',
+    '2020_neon38atl08': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_ATL08_only/HT_tindex_master_mosaic.json',
+    '2020_neon38l2a':   's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_L2A_only/HT_tindex_master_mosaic.json',
 }
 HT_TINDEX_FN_DICT = dict()
 for key, value in HT_MOSAIC_JSON_FN_DICT.items():
@@ -371,13 +380,18 @@ for key, value in TOPO_MOSAIC_JSON_FN_DICT.items():
     TOPO_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
 
 MISC_MOSAIC_JSON_FN_DICT = {
-    'AGE_TP_2020':        's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/AGE/build_stack_v2023_2/AGE_TP_2020/AGE_tindex_master_mosaic.json',
-    'TCCTREND_TP_2020':   's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTREND/build_stack_v2023_2/TCCTREND_TP_2020/TCCTREND_tindex_master_mosaic.json',
-    'TCC_TP_2020':        's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCC/build_stack_v2023_2/TCC_TP_2020/TCC_tindex_master_mosaic.json',
-    'FORESTAGE100m_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE100m/tile_forestage_v1/forestage_2020/FORESTAGE100m_tindex_master_mosaic.json',
-    'FORESTAGE_BES_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE/build_stack_v2023_2/FORESTAGE_BES_2020/FORESTAGE_tindex_master_mosaic.json',
-}
+    'AGE_TP_2020':         's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/AGE/build_stack_v2023_2/AGE_TP_2020/AGE_tindex_master_mosaic.json',
+    'TCCTREND_TP_2020':    's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTREND/build_stack_v2023_2/TCCTREND_TP_2020/TCCTREND_tindex_master_mosaic.json',
+    'TCCTRENDPVAL_TP_2020':'s3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCCTRENDPVAL/build_stack_v2023_2/TCCTRENDPVAL_TP_2020/TCCTREND_tindex_master_mosaic.json',
+    'TCC_TP_2020':         's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TCC/build_stack_v2023_2/TCC_TP_2020/TCC_tindex_master_mosaic.json',
+    'FORESTAGE100m_2020':  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE100m/tile_forestage_v1/forestage_2020/FORESTAGE100m_tindex_master_mosaic.json',
+    'FORESTAGE_BES_2020':  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE/build_stack_v2023_2/FORESTAGE_BES_2020/FORESTAGE_tindex_master_mosaic.json',
+    'DECPRED_AB_2015':     's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/DECIDFRAC/build_stack_v2023_2/DECPRED_AB_2015/DECIDFRAC_tindex_master_mosaic.json',
 
+}
+MISC_TINDEX_FN_DICT = dict()
+for key, value in MISC_MOSAIC_JSON_FN_DICT.items():
+    MISC_TINDEX_FN_DICT[key] = value.replace('_mosaic.json', '.csv')
 ######
 ###### Dictionaries for building tindex files - these are helpful for providing the relevant info for re-running tindex and mosaic jsons
 ######
@@ -531,6 +545,19 @@ DICT_BUILD_TINDEX_TCCTREND2020 = {
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
+DICT_BUILD_TINDEX_TCCTRENDPVAL2020 = {
+    'SET' : 'TCCTRENDPVAL',
+    'USER' : 'montesano',
+    'ALG_NAME' : 'run_build_stack',
+    'ALG_VERSION' : 'build_stack_v2023_2',
+    'VAR' : 'TCCTREND', # this is fed in as -t (type) into build_tindex_master - already a arg option for TCCTREND, so just use it here 
+    # In my bucket, this is ALWAYS used to identify output
+    'BATCH_NAME' : f'TCCTRENDPVAL_TP_2020',
+    'YEAR_LIST': '2025',
+    'DPS_MONTH_LIST' : '03 04 05 06 07 08 09 10 11 12', #'02',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
 DICT_BUILD_TINDEX_AGE2020 = {
     'SET' : 'AGE',
     'USER' : 'montesano',
@@ -565,7 +592,7 @@ DICT_BUILD_TINDEX_FORESTAGE100m = {
     'VAR' : 'FORESTAGE100m',
     'BATCH_NAME' : 'forestage_2020',
     'YEAR_LIST': '2025',
-    'DPS_MONTH_LIST' : '01',        
+    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
@@ -579,6 +606,19 @@ DICT_BUILD_TINDEX_FORESTAGE2020 = {
     'BATCH_NAME' : f'FORESTAGE_BES_2020',
     'YEAR_LIST': '2024 2025',
     'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',        
+    'DPS_DAY_MIN' : 1 ,
+    'TILES_INDEX_PATH': boreal_tile_index_path
+}
+DICT_BUILD_TINDEX_DECPRED2015 = {
+    'SET' : 'DECIDFRAC',
+    'USER' : 'montesano',
+    'ALG_NAME' : 'run_build_stack',
+    'ALG_VERSION' : 'build_stack_v2023_2',
+    'VAR' : 'DECIDFRAC',
+    # In my bucket, this is ALWAYS used to identify output
+    'BATCH_NAME' : f'DECPRED_AB_2015',
+    'YEAR_LIST': '2025',
+    'DPS_MONTH_LIST' : '03', #'02',        
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }
