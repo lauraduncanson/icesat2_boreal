@@ -406,7 +406,7 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     #print(ndvi.shape)
     
-    print(f'Min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
+    print(f'min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
 def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
@@ -420,7 +420,7 @@ def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, heigh
     #
     fmaskarr = LC2SR_MASK(fmaskarr)
 
-    print(f'Min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
+    print(f'\tmin, max Red value before mask: {round(REDarr.min(), 4)}, {round(REDarr.max(), 4)} (red rangelims: {rangelims_red})')
     #return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
@@ -439,7 +439,7 @@ def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, 
     #print("\t\tMaskedFile")
     MaskedFile = [MaskArrays(file_list[i], in_bbox, height, width, comp_type, epsg, dst_crs) for i in range(len(file_list))]
     #print("\t\tComposite")
-    Composite=CollapseBands(MaskedFile, NDVItmp, BoolMask)
+    Composite = CollapseBands(MaskedFile, NDVItmp, BoolMask)
     return Composite
 
 def createJulianDateLC2SR(file, height, width):
@@ -566,11 +566,10 @@ def tasseled_cap(bands):
     # irrespective of sensor and collection, provided it is SREF
 
 def VegMask(NDVI, MIN_NDVI = 0.1, NODATAVALUE=-9999):
-    print(f'Min NDVI value before mask: {np.nanmin(np.where(NDVI == NODATAVALUE, np.nan, NDVI))}')
-    print(f'Min NDVI threshold: {MIN_NDVI}')
+    print(f"Creating binary vegetation mask where NDVI > {MIN_NDVI} indicates valid data, set to 1, all else 0...")
+    print(f'\tmin NDVI value before mask: {np.nanmin(np.where(NDVI == NODATAVALUE, np.nan, NDVI))}')
     mask = np.zeros_like(NDVI)
     mask = np.where(NDVI > MIN_NDVI, 1, mask)
-    print(f"\tVegetation mask created: valid data where NDVI > {MIN_NDVI}")
     return mask
 
 def get_pixel_coords(arr, transform):
@@ -651,9 +650,12 @@ def main():
     https://github.com/nasa/cmr-stac/issues
     '''
     if args.do_indices:
-        bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
+        bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
+                     'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 
+                     'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
     else:
-        bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'ValidMask', 'JulianDate', 'yearDate','count']
+        bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
+                     'ValidMask', 'JulianDate', 'yearDate','count']
     
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
@@ -685,13 +687,8 @@ def main():
     
     print(f'Output dims:\t\t{height} x {width}')
     
-    # specify either -j or -a. 
-    # -j is the path to the ready made json files with links to LS buckets (needs -o to placethe composite)
-    # -a is the link to the api to search for data (needs -o to fetch the json files from at_api)
-    
     print(f'Composite type:\t\t{args.composite_type}')
     
-    # TODO: Change this section to be able to read JSON files from S3
     if args.json_file == None:
         if args.output_dir == None:
             print("MUST SPECIFY -o FOR JSON PATH")
@@ -746,9 +743,13 @@ def main():
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
         if args.composite_type=='HLS':
-            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
+            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], 
+                                             in_bbox, out_crs, out_crs, height, width, 
+                                             args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
         elif args.composite_type=='LC2SR':
-            NDVIstack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
+            NDVIstack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], 
+                                               in_bbox, out_crs, out_crs, height, width, 
+                                               args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
         
         print('\nFinished created masked NDVI stack.\n')
        
@@ -757,20 +758,17 @@ def main():
     NDVIstack_ma = np.ma.array(NDVIstack)
     print("shape:\t\t", NDVIstack_ma.shape)
     
-    ## Get the argmax index positions from the stack of NDVI images
-    #print("Calculate Stack max NDVI image")
-    #NDVIstat = np.nanargmax(NDVIstack_ma, axis=0)
     print(f"\nCalculating index positions from NDVI stack using stat: {args.stat} (w/ nodatavalue = {args.nodatavalue})...")
     NDVIstat = compute_stat_from_masked_array(NDVIstack_ma, args.nodatavalue, stat=args.stat, percentile_value=args.stat_pct)
     BoolMask = np.ma.getmask(NDVIstat)
-    ## create a tmp array (binary mask) of the same input shape
+    # create a tmp array (binary mask) of the same input shape
     NDVItmp = np.ma.zeros(NDVIstack_ma.shape, dtype=bool)
     
-    ## Get the pixelwise count of the valid data
+    # Get the pixelwise count of the valid data
     CountComp = np.sum((NDVIstack_ma != -9999), axis=0)
     print(f"Count array min ({CountComp.min()}), max ({CountComp.max()}), and shape ({CountComp.shape})")
     
-    ## for each dimension assign the index position (flattens the array to a LUT)
+    # for each dimension assign the index position (flattens the array to a LUT)
     print(f"Create LUT of NDVI positions using stat={args.stat}")
     for i in range(np.shape(NDVIstack_ma)[0]):
         NDVItmp[i,:,:]=NDVIstat==i
@@ -779,36 +777,36 @@ def main():
     # create band-by-band composites: TODO multiprocess these
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating Blue Composite')
+        print('Creating Blue composite...')
         BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
         print_array_stats(BlueComp)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating Green Composite')
+        print('Creating Green composite...')
         GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating Red Composite')
+        print('Creating Red composite...')
         RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating NIR Composite')
+        print('Creating NIR composite...')
         NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating SWIR Composite')
+        print('Creating SWIR composite...')
         SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating SWIR2 Composite')
+        print('Creating SWIR2 composite...')
         SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session): 
-        print('Creating Julian Date Comp')
+        print('Creating Julian Date composite...')
         JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
-        print('Creating Year Date Comp')
+        print('Creating Year Date composite...')
         YEARcomp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
 
     print(f"\nGenerating a valid mask using min NDVI threshold ({args.thresh_min_ndvi}) on NDVI composite...")
@@ -816,6 +814,7 @@ def main():
     with rio.Env(aws_session):
         print('Creating NDVI composite...')
         NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask)
+        
     ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
     
     if args.do_indices:
@@ -834,9 +833,12 @@ def main():
     if args.do_indices:
         print("Calculating X and Y pixel center coords...")
         Xgeo, Ygeo = get_pixel_coords(ValidMask, crs_transform)
-        stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
+        stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, 
+                              NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, 
+                              ValidMask, Xgeo, Ygeo, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
     else:
-        stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, ValidMask, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
+        stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, 
+                              ValidMask, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
      
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
@@ -851,7 +853,8 @@ def main():
         STAT = args.stat
     else:
         STAT = f'{args.stat}{args.stat_pct}'
-    out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '_' + STAT + '.tif')
+    #out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '_' + STAT + '.tif')
+    out_stack_fn = os.path.join(outdir, '_'.join([comp_type, str(tile_n), start_season, end_season, start_year, end_year, STAT]) + '.tif')
     
     print('\nApply a common mask across all layers of stack...')
     print(f"Stack shape pre-mask:\t\t{stack.shape}")
