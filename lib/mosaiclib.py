@@ -11,6 +11,34 @@ boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_til
 MINI_DATELINE_TILES  = [400400,391600,382300,372800,363400,354000,4199500,4180700,4161900]
 LARGE_DATELINE_TILES = [3540,3634,3728,3823,3916,4004,41995,41807,41619]
 MERIDIAN_TILES       = [22938, 23219, 23828, 24109, 23548, 23782, 24670, 24389, 24108, 23501, 23547]
+# Set of 3x3 tiles for model dev/testing
+set_ak_interior = [3272,3273,3274,3365,3366,3367,3458,3459,3460]
+set_bc_coast = [3663,3664,3665,3757,3758,3759,3851,3852,3853]
+set_nw_terr = [2588,2589,2590,2668,2669,2670,2749,2750,2751]
+set_n_queb = [887,888,889,935,936,937,985,986,987]
+set_n_sib = [1773,1774,1775,1840,1841,1842,1909,1910,1911]
+set_e_sib = [3160,3161,3162,3251,3252,3253,3344,3345,3346]
+set_s_scand = [38,39,40,49,50,51,60,61,62]
+set_s_sib = [2248,2249,2250,2323,2324,2325,2398,2399,2400]
+set_c_ca = [1997,1998,1999,2067,2068,2069,2140,2141,2142]
+set_w_sib = [640,639,638,684,683,682,729,728,727]
+set_sub50_sib = [1575,1576,1577,1630,1631,1632,1686,1687,1688]
+set_sub50_ont = [1445,1446,1447,1389,1390,1391,1331,1332,1333]
+set_sub50_sas = [2145,2146,2147,2220,2221,2222,2297,2298,2299]
+set_sub50_bc = [3857,3858,3859,3763,3764,3765,3669,3670,3671]
+set_sub50_e_sib = [4350,4351,4352,4388,4389,4390,4425,4426,4427]
+set_sub50_dc = [36246,36247,36248,36023,36024,36025,35803,35804,35805]
+set_seward = [3637,3638,3639,3543,3544,3545,3731,3732,3733]
+set_brooks = [3175,3176,3177,3083,3084,3085,2994,2995,2996]
+
+VAL_TILES_TO_ADD_TO_TEST_TILES = [391, 423, 424, 457, 458, 495, 496, 497, 498, 532, 533, 534, 536, 537, 572, 573, 578, 612, 613, 622, 623, 624, 656, 657, 666, 667, 702, 704, 705, 706, 711, 747, 750, 752, 753, 756, 757, 797, 798, 800, 802, 843, 844, 845, 846, 847, 848, 849, 892, 893, 938, 939, 940, 941, 988, 989, 990, 992, 993, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1105, 1152, 1153, 1154, 1155, 1156, 1157, 1158, 1159, 1208, 1209, 1210, 1212, 1214, 1266, 1267, 1268, 1270, 1271, 1272, 1273, 1274, 1328, 1329, 1330, 1334, 1335, 1387, 1388, 1392, 1393, 1441, 1442, 1443, 1444, 1448, 1449, 1498, 1499, 1500, 1501, 1502, 1503, 1505, 1506, 1507, 1556, 1557, 1558, 1559, 1560, 1561, 1562, 1563, 1585, 1586, 1612, 1613, 1614, 1615, 1616, 1617, 1641, 1647, 1648, 1668, 1670, 1671, 1672, 1673, 1704, 1713, 1725, 1727, 1728, 1729, 1761, 1762, 1792, 1794, 1795, 1835, 1836, 1837, 1860, 1861, 1862, 1863, 1904, 1930, 1931, 1932, 1933, 1974, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2066, 2071, 2072, 2073, 2074, 2075, 2138, 2143, 2148, 2213, 2214, 2215, 2216, 2218, 2219, 2290, 2291, 2292, 2293, 2295, 2296, 2367, 2368, 2369, 2370, 2371, 2450, 2451, 2452, 2453, 2454, 2489, 2503, 2513, 2528, 2529, 2530, 2532, 2533, 2534, 2566, 2580, 2581, 2595, 2597, 2600, 2601, 2604, 2609, 2610, 2611, 2612, 2643, 2646, 2647, 2648, 2671, 2672, 2673, 2674, 2675, 2677, 2678, 2679, 2680, 2681, 2685, 2687, 2689, 2690, 2691, 2692, 2728, 2748, 2752, 2753, 2754, 2756, 2758, 2759, 2760, 2761, 2767, 2770, 2771, 2816, 2831, 2834, 2835, 2836, 2837, 2838, 2839, 2840, 2841, 2842, 2843, 2844, 2845, 2847, 2848, 2852, 2854, 2914, 2915, 2917, 2918, 2922, 2923, 2924, 2925, 2926, 2934, 3010, 3011, 3012, 3014, 3016, 3021, 3059, 3101, 3102, 3103, 3104, 3105, 3107, 3108, 3109, 3110, 3147, 3148, 3165, 3192, 3193, 3194, 3195, 3196, 3197, 3199, 3200, 3201, 3204, 3205, 3239, 3240, 3256, 3257, 3284, 3285, 3288, 3289, 3290, 3291, 3292, 3294, 3295, 3296, 3299, 3336, 3337, 3351, 3352, 3376, 3377, 3378, 3380, 3381, 3382, 3383, 3384, 3385, 3386, 3389, 3390, 3392, 3394, 3430, 3442, 3444, 3469, 3470, 3471, 3472, 3475, 3476, 3477, 3478, 3479, 3480, 3482, 3483, 3484, 3485, 3486, 3534, 3562, 3563, 3564, 3565, 3566, 3568, 3569, 3570, 3571, 3572, 3573, 3574, 3575, 3576, 3577, 3578, 3579, 3580, 3597, 3660, 3662, 3666, 3667, 3668, 3672, 3673, 3674, 3691, 3692, 3756, 3760, 3761, 3762, 3767, 3854, 3860, 3946, 3947, 3949, 3950, 3951, 3952, 4025, 4030, 4032, 4033, 4034, 4321, 4354, 33269, 33505, 33741, 36916, 36917, 37743, 37958, 39424]
+
+ALL_TEST_TILES = VAL_TILES_TO_ADD_TO_TEST_TILES + set_brooks + set_seward + \
+                set_sub50_dc + set_sub50_e_sib + set_sub50_bc + \
+                set_sub50_sas + set_sub50_ont + set_sub50_sib + \
+                set_c_ca + set_w_sib + set_s_sib + set_s_scand + \
+                set_e_sib + set_n_sib + set_n_queb + set_nw_terr + \
+                set_bc_coast + set_ak_interior
 
 ######
 ###### Titiler mosaic registrations
@@ -69,6 +97,13 @@ TITILER_MOSAIC_REG_DICT = {
         '2020_neon38': None,
         '2020_neon38atl08': None,
         '2020_neon38l2a': None,
+        '2020_niter_250_ntree_50': None,
+        '2020_niter_250_ntree_100': None,
+        '2020_niter_250_ntree_100_no_uncert_moss_lichen_0': None,
+        '2020_remove_short_veg': None,
+        '2020_zero_short_veg_height': None,
+        '2020_zero_short_veg_height_slope15': None,
+        '2020_niter_250_ntrees_50_10_cores': None,
     },
     'TCC':{
         '2020':None,
@@ -210,6 +245,13 @@ HT_MOSAIC_JSON_FN_DICT = {
     '2020_neon38': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/CONUS/Ht_H30_2020/NEON_38/HT_tindex_master_mosaic.json',
     '2020_neon38atl08': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_ATL08_only/HT_tindex_master_mosaic.json',
     '2020_neon38l2a':   's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_L2A_only/HT_tindex_master_mosaic.json',
+    '2020_niter_250_ntree_50': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.6/Ht_H30_2020/niter_250_ntree_50/HT_tindex_master_mosaic.json',
+    '2020_niter_250_ntree_100': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.6/Ht_H30_2020/niter_250_ntree_100/HT_tindex_master_mosaic.json',
+    '2020_niter_250_ntree_100_no_uncert_moss_lichen_0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.7/Ht_H30_2020/niter_250_ntree_100_no_uncert_moss_lichen_0/HT_tindex_master_mosaic.json',
+    '2020_remove_short_veg': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.9/Ht_H30_2020/remove_short_veg/HT_tindex_master_mosaic.json',
+    '2020_zero_short_veg_height': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.9/Ht_H30_2020/zero_short_veg_height/HT_tindex_master_mosaic.json',
+    '2020_zero_short_veg_height_slope15': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.10/Ht_H30_2020/zero_short_veg_height_slope15/HT_tindex_master_mosaic.json',
+    '2020_niter_250_ntrees_50_10_cores': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.11/Ht_H30_2020/niter_250_ntrees_50_10_cores/HT_tindex_master_mosaic.json',
 }
 HT_TINDEX_FN_DICT = dict()
 for key, value in HT_MOSAIC_JSON_FN_DICT.items():
