@@ -1,9 +1,21 @@
 import maplib_folium
 import mosaiclib
 
-#####
-##### XYZ tiles mosaics from project results
-#####
+'''
+    Tile Layer Dictionaries
+    -----------------------
+        + these create folium 'tiles' layers of various project map results from XYZ tiles mosaics.
+        + each dict holds a dict with all the info needed to map a layer:
+          a. the TiTiler mosaic registration id (generated on the fly)
+          b. the mosaic json s3 path
+          c. the map legend string for the layer
+          d. boolean for showing a colorbar on map for the layer
+          e. parameters used to display map of the layer
+
+    Using Tiles layers to provide API endpoints:
+          To Use Tiles in QGIS, Geopandas.explore(), etc:
+          tileslib.HT_TILE_LAYER_DICT['2020_v2.1']['layer'].tiles
+'''
 
 MISC_TILES_LAYER_DICT = {
                     'S1_2020summer': maplib_folium.make_tiles_layer_dict(
@@ -286,7 +298,7 @@ HT_TILE_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_neon38atl08'], 
                                                     mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_neon38atl08'], 
                                                     "Height [m] 2020 (HLS+Topo) NEON 38 from ICESat-2 ATL08", 
-                                                    SHOW_CBAR=True, 
+                                                    SHOW_CBAR=False, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0, 50", "bidx":"1", "colormap_name": "inferno"}
                                                    ),
@@ -294,8 +306,64 @@ HT_TILE_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_neon38l2a'], 
                                                     mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_neon38l2a'], 
                                                     "Height [m] 2020 (HLS+Topo) NEON 38 from GEDI L2A", 
-                                                    SHOW_CBAR=True, 
+                                                    SHOW_CBAR=False, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0, 50", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_niter_250_ntree_50': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_niter_250_ntree_50'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_niter_250_ntree_50'], 
+                                                    "Height [m] 2020 (HLS+Topo) niter=250, ntree=50", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_niter_250_ntree_100': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_niter_250_ntree_100'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_niter_250_ntree_100'], 
+                                                    "Height [m] 2020 (HLS+Topo) niter=250, ntree=100", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_niter_250_ntree_100_no_uncert_moss_lichen_0': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_niter_250_ntree_100_no_uncert_moss_lichen_0'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_niter_250_ntree_100_no_uncert_moss_lichen_0'], 
+                                                    "Height [m] 2020 (HLS+Topo) niter=250, ntree=100, no_uncert_moss_lichen_0", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_remove_short_veg': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_remove_short_veg'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_remove_short_veg'], 
+                                                    "Height [m] 2020 (HLS+Topo) remove_short_veg", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_zero_short_veg_height': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_zero_short_veg_height'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_zero_short_veg_height'], 
+                                                    "Height [m] 2020 (HLS+Topo) zero_short_veg_height (slope>25)", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_zero_short_veg_height_slope15': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_zero_short_veg_height_slope15'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_zero_short_veg_height_slope15'], 
+                                                    "Height [m] 2020 (HLS+Topo) zero_short_veg_height (slope>15)", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_niter_250_ntrees_50_10_cores': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_niter_250_ntrees_50_10_cores'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_niter_250_ntrees_50_10_cores'], 
+                                                    "Height [m] 2020 (HLS+Topo) niter_250_ntrees_50_10_cores", 
+                                                    SHOW_CBAR=False, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 30", "bidx":"1", "colormap_name": "inferno"}
                                                    ),
 }
