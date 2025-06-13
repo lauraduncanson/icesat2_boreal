@@ -88,12 +88,14 @@ TITILER_MOSAIC_REG_DICT = {
         '2020_v2.1': None,                                 # Ali runs w/o moss/lichen mask
         '2020_v2.2': None,                                 # Ali runs w/o moss/lichen mask w/ S1
         '2024_v2.1': None,                                  # Ali runs w/o moss/lichen mask
+        '2020_v3.0': None,
     },
     'HT':{
         '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',# Version2_SD runs w/ moss/lichen mask
         '2020_v2.1_no_uncert': None,                        # Ali runs w/o moss/lichen mask and no uncerts
         '2020_v2.1': None,                                 # Ali runs w/o moss/lichen mask
         '2020_v2.2': 'd3985ed1-99df-422a-81e4-a9e27d8119fc', # Ali runs w/o moss/lichen mask w/ S1,
+        '2020_v3.0': None,
         '2020_neon38': None,
         '2020_neon38atl08': None,
         '2020_neon38l2a': None,
@@ -221,7 +223,8 @@ AGB_MOSAIC_JSON_FN_DICT = {
     '2020_v2.0' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/boreal_agb_2024_v6/AGB_H30_2020/Version2_SD/AGB_tindex_master_mosaic.json',
     '2020_v2.1' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_H30_2020/full_run/AGB_tindex_master_mosaic.json',
     '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_S1H30_2020/full_run_no_uncert/AGB_tindex_master_mosaic.json',
-    '2024_v2.1': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_H30_2024/full_run_no_uncert/AGB_tindex_master_mosaic.json'
+    '2024_v2.1': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_H30_2024/full_run_no_uncert/AGB_tindex_master_mosaic.json',
+    '2020_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/AGB_H30_2020/full_run/AGB_tindex_master_mosaic.json',
 }
 AGB_TINDEX_FN_DICT = dict()
 for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
@@ -242,6 +245,8 @@ HT_MOSAIC_JSON_FN_DICT = {
     '2020_v2.1_no_uncert' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json',
     '2020_v2.1' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
     '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_S1H30_2020/full_run_no_uncert/HT_tindex_master_mosaic.json',
+    '2020_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
+    # Tests.....
     '2020_neon38': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/CONUS/Ht_H30_2020/NEON_38/HT_tindex_master_mosaic.json',
     '2020_neon38atl08': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_ATL08_only/HT_tindex_master_mosaic.json',
     '2020_neon38l2a':   's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CONUS_MAP/conus_ht_test/Ht_H30_2020/NEON_L2A_only/HT_tindex_master_mosaic.json',

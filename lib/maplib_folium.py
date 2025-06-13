@@ -70,16 +70,21 @@ def register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=Fa
     '''
     Mosaic registration that is specific to TiTiler
     '''
-    
-    with S3Backend(mosiac_json_fn) as mosaic:
-        mosaic_json = mosaic.mosaic_def
+    if isinstance(mosiac_json_fn, list):
+        # a list of s3 links
+        # this is slow!
+        mosaicdata = MosaicJSON.from_urls(mosiac_json_fn)
+        
+    else:
+        with S3Backend(mosiac_json_fn) as mosaic:
+            mosaicdata = mosaic.mosaic_def
 
     mosaic_links = httpx.post(
                         url=f"{titiler_endpoint}/mosaics",
                         headers={
                             "Content-Type": "application/vnd.titiler.mosaicjson+json",
                         },
-                        json=mosaic_json.model_dump(exclude_none=True),
+                        json=mosaicdata.model_dump(exclude_none=True),
                     ).json()
     
     if print_info: 
@@ -126,7 +131,8 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
     A NAME will help identify the tiles layer in the legend and under the colorbar
     '''
     if PRINT: print(f'\n\n{PARAMS_DICT}\n\n')
-    #mosaic_links = register_mosaic_json_titiler(mosaic_json_fn)
+    # if type(mosaic_json_fn) is list:
+    #     mosaic_links = register_mosaic_json_titiler(mosaic_json_fn)
     tiles = build_tiles_with_params(mosaic_reg_id, mosaic_json_fn, params_dict = PARAMS_DICT, titiler_endpoint = "https://titiler.maap-project.org")
     MIN, MAX = eval(PARAMS_DICT["rescale"])
     if "colormap_name" in PARAMS_DICT:

@@ -91,50 +91,51 @@ def process_atl08_boreal(polygon_id, polygon_gdf_fn, id_col_num = 'tile_num', t0
     # https://slideruleearth.io/web/rtd/api_reference/icesat2.html#atl08p
     atl08 = icesat2.atl08p(params_atl08, keep_id=True)
     print(f'ATL08 obs for tile {polygon_id:06} from sliderule: {atl08.shape[0]}')
-    
-    ###############################
-    #### Project-specific formatting
-    # Format for filtering
-    # Unpack the canopy_h_metrics into discrete fields
-    atl08['rh25'] = [l[3] for l in atl08['canopy_h_metrics']]
-    atl08['rh50'] = [l[8] for l in atl08['canopy_h_metrics']]
-    atl08['rh60'] = [l[10] for l in atl08['canopy_h_metrics']]
-    atl08['rh70'] = [l[12] for l in atl08['canopy_h_metrics']]
-    atl08['rh75'] = [l[13] for l in atl08['canopy_h_metrics']]
-    atl08['rh80'] = [l[14] for l in atl08['canopy_h_metrics']]
-    atl08['rh85'] = [l[15] for l in atl08['canopy_h_metrics']]
-    atl08['rh90'] = [l[16] for l in atl08['canopy_h_metrics']]
-    atl08['rh95'] = [l[17] for l in atl08['canopy_h_metrics']]
+   
+    if True:
+        ###############################
+        #### Project-specific formatting
+        # Format for filtering
+        # Unpack the canopy_h_metrics into discrete fields
+        atl08['rh25'] = [l[3] for l in atl08['canopy_h_metrics']]
+        atl08['rh50'] = [l[8] for l in atl08['canopy_h_metrics']]
+        atl08['rh60'] = [l[10] for l in atl08['canopy_h_metrics']]
+        atl08['rh70'] = [l[12] for l in atl08['canopy_h_metrics']]
+        atl08['rh75'] = [l[13] for l in atl08['canopy_h_metrics']]
+        atl08['rh80'] = [l[14] for l in atl08['canopy_h_metrics']]
+        atl08['rh85'] = [l[15] for l in atl08['canopy_h_metrics']]
+        atl08['rh90'] = [l[16] for l in atl08['canopy_h_metrics']]
+        atl08['rh95'] = [l[17] for l in atl08['canopy_h_metrics']]
 
-    # Rename fields with 'canopy'
-    atl08['h_canopy_uncertainty'] = atl08['canopy/h_canopy_uncertainty']
-    atl08['segment_cover'] = atl08['canopy/segment_cover']
-    atl08['h_te_uncertainty'] = atl08['terrain/h_te_uncertainty']
+        # Rename fields with 'canopy'
+        atl08['h_canopy_uncertainty'] = atl08['canopy/h_canopy_uncertainty']
+        atl08['segment_cover'] = atl08['canopy/segment_cover']
+        atl08['h_te_uncertainty'] = atl08['terrain/h_te_uncertainty']
 
-    # Drop 'waveform' and 'canopy_h_metrics' fields 
-    atl08 = atl08.drop(columns=[#'waveform', 
-                                'canopy_h_metrics','canopy/h_canopy_uncertainty','canopy/segment_cover','terrain/h_te_uncertainty'])
-    
-    # Time is the index field
-    atl08.reset_index(inplace=True)
-    atl08['y'] = atl08.time.dt.year
-    atl08['m'] = atl08.time.dt.month
-    atl08['d'] = atl08.time.dt.day
-    atl08['doy'] = atl08.time.dt.dayofyear
-    atl08.drop('time', axis=1, inplace=True) # folium mapping a gdf with a datetime field doesnt work
-    
-    ###############################
-    # Quality filtering designed for boreal forest
-    atl08, atl08_meta = FilterUtils.filter_atl08_qual_v5(atl08, atl08_cols_list = atl08_cols_list, RETURN_METADATA=True)
-    
-    Path(outdir).mkdir(parents=True, exist_ok=True)
-    out_atl08_filt_fn = f'{out_name}_filt_{polygon_id:06}.parquet' ### updated from 05 to 06 padding
-    atl08.to_parquet(out_atl08_filt_fn)
-    print(f'File written:\t{out_atl08_filt_fn}')
-    
-    # Write filtering metadata
-    atl08_meta['tile_num'] = polygon_id
-    atl08_meta.to_csv(f'{out_name}_filt_metadata_{polygon_id:06}.csv')
+        # Drop 'waveform' and 'canopy_h_metrics' fields 
+        atl08 = atl08.drop(columns=[#'waveform', 
+                                    'canopy_h_metrics','canopy/h_canopy_uncertainty','canopy/segment_cover','terrain/h_te_uncertainty'])
+
+        # Time is the index field
+        atl08.reset_index(inplace=True)
+        atl08['y'] = atl08.time.dt.year
+        atl08['m'] = atl08.time.dt.month
+        atl08['d'] = atl08.time.dt.day
+        atl08['doy'] = atl08.time.dt.dayofyear
+        atl08.drop('time', axis=1, inplace=True) # folium mapping a gdf with a datetime field doesnt work
+
+        ###############################
+        # Quality filtering designed for boreal forest
+        atl08, atl08_meta = FilterUtils.filter_atl08_qual_v5(atl08, atl08_cols_list = atl08_cols_list, RETURN_METADATA=True)
+
+        Path(outdir).mkdir(parents=True, exist_ok=True)
+        out_atl08_filt_fn = f'{out_name}_filt_{polygon_id:06}.parquet' ### updated from 05 to 06 padding
+        atl08.to_parquet(out_atl08_filt_fn)
+        print(f'File written:\t{out_atl08_filt_fn}')
+
+        # Write filtering metadata
+        atl08_meta['tile_num'] = polygon_id
+        atl08_meta.to_csv(f'{out_name}_filt_metadata_{polygon_id:06}.csv')
     
     if RETURN_DF:
         return atl08

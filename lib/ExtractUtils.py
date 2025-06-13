@@ -575,7 +575,8 @@ def plot_gdf_on_world(gdf, DO_TYPE=True, MAP_COL = 'run_type', TITLE='', boundar
     #legend_kwds={'loc': 4}
     
     # Get world
-    world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+    #world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+    world = geopandas.read_file('/projects/my-public-bucket/databank/continents.shp')
 
     # Create a custom polygon
     polygon = shapely.geometry.Polygon(LIST_4326_VERTS)
@@ -616,7 +617,8 @@ def make_gdf_from_json(json_fn):
 
 def show_tiles_map(tile_index_matches_gdf, boreal_fn = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson'):
     
-    world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+    #world = geopandas.read_file(geopandas.datasets.get_path("naturalearth_lowres") )
+    world = geopandas.read_file('/projects/my-public-bucket/databank/continents.shp')
 
     # Create a custom polygon
     polygon = shapely.geometry.Polygon([(-180, 40), (-180, 78), (180, 78), (180, 40), (-180, 40)])
