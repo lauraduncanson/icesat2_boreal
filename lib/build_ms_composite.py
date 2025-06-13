@@ -24,6 +24,49 @@ import multiprocessing as mp
 from maap.maap import MAAP
 maap = MAAP()
 
+import numpy as np
+from sklearn.cluster import MeanShift
+
+def meanshift_geometric_median(points, bandwidth=None, **kwargs):
+    """
+    Approximate the geometric median using MeanShift clustering.
+    
+    Args:
+        points: 3D numpy array of shape (n, m, d)
+        bandwidth: bandwidth parameter for MeanShift
+        **kwargs: additional arguments for MeanShift
+        
+    Returns:
+        2D numpy array of shape (n, d)
+    """
+    n, m, d = points.shape
+    result = np.zeros((n, d))
+    
+    for i in range(n):
+        # Extract points for this batch
+        batch_points = points[i]
+        
+        # Determine bandwidth if not provided
+        if bandwidth is None:
+            # Estimate bandwidth as the median distance between points
+            dists = np.sqrt(np.sum((batch_points[:, np.newaxis, :] - 
+                                   batch_points[np.newaxis, :, :])**2, axis=2))
+            bandwidth = np.median(dists)
+        
+        # Apply MeanShift clustering
+        ms = MeanShift(bandwidth=bandwidth, **kwargs)
+        ms.fit(batch_points)
+        
+        # Get the cluster center with the most points
+        labels = ms.labels_
+        unique_labels, counts = np.unique(labels, return_counts=True)
+        most_common_label = unique_labels[np.argmax(counts)]
+        
+        # Use the most populous cluster center as the geometric median
+        result[i] = ms.cluster_centers_[most_common_label]
+    
+    return result
+
 def print_array_stats(result):
     print(f"\tPrinting array stats: {result.shape}")
     # Count of valid (non-NaN) pixels
@@ -33,9 +76,11 @@ def print_array_stats(result):
     print(f"\t\tStandard Deviation: {np.nanstd(result):.2f}")
     print(f"\t\tMinimum: {np.nanmin(result):.2f}")
     print(f"\t\tMaximum: {np.nanmax(result):.2f}")
-    print(f"\t\t25th Percentile: {np.nanpercentile(result, 25):.2f}")
-    print(f"\t\t50th Percentile (Median): {np.nanpercentile(result, 50):.2f}")
-    print(f"\t\t75th Percentile: {np.nanpercentile(result, 75):.2f}")
+    if not np.any(np.isnan(result)):
+        # print(np.sum(~np.isnan(result)), result[~np.isnan(result)].flatten().shape())
+        print(f"\t\t25th Percentile: {np.nanpercentile(np.ma.filled(result, np.nan), 25):.2f}")
+        print(f"\t\t50th Percentile (Median): {np.nanpercentile(np.ma.filled(result, np.nan), 50):.2f}")
+        print(f"\t\t75th Percentile: {np.nanpercentile(np.ma.filled(result, np.nan), 75):.2f}")
 
 def nanpercentile_index_chunk(chunk, percentile, axis):
     """
@@ -98,6 +143,7 @@ def multiprocess_nanpercentile_index(arr, percentile, axis=0, num_processes=4):
 
 import dask.array as da
 from dask.diagnostics import ProgressBar
+
 def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-9999):
     """
     Calculate the indices of a given percentile in a 3D numpy array while ignoring NaNs.
@@ -110,9 +156,7 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
     Returns:
     - index_array: Indices of the calculated percentile values along the specified axis.
     """
-    
-    # Compute the percentile values while ignoring NaNs
-    percentile_values = np.nanpercentile(arr, percentile, axis=axis)
+    all_nan_mask = np.all(np.isnan(arr), axis=axis)
 
     if DO_DASK:
         # Convert to dask array with specified chunk size
@@ -122,45 +166,21 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
         # Calculate percentile along the first axis (across images)
         # nanpercentile handles NaN values properly
         percentile_values = da.nanquantile(dask_stack, percentile * 1e-2, axis=axis)
+        # percentile_values = da.nanpercentile(dask_stack, percentile, axis=axis)
+        index_array = np.abs(dask_stack - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
         
         # Compute the percentile values (needed for the next step)
         with ProgressBar():
             percentile_values = percentile_values.compute()
-    
-    # Initialize an array to store the indices of percentile values
-    index_array = np.empty(percentile_values.shape, dtype=int)
-    
-    # Iterate over each slice and find the indices of the percentile values
-    it = np.nditer(percentile_values, flags=['multi_index'])
-    
-    while not it.finished:
-        index = it.multi_index
-        if axis == 0:
-            # For axis=0, use 2D slicing on the original array
-            slice_2d = arr[:, index[0], index[1]]
-        elif axis == 1:
-            # For axis=1, use 2D slicing on the original array
-            slice_2d = arr[index[0], :, index[1]]
-        elif axis == 2:
-            # For axis=2, use 2D slicing on the original array
-            slice_2d = arr[index[0], index[1], :]
-        else:
-            raise ValueError("Invalid axis. Choose from 0, 1, or 2.")
-        
-        # Find index of the nearest value to the percentile value
-        valid_indices = ~np.isnan(slice_2d)
-        valid_values = slice_2d[valid_indices]
-        
-        if len(valid_values) > 0:  # Ensure we have valid values
-            closest_index = np.abs(valid_values - percentile_values[index]).argmin()
-            original_index = np.where(valid_indices)[0][closest_index]
-            index_array[index] = original_index
-        else:
-            index_array[index] = -1  # Or some other indicator if invalid .. @Ali this results in 0 values for pixels that should be nodata in output
-        
-        it.iternext()
-    
-    return index_array
+            index_array = index_array.compute()
+    else:
+        # Compute the percentile values while ignoring NaNs
+        percentile_values = np.nanpercentile(arr, percentile, axis=axis)
+        index_array = np.abs(arr - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
+    print(type(index_array))
+    print(index_array.shape)
+    index_array[all_nan_mask] = -1 #no_data_value #-1 # Or some other indicator if invalid .. @Qiang this results in 0 values for pixels that should be nodata in output?
+    return index_array, all_nan_mask
 
 def safe_nanarg_stat(arr, stat='max', axis=0):
     """
@@ -175,17 +195,20 @@ def safe_nanarg_stat(arr, stat='max', axis=0):
     """
     # Check where rows/columns are all NaNs along a specified axis
     all_nan_mask = np.all(np.isnan(arr), axis=axis)
-    
-    # Replace all-NaN slices with a fill value (e.g., a large negative number)
-    fill_value = np.min(arr) if np.min(arr) < 0 else -np.inf
+
+    if stat == 'max':
+        # Replace all-NaN slices with a fill value (e.g., a large negative number)
+        fill_value = np.min(arr) if np.min(arr) < 0 else -np.inf
+    if stat == 'min':
+         fill_value = np.max(arr) if np.max(arr) > 10 else np.inf # <--- @Qiang might have to check this
     # Choose an appropriate fill value based on your data context
     arr_filled = np.where(all_nan_mask[np.newaxis, ...], fill_value, arr)
 
     if stat == 'max':
         # Return indices, using nanargmax safely
-        return np.nanargmax(arr_filled, axis=axis)
+        return np.nanargmax(arr_filled, axis=axis), all_nan_mask
     elif stat == 'min':
-        return np.nanargmin(arr_filled, axis=axis)
+        return np.nanargmin(arr_filled, axis=axis), all_nan_mask
     else:
         raise ValueError("Invalid statistic. Choose from 'min', 'max'.")
 
@@ -218,18 +241,23 @@ def compute_stat_from_masked_array(masked_array,
         print("\tApply the mask for no data values...")
         data = np.ma.masked_array(data, mask=(data == no_data_value))
         data = np.ma.filled(data, np.nan)  # Convert the new mask to NaN
-        print_array_stats(data)
-    
-    if stat == 'min':
+        #print_array_stats(data)
+    if stat == 'geomedian':
+        print('Not yet implemented: https://github.com/daleroberts/hdmedians/tree/master')
+    elif stat == 'min':
         #result = np.nanargmin(data, axis=0)
-        result = safe_nanarg_stat(data, stat='min', axis=0)
+        result, all_nan_mask = safe_nanarg_stat(data, stat='min', axis=0) # THIS IS UNTESTED AND LIKELY IS INCORRECT FOR 'min'
     elif stat == 'max':
-        #result = np.nanargmax(data, axis=0)
-        result = safe_nanarg_stat(data, stat='max', axis=0)
+        if False:
+            all_nan_mask = np.all(np.isnan(data), axis=0)
+            result = np.nanargmax(data, axis=0)
+        else:
+            result, all_nan_mask = safe_nanarg_stat(data, stat='max', axis=0)
     elif stat == 'percentile':
         if percentile_value is None:
             raise ValueError("For 'percentile', a percentile_value must be provided.")
-        result = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=True)
+        result, all_nan_mask = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=True)
+        #result, all_nan_mask = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=False)
         ## @Ali Below not working as expected: [1] cant get this to put the result back together like single process above... also, [2] the runtime seemed just as long...
         #result = multiprocess_nanpercentile_index(data, percentile_value, axis=0, num_processes=27)
 
@@ -240,7 +268,11 @@ def compute_stat_from_masked_array(masked_array,
     print(f"\tStatistical summary of index array for stat={stat}")
     print_array_stats(result)
     
-    return result
+    # if stat == 'percentile':
+    #     return result
+    return np.ma.masked_array(result, mask=all_nan_mask, fill_value=no_data_value) # debug_test_3 and above
+    #return np.ma.masked_array(result, mask=all_nan_mask) # debug_test_2
+    #return result # debug_test_1
 
 def get_json(s3path, output):
     '''
@@ -321,35 +353,57 @@ def HLS_MASK(ma_fmask,
     msk = np.zeros_like(arr)#.astype(np.bool)
     for m in MASK_LIST:
         if m in HLS_QA_BIT.keys():
-            msk += (arr & (1 << HLS_QA_BIT[m]) ) #<--added parantheses 
+            msk += ((arr & 1 << HLS_QA_BIT[m]) ) > 0
         if m == 'aerosol_high':
-            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
+            msk += ((arr & (1 << HLS_QA_BIT['aerosol_h'])) > 0) * ((arr & (1 << HLS_QA_BIT['aerosol_l'])) > 0)
         if m == 'aerosol_moderate':
-            msk += (arr & (1 << HLS_QA_BIT['aerosol_h']) & (0 << HLS_QA_BIT['aerosol_l']))
+            msk += ((arr & (1 << HLS_QA_BIT['aerosol_h'])) > 0) * ((arr | (1 << HLS_QA_BIT['aerosol_l'])) != arr)
         if m == 'aerosol_low':
-            msk += (arr & (0 << HLS_QA_BIT['aerosol_h']) & (1 << HLS_QA_BIT['aerosol_l']))
-            
-    #ma_fmask.mask *= msk > 0 # With *, this will be the intersection of the various bit masks
-    ma_fmask.mask += msk > 0 # With +, this will be the union of the various bit masks
-    return ma_fmask
+            msk += ((arr | (1 << HLS_QA_BIT['aerosol_h'])) != arr) * ((arr & (1 << HLS_QA_BIT['aerosol_l'])) > 0)
+    return msk > 0
 
 def LC2SR_MASK(ma_cloudqa, 
-             MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snow', 'water'], 
-             LC2SR_QA_BIT = {'dark dense veg': 0, 'cloud': 1, 'cloud shadow': 2, 'adj_cloud':3, 'snow':4, 'water':5}):
-    
+             MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snow', 'water']):
     '''This function takes the LC2SR CLOUD_QA layer as a masked array and exports the desired mask image array. 
         The mask_list assigns the QA conditions you would like to mask.
         The default mask_list setting is coded for a vegetation application, so it also removes water and snow.
         See LC2SR user guide for more details: <TODO: get user guide>
     '''
-    
+    LC2SR_QA_BIT = {'fill': 0,
+                'dilated cloud': 1,
+                'cirrus': 2,
+                'cloud':3,
+                'cloud shadow':4,
+                'snow':5,
+                'clear': 6,
+                'water': 7,
+                'cloud confidence l': 8,
+                'cloud confidence h': 9,
+                'cloud shadow confidence l': 10,
+                'cloud shadow confidence h': 11,
+                'snow/ice confidence l': 12,
+                'snow/ice confidence h': 13,
+                'cirrus confidence l': 14,
+                'cirrus confidence h': 15
+                }
     arr = ma_cloudqa.data
     msk = np.zeros_like(arr)#.astype(np.bool)
+    MASK_LIST = [x.lower() for x in MASK_LIST]
     for m in MASK_LIST:
         if m in LC2SR_QA_BIT.keys():
-            msk += (arr & (1 << LC2SR_QA_BIT[m]) ) #<--added parantheses 
-            
-    #ma_fmask.mask *= msk > 0 # With *, this will be the intersection of the various bit masks
+            msk += (arr & 1 << LC2SR_QA_BIT[m]) > 0
+        if m.endswith("high"):
+            l_bit = m.replace("high", 'l')
+            h_bit = m.replace("high", 'h')
+            msk += ((arr & (1 << LC2SR_QA_BIT[h_bit])) > 0) * ((arr & (1 << LC2SR_QA_BIT[l_bit])) > 0)
+        if m.endswith("moderate"):
+            l_bit = m.replace("moderate", 'l')
+            h_bit = m.replace("moderate", 'h')
+            msk += ((arr & (1 << LC2SR_QA_BIT[h_bit])) > 0) * ((arr | (1 << LC2SR_QA_BIT[l_bit])) != arr)
+        if m.endswith("low"):
+            l_bit = m.replace("low", 'l')
+            h_bit = m.replace("low", 'h')
+            msk += ((arr | (1 << LC2SR_QA_BIT[h_bit])) != arr) * ((arr & (1 << LC2SR_QA_BIT[l_bit])) > 0)
     ma_cloudqa.mask += msk > 0 # With +, this will be the union of the various bit masks
     return ma_cloudqa
 
@@ -399,7 +453,8 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     #
     # HLS masking
     #
-    fmaskarr = HLS_MASK(fmaskarr)
+    #fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high']) # mask out snow
+    fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'water', 'aerosol_high']) # keep snow
     
     #print(f'printing fmaskarr data:\n{fmaskarr.data}')
     #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
@@ -407,7 +462,7 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     #print(ndvi.shape)
     
     print(f'min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
-    return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
+    return np.ma.array(np.where(((fmaskarr_by==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
 def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
     '''Calculate NDVI for each source scene'''
@@ -420,11 +475,12 @@ def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, heigh
     #
     fmaskarr = LC2SR_MASK(fmaskarr)
 
-    print(f'\tmin, max Red value before mask: {round(REDarr.min(), 4)}, {round(REDarr.max(), 4)} (red rangelims: {rangelims_red})')
+    # print(f'\tmin, max Red value before mask: {round(REDarr.min(), 4)}, {round(REDarr.max(), 4)} (red rangelims: {rangelims_red})')
+    print(f'\tmin, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
     #return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
-def CollapseBands(inArr, NDVItmp, BoolMask):
+def CollapseBands(inArr, NDVItmp, BoolMask, nodatavalue):
     '''
     Inserts the bands as arrays (made earlier)
     Creates a single layer by using the binary mask and a sum function to collapse n-dims to 2-dims
@@ -432,14 +488,14 @@ def CollapseBands(inArr, NDVItmp, BoolMask):
     inArr = np.ma.masked_equal(inArr, 0)
     inArr[np.logical_not(NDVItmp)]=0 
     compImg = np.ma.masked_array(inArr.sum(0), BoolMask)
-    #print(compImg)
-    return compImg
+    
+    return compImg.filled(nodatavalue) # doing this prevents nodata from being returned as 0 values in final composite
 
-def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, dst_crs, comp_type):
+def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, dst_crs, comp_type, nodatavalue):
     #print("\t\tMaskedFile")
     MaskedFile = [MaskArrays(file_list[i], in_bbox, height, width, comp_type, epsg, dst_crs) for i in range(len(file_list))]
     #print("\t\tComposite")
-    Composite = CollapseBands(MaskedFile, NDVItmp, BoolMask)
+    Composite = CollapseBands(MaskedFile, NDVItmp, BoolMask, nodatavalue)
     return Composite
 
 def createJulianDateLC2SR(file, height, width):
@@ -452,9 +508,9 @@ def createJulianDateLC2SR(file, height, width):
     date_arr = np.full((height, width), jd,dtype=np.float32)
     return date_arr
     
-def JulianCompositeLC2SR(file_list, NDVItmp, BoolMask, height, width):
+def JulianCompositeLC2SR(file_list, NDVItmp, BoolMask, height, width, nodatavalue):
     JulianDateImages = [createJulianDateLC2SR(file_list[i], height, width) for i in range(len(file_list))]
-    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask, nodatavalue)
     return JulianComposite
 
 def createJulianDateHLS(file, height, width):
@@ -462,17 +518,17 @@ def createJulianDateHLS(file, height, width):
     date_arr = np.full((height, width),j_date,dtype=np.float32)
     return date_arr
     
-def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
+def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width, nodatavalue):
     JulianDateImages = [createJulianDateHLS(file_list[i], height, width) for i in range(len(file_list))]
-    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask, nodatavalue)
     return JulianComposite
 
-def JulianComposite(file_list, NDVItmp, BoolMask, height, width, comp_type):
+def JulianComposite(file_list, NDVItmp, BoolMask, height, width, comp_type, nodatavalue):
     if comp_type == 'LC2SR':
         JulianDateImages = [createJulianDateLC2SR(file_list[i], height, width) for i in range(len(file_list))]
     elif comp_type == 'HLS':
         JulianDateImages = [createJulianDateHLS(file_list[i], height, width) for i in range(len(file_list))]
-    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask, nodatavalue)
     return JulianComposite
 
 def year_band(file, height, width, comp_type):
@@ -485,11 +541,19 @@ def year_band(file, height, width, comp_type):
     
     return year_arr
 
-def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type):
+def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type, nodatavalue):
     year_imgs = [year_band(file_list[i], height, width, comp_type) for i in range(len(file_list))]
-    year_composite = CollapseBands(year_imgs, NDVItmp, BoolMask)
+    year_composite = CollapseBands(year_imgs, NDVItmp, BoolMask, nodatavalue)
     return year_composite
 
+# Snow Index Calculation
+# https://www.usgs.gov/landsat-missions/normalized-difference-snow-index
+
+def NDSI(green, swir):
+    ndsi = ((green - swir) / (green + swir))
+    print('\tNDSI Created')
+    return ndsi
+    
 # Vegetation Indices Calculations
 # https://www.usgs.gov/landsat-missions/landsat-surface-reflectance-derived-spectral-indices
 
@@ -655,7 +719,7 @@ def main():
                      'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
     else:
         bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
-                     'ValidMask', 'JulianDate', 'yearDate','count']
+                     'ValidMask', 'JulianDate', 'yearDate','count', 'Fmask']
     
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
@@ -772,48 +836,79 @@ def main():
     print(f"Create LUT of NDVI positions using stat={args.stat}")
     for i in range(np.shape(NDVIstack_ma)[0]):
         NDVItmp[i,:,:]=NDVIstat==i
+        
     ##############
+    # kw_args = {'NDVItmp': NDVItmp, 'BoolMask': BoolMask, 'in_bbox': in_bbox, 'height': height, 'width': width, 'out_crs': out_crs, 'composite_type': args.composite_type, 'nodatavlue': args.nodatavalue}
+    # params_list = [
+    #     {'band_name': 'Blue', 'bands_list': blue_bands},
+    #     {'band_name': 'Green', 'bands_list': green_bands},
+    #     {'band_name': 'Red', 'bands_list': red_bands},
+    #     {'band_name': 'NIR', 'bands_list': nir_bands},
+    #     {'band_name': 'SWIR', 'bands_list': swir_bands},
+    #     {'band_name': 'SWIR2', 'bands_list': swir2_bands},
+    #     {'band_name': 'Julian Day', 'bands_list': swir2_bands},
+    #     {'band_name': 'Year', 'bands_list': swir2_bands},
+    #     {'band_name': 'Fmask', 'bands_list': fmask_bands},
+    # ]
+    # def wrapper_createcomposite(params):
+    #     aws_session = renew_session(params['composite_type'])
+
+    #     with rio.Env(aws_session):
+    #         print(f'Creating {params['band_name']} composite...')
+    #         _comp = CreateComposite(params['bands_list'], params['NDVItmp'], params['BoolMask'], params['in_bbox'], params['height'], params['width'], params['out_crs'], params['out_crs'], params['composite_type'], params['nodatavalue'])
+    #         #print_array_stats(_comp)
+    #         return _comp
+
+    # from multiprocessing import Pool
+    # from functools import partial
     
+    # with Pool(processes=6) as pool:
+    #     BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, JULIANcomp, YEARcomp, Fmaskcomp = pool.map(partial(wrapper_createcomposite, **kw_args), params_list)
+            
     # create band-by-band composites: TODO multiprocess these
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Blue composite...')
-        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
-        print_array_stats(BlueComp)
+        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        #print_array_stats(BlueComp)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Green composite...')
-        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Red composite...')
-        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating NIR composite...')
-        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating SWIR composite...')
-        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating SWIR2 composite...')
-        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type)
+        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session): 
         print('Creating Julian Date composite...')
-        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
+        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Year Date composite...')
-        YEARcomp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
-
+        YEARcomp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
+    aws_session = renew_session(args.composite_type)
+    with rio.Env(aws_session):
+        print('Creating Fmask composite...')
+        Fmaskcomp = CreateComposite(fmask_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        
     print(f"\nGenerating a valid mask using min NDVI threshold ({args.thresh_min_ndvi}) on NDVI composite...")
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating NDVI composite...')
-        NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask)
+        NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask, args.nodatavalue)
         
     ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
     
@@ -838,7 +933,7 @@ def main():
                               ValidMask, Xgeo, Ygeo, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
     else:
         stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, 
-                              ValidMask, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
+                              ValidMask, JULIANcomp, YEARcomp, CountComp, Fmaskcomp], [0, 1, 2]) 
      
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
@@ -849,11 +944,11 @@ def main():
     start_year = args.start_year
     end_year = args.end_year
     comp_type = args.composite_type
+    
     if args.stat != 'percentile': 
         STAT = args.stat
     else:
         STAT = f'{args.stat}{args.stat_pct}'
-    #out_stack_fn = os.path.join(outdir, comp_type + '_' + str(tile_n) + '_' + start_season + '_' + end_season + '_' + start_year + '_' + end_year + '_' + STAT + '.tif')
     out_stack_fn = os.path.join(outdir, '_'.join([comp_type, str(tile_n), start_season, end_season, start_year, end_year, STAT]) + '.tif')
     
     print('\nApply a common mask across all layers of stack...')
