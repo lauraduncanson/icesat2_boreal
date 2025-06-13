@@ -14,8 +14,8 @@ import numpy as np
 from rasterio.session import AWSSession
 from typing import List
 from CovariateUtils import write_cog, get_index_tile, get_aws_session, get_aws_session_DAAC, common_mask, get_shape, reader
-from fetch_HLS import get_HLS_data
-from fetch_from_api import get_ls8_data
+#from fetch_HLS import get_HLS_data, get_LC2SR_data, get_ms_data, MS_BANDS_DICT
+from fetch_from_api import get_ms_data, MS_BANDS_DICT
 import json
 import datetime
 from CovariateUtils import get_creds, get_creds_DAAC
@@ -39,7 +39,7 @@ def get_json(s3path, output):
         catalog = json.load(f) 
     return catalog
 
-def GetBandLists(inJSON, bandnum, comp_type):
+def GetBandLists___(inJSON, bandnum, comp_type):
     
     BandList = []
     with open(inJSON) as f:
@@ -47,9 +47,9 @@ def GetBandLists(inJSON, bandnum, comp_type):
         
     for i in range(len(response['features'])):
         
-        # Get the HLS product type and the product-specific bands from each feature of the JSON
-        product_type = response['features'][i]['id'].split('.')[1]
         if comp_type=='HLS':
+            # Get the HLS product type and the product-specific bands from each feature of the JSON
+            product_type = response['features'][i]['id'].split('.')[1]
             if product_type=='L30':
                 bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
             elif product_type=='S30':
@@ -57,10 +57,12 @@ def GetBandLists(inJSON, bandnum, comp_type):
             else:
                 print("HLS product type not recognized: Must be L30 or S30.")
                 os._exit(1)
-        elif comp_type=='LS8':
+        elif comp_type in MS_BANDS_DICT.keys() and comp_type in ['LT05','LE07','LC08']:
+            # Get the Landsat product type and the product-specific bands from each feature of the JSON
+            product_type = response['features'][i]['id'].split('_')[0]
             bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22'})
         else:
-            print("comp type not recognized")
+            print(f"comp type ({comp_type}) not recognized")
             os._exit(1)
             
         try:
@@ -74,6 +76,55 @@ def GetBandLists(inJSON, bandnum, comp_type):
                 
     #BandList.sort()
     #print(BandList)
+    return BandList
+    
+def GetBandLists(inJSON, bandnum, comp_type):
+    
+    BandList = []
+    with open(inJSON) as f:
+        response = json.load(f)
+        
+    for i in range(len(response['features'])):
+        
+        if comp_type=='HLS':
+            # Get the HLS product type and the product-specific bands from each feature of the JSON
+            product_type = response['features'][i]['id'].split('.')[1]
+        elif comp_type=='LC2SR':
+            # Get the Landsat product type and the product-specific bands from each feature of the JSON
+            product_type = response['features'][i]['id'].split('_')[0]
+        else:
+            print(f"comp type ({comp_type}) not recognized")
+            os._exit(1)
+
+        if product_type=='L30':
+            bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B05', 6:'B06', 7:'B07',8:'Fmask'})
+        elif product_type=='S30':
+            bands = dict({2:'B02', 3:'B03', 4:'B04', 5:'B8A', 6:'B11', 7:'B12',8:'Fmask'})
+        ## LC2SR ##
+        # TODO: configure cloud mask in CreateNDVIstack_LC2SR() using cloud_qa
+        elif product_type=='LT04':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22', 8:'cloud_qa'})
+        elif product_type=='LT05':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22', 8:'cloud_qa'})
+        elif product_type=='LE07':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22', 8:'cloud_qa'})
+        elif product_type=='LC08':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22', 8:'qa_pixel'})
+        elif product_type=='LC09':
+            bands = dict({2:'blue', 3:'green', 4:'red', 5:'nir08', 6:'swir16', 7:'swir22', 8:'qa_aerosol'})
+        else:
+            print("HLS product type not recognized: Must be L30 or S30.")
+            os._exit(1)
+            
+        try:
+            #print(f'GetBandLists: {comp_type} {product_type} {bands[bandnum]}')
+            getBand = response['features'][i]['assets'][bands[bandnum]]['href']
+            # check 's3' is at position [:2]
+            if getBand.startswith('s3', 0, 2):
+                BandList.append(getBand)
+        except Exception as e:
+            print(e)
+                
     return BandList
 
 def HLS_MASK(ma_fmask, 
@@ -101,6 +152,25 @@ def HLS_MASK(ma_fmask,
     ma_fmask.mask += msk > 0 # With +, this will be the union of the various bit masks
     return ma_fmask
 
+def LC2SR_MASK(ma_cloudqa, 
+             MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snow', 'water'], 
+             LC2SR_QA_BIT = {'dark dense veg': 0, 'cloud': 1, 'cloud shadow': 2, 'adj_cloud':3, 'snow':4, 'water':5}):
+    
+    # This function takes the LC2SR CLOUD_QA layer as a masked array and exports the desired mask image array. 
+    # The mask_list assigns the QA conditions you would like to mask.
+    # The default mask_list setting is coded for a vegetation application, so it also removes water and snow.
+    # See LC2SR user guide for more details: <TODO: get user guide>
+    
+    arr = ma_cloudqa.data
+    msk = np.zeros_like(arr)#.astype(np.bool)
+    for m in MASK_LIST:
+        if m in LC2SR_QA_BIT.keys():
+            msk += (arr & (1 << LC2SR_QA_BIT[m]) ) #<--added parantheses 
+            
+    #ma_fmask.mask *= msk > 0 # With *, this will be the intersection of the various bit masks
+    ma_cloudqa.mask += msk > 0 # With +, this will be the union of the various bit masks
+    return ma_cloudqa
+
 def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_crs="epsg:4326", incl_trans=False, do_mask=False):
     '''Read a window of data from the raster matching the tile bbox
     Return a masked array for the window (subset) of the input file
@@ -116,13 +186,17 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
     if comp_type=="HLS":
         if do_mask:
             # Returns the integer Fmask whose bits can be converted to a datamask
-            return (np.squeeze(img.as_masked().astype(int)) )
+            return (np.squeeze(img.array.astype(int)) )
         else:
-            return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0001)
+            return (np.squeeze(img.array.astype(np.float32)) * 0.0001)
         
-    elif comp_type=="LS8":
-        # Surface reflectance collection 2 scaling offset (0.0000275) and bias (- 0.2)
-        return (np.squeeze(img.as_masked().astype(np.float32)) * 0.0000275) - 0.2
+    elif comp_type=="LC2SR":
+        if do_mask:
+            # Returns the integer Fmask whose bits can be converted to a datamask
+            return (np.squeeze(img.array.astype(int)) )
+        else:
+            # Surface reflectance collection 2 scaling offset (0.0000275) and bias (- 0.2)
+            return (np.squeeze(img.array.astype(np.float32)) * 0.0000275) - 0.2
     else:
         print("composite type not recognized")
         os._exit(1)
@@ -149,12 +223,19 @@ def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height,
     print(f'Red rangelims: {rangelims_red}')
     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
-
-def CreateNDVIstack_LS8(REDfile, NIRfile, in_bbox, epsg, dst_crs, height, width, comp_type):
+def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1]):
     '''Calculate NDVI for each source scene'''
     NIRarr = MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
     REDarr = MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+    
+    #
+    # LC2SR masking
+    #
+    fmaskarr = LC2SR_MASK(fmaskarr)
+    
+    #return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+    return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), -9999, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
 def CollapseBands(inArr, NDVItmp, BoolMask):
     '''
@@ -174,7 +255,7 @@ def CreateComposite(file_list, NDVItmp, BoolMask, in_bbox, height, width, epsg, 
     Composite=CollapseBands(MaskedFile, NDVItmp, BoolMask)
     return Composite
 
-def createJulianDate(file, height, width):
+def createJulianDateLC2SR(file, height, width):
     date_string = file.split('/')[-1].split('_')[3]
     fmt = '%Y.%m.%d'
     date = date_string[:4] + '.' + date_string[4:6] + '.' + date_string[6:]
@@ -184,8 +265,8 @@ def createJulianDate(file, height, width):
     date_arr = np.full((height, width), jd,dtype=np.float32)
     return date_arr
     
-def JulianComposite(file_list, NDVItmp, BoolMask, height, width):
-    JulianDateImages = [createJulianDate(file_list[i], height, width) for i in range(len(file_list))]
+def JulianCompositeLC2SR(file_list, NDVItmp, BoolMask, height, width):
+    JulianDateImages = [createJulianDateLC2SR(file_list[i], height, width) for i in range(len(file_list))]
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
     return JulianComposite
 
@@ -199,10 +280,18 @@ def JulianCompositeHLS(file_list, NDVItmp, BoolMask, height, width):
     JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
     return JulianComposite
 
+def JulianComposite(file_list, NDVItmp, BoolMask, height, width, comp_type):
+    if comp_type == 'LC2SR':
+        JulianDateImages = [createJulianDateLC2SR(file_list[i], height, width) for i in range(len(file_list))]
+    elif comp_type == 'HLS':
+        JulianDateImages = [createJulianDateHLS(file_list[i], height, width) for i in range(len(file_list))]
+    JulianComposite = CollapseBands(JulianDateImages, NDVItmp, BoolMask)
+    return JulianComposite
+
 def year_band(file, height, width, comp_type):
     if comp_type == "HLS":
         year = file.split('/')[-1].split('.')[3][0:4]
-    elif comp_type == "LS8":
+    elif comp_type == "LC2SR":
         year = file.split('/')[-1].split('_')[3][0:4]
         
     year_arr = np.full((height, width),year,dtype=np.float32)
@@ -310,7 +399,7 @@ def get_pixel_coords(arr, transform):
 def renew_session(comp_type):
     if comp_type == 'HLS':
         aws_session = get_aws_session_DAAC(get_creds_DAAC())
-    elif comp_type == 'LS8':
+    elif comp_type == 'LC2SR':
         aws_session = get_aws_session(get_creds())
     return aws_session   
 
@@ -333,12 +422,12 @@ def main():
     parser.add_argument("-smd", "--start_month_day", type=str, default="06-01", help="specify the start month and day (e.g., 06-01)")
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
-    parser.add_argument("-t", "--composite_type", choices=['HLS', 'LS8'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
+    parser.add_argument("-t", "--composite_type", choices=['HLS','LC2SR'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
     parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
-    parser.add_argument("-min_n", "--min_n_filt_results", type=int, default=0, help="Min number of filtered search results (HLS only) desired before hitting max cloud limit.")
+    parser.add_argument("-min_n", "--min_n_filt_results", type=int, default=0, help="Min number of filtered search results desired before hitting max cloud limit.")
     parser.add_argument('--search_only', dest='search_only', action='store_true', help='Only perform search and return response json. No composites made.')
     parser.set_defaults(search_only=False)
     #parser.add_argument("-bnames", "--bandnames_list", nargs="+", default='Blue Green Red NIR SWIR SWIR2 NDVI SAVI MSAVI NDMI EVI NBR NBR2 TCB TCG TCW ValidMask Xgeo Ygeo JulianDate yearDate', help="List of bandnames for composite.")
@@ -346,7 +435,7 @@ def main():
     
     '''
     Build multi-spectral (ms) composites with scenes from queries of:
-    (a) An endpoint of the USGS Landsat-8 archive
+    (a) An endpoint of the USGS Landsat-5/7/8 archive
     (b) An endpoint of the v 2.0 of the HLS S30, L30 archive
     
     The ms composite will have the following bands:
@@ -359,6 +448,7 @@ def main():
     'Ygeo' : y coordinate
     'JulianDate' : day-of-year of ms composite obs.
     'yearDate' : year of ms composite obs.
+    'count': the pixelwise count of valid observations considered during compositing.
     
     Note: 
     HLS info:
@@ -369,12 +459,9 @@ def main():
     
     GitHub CMR issue:
     https://github.com/nasa/cmr-stac/issues
-
-    EXAMPLE CALL
-    python 3.1.2_dps.py -i /projects/maap-users/alexdevseed/boreal_tiles.gpkg -n 30543 -l boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api
     '''
     
-    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
+    bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
     
     geojson_path_albers = args.in_tile_fn
     print('\nTiles path:\t\t', geojson_path_albers)
@@ -420,15 +507,27 @@ def main():
             print("MUST SPECIFY -o FOR JSON PATH")
             os._exit(1)
         elif args.composite_type == 'HLS':
-            master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
-                                       args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, 
-                                       args.hls_product, args.hls_product_version, args.min_n_filt_results)
-        elif args.composite_type == 'LS8':
-            master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
-                                       args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            ms_product = args.hls_product
+            ms_version = args.hls_product_version
+            # master_json = get_HLS_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+            #                            args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, 
+            #                            ms_product, ms_version, args.min_n_filt_results, bands_dict=MS_BANDS_DICT)
+        elif args.composite_type == 'LC2SR':
+            # master_json = get_ls8_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+            #                            args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local)
+            # master_json = get_LC2SR_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+            #                            args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, args.local, 
+            #                            args.min_n_filt_results, bands_dict=MS_BANDS_DICT)
+            ms_product = 'landsat-c2l2-sr'
+            ms_version = None
         else:
-            print("specify the composite type (HLS, LS8)")
+            print("specify the composite type (HLS, LC2SR)")
             os._exit(1)
+            
+        # Get the multispectral data for compositing as a json file of CMR query responses
+        master_json = get_ms_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
+                                args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, 
+                                args.composite_type, args.local, ms_product, ms_version, args.min_n_filt_results, bands_dict=MS_BANDS_DICT)
     else:
         master_json = args.json_file
     
@@ -442,15 +541,12 @@ def main():
             print("\nNo scenes to build a composite. Exiting.\n")
             os._exit(1)  
     #print(f"Example path to a band:\t\t {blue_bands[0]}")
-    green_bands = GetBandLists(master_json, 3, args.composite_type)#, product_type=args.hls_product)
-    red_bands =   GetBandLists(master_json, 4, args.composite_type)#, product_type=args.hls_product)
-    nir_bands =   GetBandLists(master_json, 5, args.composite_type)#, product_type=args.hls_product)
-    swir_bands =  GetBandLists(master_json, 6, args.composite_type)#, product_type=args.hls_product)
-    swir2_bands = GetBandLists(master_json, 7, args.composite_type)#, product_type=args.hls_product)
-    
-    if args.composite_type=='HLS':
-        fmask_bands = GetBandLists(master_json, 8, args.composite_type)#, product_type=args.hls_product)
-        #print(f'Printing a single fmask band filename for testing:\n{fmask_bands[0]}')
+    green_bands = GetBandLists(master_json, 3, args.composite_type)
+    red_bands =   GetBandLists(master_json, 4, args.composite_type)
+    nir_bands =   GetBandLists(master_json, 5, args.composite_type)
+    swir_bands =  GetBandLists(master_json, 6, args.composite_type)
+    swir2_bands = GetBandLists(master_json, 7, args.composite_type)
+    fmask_bands = GetBandLists(master_json, 8, args.composite_type)
   
     ## Create NDVI layers
     ## Loops over lists of bands and calculates NDVI
@@ -460,10 +556,10 @@ def main():
     # insert AWS credentials here if needed
     if args.composite_type == 'HLS':
         aws_session = get_aws_session_DAAC(get_creds_DAAC())
-    elif args.composite_type == 'LS8':
+    elif args.composite_type == 'LC2SR':
         aws_session = get_aws_session(get_creds())
     else:
-        print("specify the composite type (HLS, ls8)")
+        print("specify the composite type (HLS, LC2SR)")
         os._exit(1)
     
     #print(aws_session)
@@ -471,36 +567,37 @@ def main():
     # Start reading data: TO DO: nmt28 - edit so it can use comp_type
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
-        #print(in_crs)
         if args.composite_type=='HLS':
             NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
-        elif args.composite_type=='LS8':
-            NDVIstack = [CreateNDVIstack_LS8(red_bands[i],nir_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type) for i in range(len(red_bands))]
+        elif args.composite_type=='LC2SR':
+            NDVIstack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
         
         print('finished')
-    
-    
+       
     # Create Bool mask where there is no value in any of the NDVI layers
-    print("Make NDVI valid mask")
-    print("shape:\t\t", np.ma.array(NDVIstack).shape)
-    MaxNDVI = np.ma.max(np.ma.array(NDVIstack),axis=0)
+    print("Make NDVI masked array")
+    NDVIstack_ma = np.ma.array(NDVIstack)
+    print("shape:\t\t", NDVIstack_ma.shape)
+    MaxNDVI = np.ma.max(NDVIstack_ma,axis=0)
     BoolMask = np.ma.getmask(MaxNDVI)
     del MaxNDVI
     
     ## Get the argmax index positions from the stack of NDVI images
-    print("Get stack nan mask")
-    NDVIstack = np.ma.array(NDVIstack)
     print("Calculate Stack max NDVI image")
-    NDVImax = np.nanargmax(NDVIstack,axis=0)
+    NDVImax = np.nanargmax(NDVIstack_ma, axis=0)
     ## create a tmp array (binary mask) of the same input shape
-    NDVItmp = np.ma.zeros(NDVIstack.shape, dtype=bool)
-
+    NDVItmp = np.ma.zeros(NDVIstack_ma.shape, dtype=bool)
+    
+    ## Get the pixelwise count of the valid data
+    CountComp = np.sum((NDVIstack_ma != -9999), axis=0)
+    print(f"Count array min ({CountComp.min()}), max ({CountComp.max()}), and shape ({CountComp.shape})")
+    
     ## for each dimension assign the index position (flattens the array to a LUT)
     print("Create LUT of max NDVI positions")
-    for i in range(np.shape(NDVIstack)[0]):
+    for i in range(np.shape(NDVIstack_ma)[0]):
         NDVItmp[i,:,:]=NDVImax==i
       
-    # create band-by-band composites
+    # create band-by-band composites: TODO multiprocess these
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Blue Composite')
@@ -528,33 +625,27 @@ def main():
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating NDVI Composite')
-        NDVIComp = CollapseBands(NDVIstack, NDVItmp, BoolMask)
+        NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask)
     aws_session = renew_session(args.composite_type)
-    with rio.Env(aws_session):        
-        if args.composite_type == 'HLS':
-            print('Creating Julian Date Comp')
-            JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
-        elif args.composite_type == 'LS8':
-            JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width)
+    with rio.Env(aws_session): 
+        print('Creating Julian Date Comp')
+        # if args.composite_type == 'HLS':  
+        #     JULIANcomp = JulianCompositeHLS(swir2_bands, NDVItmp, BoolMask, height, width)
+        # elif args.composite_type == 'LC2SR':
+        #     JULIANcomp = JulianCompositeLC2SR(swir2_bands, NDVItmp, BoolMask, height, width)
+        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Year Date Comp')
-        YEARComp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
+        YEARcomp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type)
     
-    # calculate covars
     print("Generating covariates")
-    SAVI = calcSAVI(RedComp, NIRComp)
-    #print("MSAVI")
+    SAVI =  calcSAVI(RedComp, NIRComp)
     MSAVI = calcMSAVI(RedComp, NIRComp)
-    #print("NDMI")
-    NDMI = calcNDMI(NIRComp, SWIRComp)
-    #print("EVI")
-    EVI = calcEVI(BlueComp, RedComp, NIRComp)
-    #print("NBR")
-    NBR = calcNBR(NIRComp, SWIR2Comp)
-    #print("NBR2")
-    NBR2 = calcNBR2(SWIRComp, SWIR2Comp)
-    #print("TCB")
+    NDMI =  calcNDMI(NIRComp, SWIRComp)
+    EVI =   calcEVI(BlueComp, RedComp, NIRComp)
+    NBR =   calcNBR(NIRComp, SWIR2Comp)
+    NBR2 =  calcNBR2(SWIRComp, SWIR2Comp)
     TCB, TCG, TCW = tasseled_cap(np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp], [0, 1, 2]))
     
     print("Calculating X and Y pixel center coords...")
@@ -564,12 +655,8 @@ def main():
     # Stack bands together
     print("\nCreating raster stack...\n")
     # These must correspond with the bandnames
-    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARComp], [0, 1, 2]) 
-    
-    #assign band names
-    # ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
-    #bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate']
-    
+    stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, ValidMask, Xgeo, Ygeo, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
+     
     print(f"Assigning band names:\n\t{bandnames}\n")
     print("specifying output directory and filename")
 
@@ -620,13 +707,6 @@ if __name__ == "__main__":
         
         build_backfill_composite_HLS(geojson_path_albers, tile_n, res, args.tile_buffer_m, args.in_tile_layer, outdir, comp_type, sat_api, start_year, end_year, start_month_day, end_month_day, max_cloud, args.local)
     
-    
-    Example call:
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles.gpkg -n 30543 -lyr boreal_tiles_albers  -o /projects/tmp/Landsat/ -b 0 -a https://landsatlook.usgs.gov/sat-api -l False --tile_buffer_m 0
-    
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_grid_albers90k_gpkg.gpkg -n 3013 -lyr grid_boreal_albers90k_gpkg  -o /projects/tmp/Landsat/TC_test -a https://landsatlook.usgs.gov/sat-api --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t LS8
-    
-    python 3.1.2_dps.py -i /projects/shared-buckets/nathanmthomas/boreal_tiles_v003.gpkg -n 131 -lyr boreal_tiles_v003 -o /projects/tmp/Landsat/TC_test -a https://cmr.earthdata.nasa.gov/stac/LPCLOUD --tile_buffer_m 0 -sy 2020 -ey 2021 -smd 06-01 -emd 09-15 -mc 40 -t HLS
     '''
     main()
     
