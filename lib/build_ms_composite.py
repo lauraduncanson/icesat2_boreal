@@ -27,46 +27,6 @@ maap = MAAP()
 import numpy as np
 from sklearn.cluster import MeanShift
 
-def meanshift_geometric_median(points, bandwidth=None, **kwargs):
-    """
-    Approximate the geometric median using MeanShift clustering.
-    
-    Args:
-        points: 3D numpy array of shape (n, m, d)
-        bandwidth: bandwidth parameter for MeanShift
-        **kwargs: additional arguments for MeanShift
-        
-    Returns:
-        2D numpy array of shape (n, d)
-    """
-    n, m, d = points.shape
-    result = np.zeros((n, d))
-    
-    for i in range(n):
-        # Extract points for this batch
-        batch_points = points[i]
-        
-        # Determine bandwidth if not provided
-        if bandwidth is None:
-            # Estimate bandwidth as the median distance between points
-            dists = np.sqrt(np.sum((batch_points[:, np.newaxis, :] - 
-                                   batch_points[np.newaxis, :, :])**2, axis=2))
-            bandwidth = np.median(dists)
-        
-        # Apply MeanShift clustering
-        ms = MeanShift(bandwidth=bandwidth, **kwargs)
-        ms.fit(batch_points)
-        
-        # Get the cluster center with the most points
-        labels = ms.labels_
-        unique_labels, counts = np.unique(labels, return_counts=True)
-        most_common_label = unique_labels[np.argmax(counts)]
-        
-        # Use the most populous cluster center as the geometric median
-        result[i] = ms.cluster_centers_[most_common_label]
-    
-    return result
-
 def print_array_stats(result):
     print(f"\tPrinting array stats: {result.shape}")
     # Count of valid (non-NaN) pixels
