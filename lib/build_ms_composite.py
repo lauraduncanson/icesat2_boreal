@@ -117,7 +117,7 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
     - index_array: Indices of the calculated percentile values along the specified axis.
     """
     all_nan_mask = np.all(np.isnan(arr), axis=axis)
-
+    arr[0, all_nan_mask] = no_data_value # For all-NaN slices ValueError is raised.
     if DO_DASK:
         # Convert to dask array with specified chunk size
         # 
@@ -127,7 +127,8 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
         # nanpercentile handles NaN values properly
         percentile_values = da.nanquantile(dask_stack, percentile * 1e-2, axis=axis)
         # percentile_values = da.nanpercentile(dask_stack, percentile, axis=axis)
-        index_array = np.abs(dask_stack - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
+        # index_array = np.abs(dask_stack - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
+        index_array = da.nanargmin(np.abs(dask_stack - percentile_values[np.newaxis, :, :]), axis=axis)
         
         # Compute the percentile values (needed for the next step)
         with ProgressBar():
@@ -136,7 +137,8 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
     else:
         # Compute the percentile values while ignoring NaNs
         percentile_values = np.nanpercentile(arr, percentile, axis=axis)
-        index_array = np.abs(arr - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
+        # index_array = np.abs(arr - percentile_values[np.newaxis, :, :]).argmin(axis=axis)
+        index_array = np.nanargmin(np.abs(arr - percentile_values[np.newaxis, :, :]), axis=axis)
     print(type(index_array))
     print(index_array.shape)
     index_array[all_nan_mask] = -1 #no_data_value #-1 # Or some other indicator if invalid .. @Qiang this results in 0 values for pixels that should be nodata in output?
@@ -402,6 +404,29 @@ def MaskArrays(file, in_bbox, height, width, comp_type, epsg="epsg:4326", dst_cr
         print("composite type not recognized")
         os._exit(1)
 
+def create_target_stack(target_spectral_index_name, first_band, second_band, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
+    '''Calculate stack of target spectral index for each source scene
+    Mask out pixels above or below the red band reflectance range limit values'''
+    
+    second_band_ma =   MaskArrays(second_band, in_bbox, height, width, comp_type, epsg, dst_crs)
+    first_band_ma =    MaskArrays(first_band, in_bbox, height, width, comp_type, epsg, dst_crs)
+    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+    
+    if comp_type == 'LC2SR':
+        fmaskarr =    LC2SR_MASK(fmaskarr)
+    else:
+        #fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high']) # mask out snow
+        fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'water', 'aerosol_high']) # keep snow
+
+    if target_spectral_index_name == 'evi':
+        print(' --- EVI not yet implemented ; using NDVI instead ---')
+        target_spectral_index_name = 'ndvi'
+    if target_spectral_index_name == 'ndvi':
+        print(f'min, max Red value before mask: {first_band_ma.min()}, {first_band_ma.max()} (red rangelims: {rangelims_red})')
+        return np.ma.array(np.where(((fmaskarr_by==1) | (first_band_ma < rangelims_red[0]) | (first_band_ma > rangelims_red[1])), nodatavalue, (second_band_ma-first_band_ma)/(second_band_ma+first_band_ma)))
+    if target_spectral_index_name == 'ndsi':
+        return np.ma.array(np.where((fmaskarr_by==1), nodatavalue, (first_band_ma-second_band_ma)/(first_band_ma+second_band_ma))) # not the same order as ndvi, evi
+
 def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
     '''Calculate NDVI for each source scene
     Mask out pixels above or below the red band reflectance range limit values'''
@@ -509,7 +534,7 @@ def year_band_composite(file_list, NDVItmp, BoolMask, height, width, comp_type, 
 # Snow Index Calculation
 # https://www.usgs.gov/landsat-missions/normalized-difference-snow-index
 
-def NDSI(green, swir):
+def calcNDSI(green, swir):
     ndsi = ((green - swir) / (green + swir))
     print('\tNDSI Created')
     return ndsi
@@ -517,6 +542,12 @@ def NDSI(green, swir):
 # Vegetation Indices Calculations
 # https://www.usgs.gov/landsat-missions/landsat-surface-reflectance-derived-spectral-indices
 
+# NDVI
+def calcNDVI(red, nir):
+    ndvi = (nir - red)/(nir + red )
+    print('\tNDVI Created')
+    return ndvi
+    
 # SAVI
 def calcSAVI(red, nir):
     savi = ((nir - red)/(nir + red + 0.5))*(1.5)
@@ -636,6 +667,7 @@ def main():
     parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
+    parser.add_argument("--target_spectral_index", type=str, choices=['ndvi','ndsi'], nargs="?", default="ndvi", help="The target spectral index used with stat to composite a stack of input.")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
     parser.add_argument("-min_n", "--min_n_filt_results", type=int, default=0, help="Min number of filtered search results desired before hitting max cloud limit.")
     parser.add_argument("--stat", type=str, choices=['min','max','percentile'], nargs="?", default="max", help="Specify the stat for reducing the NDVI stack")
@@ -675,7 +707,7 @@ def main():
     '''
     if args.do_indices:
         bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
-                     'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', 
+                     'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', #NDSI,
                      'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
     else:
         bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
@@ -749,8 +781,8 @@ def main():
     swir_bands =  GetBandLists(master_json, 6, args.composite_type)
     swir2_bands = GetBandLists(master_json, 7, args.composite_type)
     fmask_bands = GetBandLists(master_json, 8, args.composite_type)
-  
-    print(f'Creating NDVI stack with {args.composite_type} ...')
+
+    print(f'Creating {args.target_spectral_index} stack with {args.composite_type} ...')
 
     # insert AWS credentials here if needed
     if args.composite_type == 'HLS':
@@ -763,42 +795,54 @@ def main():
     
     #print(aws_session)
     
+    ###############
+    # After the choice of 'args.target_spectral_index', the order in which bands are fed into the 'Create Stack' function is important:
+    # this function takes bands in as args in the order in which the bands appear on the EO spectrum, not the order in which they appear in the spectral index.
+    # so, while ndvi = (nir-red) / (nir+red) ; the 'reate Stack' function wants first the red_bands, then the nir_bands
+    
     # Start reading data on aws:
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
-        if args.composite_type=='HLS':
-            NDVIstack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], 
-                                             in_bbox, out_crs, out_crs, height, width, 
-                                             args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
-        elif args.composite_type=='LC2SR':
-            NDVIstack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], 
-                                               in_bbox, out_crs, out_crs, height, width, 
-                                               args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
+        # if args.composite_type=='HLS':
+        #     target_spec_idx_stack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], 
+        #                                      in_bbox, out_crs, out_crs, height, width, 
+        #                                      args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
+        # elif args.composite_type=='LC2SR':
+        #     target_spec_idx_stack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], 
+        #                                        in_bbox, out_crs, out_crs, height, width, 
+        #                                        args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
+
+        # These are ordered from smallest to largest wavelength 
+        if args.target_spectral_index == 'ndsi': first_bands, second_bands = (green_bands, swir_bands)
+        if args.target_spectral_index == 'ndvi': first_bands, second_bands = (red_bands, nir_bands)
+            
+        target_spec_idx_stack = [create_target_stack(args.target_spectral_index, first_bands[i], second_bands[i], fmask_bands[i], 
+                                                     in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red, nodatavalue=args.nodatavalue) for i in range(len(red_bands))]
         
-        print('\nFinished created masked NDVI stack.\n')
+        print(f'\nFinished created masked {args.target_spectral_index} stack.\n')
        
     ###############
-    print("Make NDVI masked array")
-    NDVIstack_ma = np.ma.array(NDVIstack)
-    print("shape:\t\t", NDVIstack_ma.shape)
+    print(f"Make {args.target_spectral_index} masked array")
+    target_spec_idx_stack_ma = np.ma.array(target_spec_idx_stack)
+    print("shape:\t\t", target_spec_idx_stack_ma.shape)
     
-    print(f"\nCalculating index positions from NDVI stack using stat: {args.stat} (w/ nodatavalue = {args.nodatavalue})...")
-    NDVIstat = compute_stat_from_masked_array(NDVIstack_ma, args.nodatavalue, stat=args.stat, percentile_value=args.stat_pct)
-    BoolMask = np.ma.getmask(NDVIstat)
+    print(f"\nCalculating index positions from {args.target_spectral_index} stack using stat: {args.stat} (w/ nodatavalue = {args.nodatavalue})...")
+    target_stat = compute_stat_from_masked_array(target_spec_idx_stack_ma, args.nodatavalue, stat=args.stat, percentile_value=args.stat_pct)
+    BoolMask = np.ma.getmask(target_stat)
     # create a tmp array (binary mask) of the same input shape
-    NDVItmp = np.ma.zeros(NDVIstack_ma.shape, dtype=bool)
+    SPEC_IDX_STK_tmp = np.ma.zeros(target_spec_idx_stack_ma.shape, dtype=bool)
     
     # Get the pixelwise count of the valid data
-    CountComp = np.sum((NDVIstack_ma != -9999), axis=0)
+    CountComp = np.sum((target_spec_idx_stack_ma != -9999), axis=0)
     print(f"Count array min ({CountComp.min()}), max ({CountComp.max()}), and shape ({CountComp.shape})")
     
     # for each dimension assign the index position (flattens the array to a LUT)
-    print(f"Create LUT of NDVI positions using stat={args.stat}")
-    for i in range(np.shape(NDVIstack_ma)[0]):
-        NDVItmp[i,:,:]=NDVIstat==i
+    print(f"Create LUT of {args.target_spectral_index} positions using stat={args.stat}")
+    for i in range(np.shape(target_spec_idx_stack_ma)[0]):
+        SPEC_IDX_STK_tmp[i,:,:]=target_stat==i
         
     ##############
-    # kw_args = {'NDVItmp': NDVItmp, 'BoolMask': BoolMask, 'in_bbox': in_bbox, 'height': height, 'width': width, 'out_crs': out_crs, 'composite_type': args.composite_type, 'nodatavlue': args.nodatavalue}
+    # kw_args = {'SPEC_IDX_STK_tmp': SPEC_IDX_STK_tmp, 'BoolMask': BoolMask, 'in_bbox': in_bbox, 'height': height, 'width': width, 'out_crs': out_crs, 'composite_type': args.composite_type, 'nodatavlue': args.nodatavalue}
     # params_list = [
     #     {'band_name': 'Blue', 'bands_list': blue_bands},
     #     {'band_name': 'Green', 'bands_list': green_bands},
@@ -815,7 +859,7 @@ def main():
 
     #     with rio.Env(aws_session):
     #         print(f'Creating {params['band_name']} composite...')
-    #         _comp = CreateComposite(params['bands_list'], params['NDVItmp'], params['BoolMask'], params['in_bbox'], params['height'], params['width'], params['out_crs'], params['out_crs'], params['composite_type'], params['nodatavalue'])
+    #         _comp = CreateComposite(params['bands_list'], params['SPEC_IDX_STK_tmp'], params['BoolMask'], params['in_bbox'], params['height'], params['width'], params['out_crs'], params['out_crs'], params['composite_type'], params['nodatavalue'])
     #         #print_array_stats(_comp)
     #         return _comp
 
@@ -829,48 +873,58 @@ def main():
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Blue composite...')
-        BlueComp = CreateComposite(blue_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        BlueComp = CreateComposite(blue_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
         #print_array_stats(BlueComp)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Green composite...')
-        GreenComp = CreateComposite(green_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        GreenComp = CreateComposite(green_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Red composite...')
-        RedComp = CreateComposite(red_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        RedComp = CreateComposite(red_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating NIR composite...')
-        NIRComp = CreateComposite(nir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        NIRComp = CreateComposite(nir_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating SWIR composite...')
-        SWIRComp = CreateComposite(swir_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        SWIRComp = CreateComposite(swir_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating SWIR2 composite...')
-        SWIR2Comp = CreateComposite(swir2_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        SWIR2Comp = CreateComposite(swir2_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session): 
         print('Creating Julian Date composite...')
-        JULIANcomp = JulianComposite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
+        JULIANcomp = JulianComposite(swir2_bands, SPEC_IDX_STK_tmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Year Date composite...')
-        YEARcomp = year_band_composite(swir2_bands, NDVItmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
+        YEARcomp = year_band_composite(swir2_bands, SPEC_IDX_STK_tmp, BoolMask, height, width, args.composite_type, args.nodatavalue)
     aws_session = renew_session(args.composite_type)
     with rio.Env(aws_session):
         print('Creating Fmask composite...')
-        Fmaskcomp = CreateComposite(fmask_bands, NDVItmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+        Fmaskcomp = CreateComposite(fmask_bands, SPEC_IDX_STK_tmp, BoolMask, in_bbox, height, width, out_crs, out_crs, args.composite_type, args.nodatavalue)
+
+    DO_VALIDMASK_FROM_NDVI = False
+    if args.do_indices or args.target_spectral_index == 'ndvi': # NDVIComp will be required in this case
+        DO_VALIDMASK_FROM_NDVI = True
         
-    print(f"\nGenerating a valid mask using min NDVI threshold ({args.thresh_min_ndvi}) on NDVI composite...")
-    aws_session = renew_session(args.composite_type)
-    with rio.Env(aws_session):
-        print('Creating NDVI composite...')
-        NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask, args.nodatavalue)
-        
-    ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
+        # Originally calc'd NDVI like this - now using RedComp and NIRComp which come out of CollapseBands() at the end of CreateComposite()
+        # aws_session = renew_session(args.composite_type)
+        # with rio.Env(aws_session):
+        #     print('Creating NDVI composite for a valid vegation mask...')
+        #     NDVIComp = CollapseBands(NDVIstack_ma, NDVItmp, BoolMask, args.nodatavalue)
+        NDVIComp =  calcNDVI(RedComp, NIRComp)
+
+    if DO_VALIDMASK_FROM_NDVI:
+        print(f"\nGenerating a valid mask using min NDVI threshold ({args.thresh_min_ndvi}) on NDVI composite...")
+        ValidMask = VegMask(NDVIComp, MIN_NDVI=args.thresh_min_ndvi)
+    else:
+        print("\nNo additional masking of valid values based on ndvi threshold...(valid mask all 1's)")
+        ValidMask = np.ones_like(BlueComp)
     
     if args.do_indices:
         print("\nGenerating spectral indices...")
@@ -906,9 +960,9 @@ def main():
     comp_type = args.composite_type
     
     if args.stat != 'percentile': 
-        STAT = args.stat
+        STAT = f'{args.stat}{args.target_spectral_index}'
     else:
-        STAT = f'{args.stat}{args.stat_pct}'
+        STAT = f'{args.stat}{args.stat_pct}{args.target_spectral_index}'
     out_stack_fn = os.path.join(outdir, '_'.join([comp_type, str(tile_n), start_season, end_season, start_year, end_year, STAT]) + '.tif')
     
     print('\nApply a common mask across all layers of stack...')
