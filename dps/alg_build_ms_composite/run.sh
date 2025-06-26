@@ -50,4 +50,5 @@ python ${basedir}/../../lib/build_ms_composite.py \
 --stat ${15} \
 --stat_pct ${16} \
 --target_spectral_index ${17} \
---output_dir ${OUTPUTDIR}
+--output_dir ${OUTPUTDIR} \
+--do_indices
