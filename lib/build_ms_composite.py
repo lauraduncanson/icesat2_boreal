@@ -101,9 +101,6 @@ def multiprocess_nanpercentile_index(arr, percentile, axis=0, num_processes=4):
     
     return index_array
 
-import dask.array as da
-from dask.diagnostics import ProgressBar
-
 def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-9999):
     """
     Calculate the indices of a given percentile in a 3D numpy array while ignoring NaNs.
@@ -119,6 +116,8 @@ def nanpercentile_index(arr, percentile, axis=0, DO_DASK=True, no_data_value=-99
     all_nan_mask = np.all(np.isnan(arr), axis=axis)
     arr[0, all_nan_mask] = no_data_value # For all-NaN slices ValueError is raised.
     if DO_DASK:
+        import dask.array as da
+        from dask.diagnostics import ProgressBar
         # Convert to dask array with specified chunk size
         # 
         dask_stack = da.from_array(arr, chunks=(arr.shape[0], 100, 100))
@@ -218,7 +217,7 @@ def compute_stat_from_masked_array(masked_array,
     elif stat == 'percentile':
         if percentile_value is None:
             raise ValueError("For 'percentile', a percentile_value must be provided.")
-        result, all_nan_mask = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=True)
+        result, all_nan_mask = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=False)
         #result, all_nan_mask = nanpercentile_index(data, percentile_value, axis=0, DO_DASK=False)
         ## @Ali Below not working as expected: [1] cant get this to put the result back together like single process above... also, [2] the runtime seemed just as long...
         #result = multiprocess_nanpercentile_index(data, percentile_value, axis=0, num_processes=27)
