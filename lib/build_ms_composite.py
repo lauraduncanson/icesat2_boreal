@@ -427,43 +427,43 @@ def create_target_stack(target_spectral_index_name, first_band, second_band, fma
     if target_spectral_index_name == 'ndsi':
         return np.ma.array(np.where((fmaskarr_by==1), nodatavalue, (first_band_ma-second_band_ma)/(first_band_ma+second_band_ma))) # not the same order as ndvi, evi
 
-def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
-    '''Calculate NDVI for each source scene
-    Mask out pixels above or below the red band reflectance range limit values'''
+# def CreateNDVIstack_HLS(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
+#     '''Calculate NDVI for each source scene
+#     Mask out pixels above or below the red band reflectance range limit values'''
     
-    NIRarr =   MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    REDarr =   MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+#     NIRarr =   MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
+#     REDarr =   MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
+#     fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
     
-    #
-    # HLS masking
-    #
-    #fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high']) # mask out snow
-    fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'water', 'aerosol_high']) # keep snow
+#     #
+#     # HLS masking
+#     #
+#     #fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high']) # mask out snow
+#     fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'water', 'aerosol_high']) # keep snow
     
-    #print(f'printing fmaskarr data:\n{fmaskarr.data}')
-    #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
-    #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
-    #print(ndvi.shape)
+#     #print(f'printing fmaskarr data:\n{fmaskarr.data}')
+#     #print(f'printing fmaskarr mask:\n{fmaskarr.mask}')
+#     #ndvi = np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+#     #print(ndvi.shape)
     
-    print(f'min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
-    return np.ma.array(np.where(((fmaskarr_by==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
+#     print(f'min, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
+#     return np.ma.array(np.where(((fmaskarr_by==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
     
-def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
-    '''Calculate NDVI for each source scene'''
-    NIRarr =   MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    REDarr =   MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
-    fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
+# def CreateNDVIstack_LC2SR(REDfile, NIRfile, fmask, in_bbox, epsg, dst_crs, height, width, comp_type, rangelims_red = [0.01, 0.1], nodatavalue=-9999):
+#     '''Calculate NDVI for each source scene'''
+#     NIRarr =   MaskArrays(NIRfile, in_bbox, height, width, comp_type, epsg, dst_crs)
+#     REDarr =   MaskArrays(REDfile, in_bbox, height, width, comp_type, epsg, dst_crs)
+#     fmaskarr = MaskArrays(fmask, in_bbox, height, width, comp_type, epsg, dst_crs, do_mask=True)
     
-    #
-    # LC2SR masking
-    #
-    fmaskarr = LC2SR_MASK(fmaskarr)
+#     #
+#     # LC2SR masking
+#     #
+#     fmaskarr = LC2SR_MASK(fmaskarr)
 
-    # print(f'\tmin, max Red value before mask: {round(REDarr.min(), 4)}, {round(REDarr.max(), 4)} (red rangelims: {rangelims_red})')
-    print(f'\tmin, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
-    #return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
-    return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
+#     # print(f'\tmin, max Red value before mask: {round(REDarr.min(), 4)}, {round(REDarr.max(), 4)} (red rangelims: {rangelims_red})')
+#     print(f'\tmin, max Red value before mask: {REDarr.min()}, {REDarr.max()} (red rangelims: {rangelims_red})')
+#     #return np.ma.array((NIRarr-REDarr)/(NIRarr+REDarr))
+#     return np.ma.array(np.where(((fmaskarr==1) | (REDarr < rangelims_red[0]) | (REDarr > rangelims_red[1])), nodatavalue, (NIRarr-REDarr)/(NIRarr+REDarr)))
 
 def CollapseBands(inArr, NDVItmp, BoolMask, nodatavalue):
     '''
@@ -664,7 +664,7 @@ def main():
     parser.add_argument("-emd", "--end_month_day", type=str, default="09-15", help="specify the end month and day (e.g., 09-15)")
     parser.add_argument("-mc", "--max_cloud", type=int, default=40, help="specify the max amount of cloud")
     parser.add_argument("-t", "--composite_type", choices=['HLS','LC2SR'], nargs="?", type=str, default='HLS', const='HLS', help="Specify the composite type")
-    parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[0.01, 0.1], help="The range limits for red reflectance outside of which will be masked out")
+    parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[-1e9, 1e9], help="The range limits for red band; outside of which will be masked out; eg [0.01, 0.1]")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
     parser.add_argument("--target_spectral_index", type=str, choices=['ndvi','ndsi'], nargs="?", default="ndvi", help="The target spectral index used with stat to composite a stack of input.")
