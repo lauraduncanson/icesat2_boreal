@@ -60,6 +60,10 @@ inputs:
     description: name of hls product [L30, S30, H30]
     name: hls_product
     required: true
+  - default: '-1'
+    description: min ndvi threshold
+    name: thresh_min_ndvi
+    required: true
   - default: '50'
     description: min num of filtered hls results desired before hitting max cloud limit
     name: min_n_filt_results
