@@ -1,9 +1,9 @@
-algorithm_description: build ms compositing algorithm for HLS
+algorithm_description: calculate carbon accumuation using AGB and age inputs
 algorithm_name: run_carbon_accumulation
 algorithm_version: carbon_accumulation_v1
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 16GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.2.0
 inputs:
   config: []
   positional:
