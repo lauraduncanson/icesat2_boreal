@@ -1,0 +1,32 @@
+algorithm_description: build ms compositing algorithm for HLS
+algorithm_name: run_carbon_accumulation
+algorithm_version: carbon_accumulation_v1
+build_command: icesat2_boreal/dps/build_command_4.1.0.sh
+disk_space: 16GB
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+inputs:
+  config: []
+  positional:
+  - default: '2020_v3.0'
+    description: String indicating the tindex filename of the AGB and HT data in their dicts
+    name: map_version
+    required: true
+  - default: ''
+    description: the unique id of a polygon tile (AOI)
+    name: in_tile_num
+    required: true
+  - default: 5
+    description: The number of monte carlo simulations to sample from AGB and age data (w/ mean, stdev)
+    name: n_sims
+    required: true
+  - default: '100000'
+    description: The number of pixels to sample from the pixel-level dataframe
+    name: n_pix_samples
+    required: true
+  - default: 'tile'
+    description: The type of extent that is used w/ in_tile_num to specify output sub-dir.
+    name: extent_type
+    required: true
+queue: maap-dps-worker-32gb
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
+run_command: icesat2_boreal/dps/alg_carbon_accumulation/run.sh
