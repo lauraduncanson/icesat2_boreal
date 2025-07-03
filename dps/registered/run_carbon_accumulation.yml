@@ -19,7 +19,7 @@ inputs:
     description: The number of monte carlo simulations to sample from AGB and age data (w/ mean, stdev)
     name: n_sims
     required: true
-  - default: '100000'
+  - default: 'None'
     description: The number of pixels to sample from the pixel-level dataframe
     name: n_pix_samples
     required: true
