@@ -203,7 +203,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
     for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
         mask = (rasters['age_mean'] > lower) & (rasters['age_mean'] <= upper)
         rasters['age_class'][mask] = i
-    print('\tFinished age class raster.')
+    print(f'\tFinished age class raster: {rasters['age_class'].shape}')
 
     if np.all(rasters['canopy_trend'] == nodata_value):
         print('\tNo canopy trends; no canopy trend class raster made.')
@@ -212,6 +212,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
         rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32)
         
+        trend_mask_fill = (rasters['canopy_trend'] == 255)
         trend_mask_1 = rasters['canopy_trend'] < -2
         trend_mask_2 = (rasters['canopy_trend'] >= -2) & (rasters['canopy_trend'] < -0.5)
         trend_mask_4 = (rasters['canopy_trend'] <= 2) & (rasters['canopy_trend'] > 0.5)
@@ -223,12 +224,16 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['trend_class'][trend_mask_3] = 2  # Stable
         rasters['trend_class'][trend_mask_4] = 3  # Weak increase
         rasters['trend_class'][trend_mask_5] = 4  # Strong increase
+        rasters['trend_class'][trend_mask_5] = 4  # Strong increase
+        rasters['trend_class'][trend_mask_fill] = np.nan
+        print(f'\tFinished trend class raster: {rasters['trend_class'].shape}')
         
         # Create p-value classes
         # ['not sig', 'sig (p<0.05)']
         rasters['pvalue_class'] = np.full_like(rasters['pvalue'], np.nan, dtype=np.float32)
         rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
         rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
+        print(f'\tFinished pvalue class raster: {rasters['pvalue_class'].shape}')
         
     if np.all(rasters['deciduous'] == nodata_value):
         print('\tNo deciduous fraction; no deciduous fraction class raster made.')
@@ -239,6 +244,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['deciduous_class'][rasters['deciduous'] < 33] = 0  # Conifer
         rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
         rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
+        print(f'\tFinished deciduous class raster: {rasters['deciduous_class'].shape}')
     
     return rasters
 
@@ -536,8 +542,29 @@ def calculate_area_and_total_carbon(df, pixel_area_ha, groupby_cols = ['age_clas
         summary[col] = summary[col].astype(df[col].dtype)
     
     return summary
-
-def calculate_monte_carlo_totals(rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations=50):
+    
+def calculate_nan_proportion(array):
+    """
+    Calculate the proportion of NaN pixels to total pixels in a numpy array.
+    
+    Parameters:
+    array: numpy array (can be 1D, 2D, or multi-dimensional)
+    
+    Returns:
+    float: proportion of NaN values (between 0 and 1)
+    """
+    # Count total number of elements
+    total_pixels = array.size
+    
+    # Count NaN values
+    nan_pixels = np.sum(np.isnan(array))
+    
+    # Calculate proportion
+    nan_proportion = nan_pixels / total_pixels
+    
+    return nan_proportion
+    
+def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations=50):
     """
     Calculate Monte Carlo simulations for total carbon by class combination (summarization of rasters).
     
@@ -576,8 +603,11 @@ def calculate_monte_carlo_totals(rasters, carbon_results, class_combinations, pi
     trend_class_labels = ['decline\n(strong)', 'decline\n(weak)', 'stable', 'increase\n(weak)', 'increase\n(strong)']+['no trend\navailable']
     pvalue_class_labels = ['not sig', 'sig (p<0.05)']+['no trend\navailable']
     deciduous_class_labels = ['conifer', 'mixed', 'deciduous']
-    
+
+    print(f"\tTotal class combos: {len(class_combinations)}")
+
     # Process each class combination
+    n_class_combos_skipped = 0
     for age_idx, trend_idx, pval_idx, decid_idx in class_combinations:
         # Create mask for this class combination
         mask = (
@@ -590,6 +620,7 @@ def calculate_monte_carlo_totals(rasters, carbon_results, class_combinations, pi
         # Skip if no pixels in this class
         if not np.any(mask):
             #print(f'No pixels where age={age_class_labels[age_idx]}, trend={trend_class_labels[trend_idx]}, pval={pvalue_class_labels[pval_idx]}, decid={deciduous_class_labels[decid_idx]} ...')
+            n_class_combos_skipped += 1
             continue
         
         # Calculate total carbon for each simulation
@@ -628,10 +659,12 @@ def calculate_monte_carlo_totals(rasters, carbon_results, class_combinations, pi
             'total_carbon_Pg_pi_lower': pi_lower,
             'total_carbon_Pg_pi_upper': pi_upper
         })
-    
+
+    print(f"\Percent of class combos skipped: {100 * round(n_class_combos_skipped/len(class_combinations), 3)}")
     # Convert to DataFrame
     result_df = pd.DataFrame(results)
-
+    print(f"\tCols: {result_df.columns}")
+    
     # Create ordered categorical types
     age_cat_type = CategoricalDtype(categories=age_class_labels, ordered=True)
     trend_cat_type = CategoricalDtype(categories=trend_class_labels, ordered=True)
@@ -927,53 +960,62 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     #     print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
     #     return
     if file_paths['canopy_trend'] is None:
-        print(f"Tile {TILE_NUM} has no tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
-        return       
-        
-    print("Creating pixel-level dataframe...")
-    # Create pixel-level dataframe
-    ##pixel_df = create_pixel_dataframe(rasters, carbon_results
-    
-    # Example call with vector files
-    pixel_df = create_pixel_dataframe(
-        rasters=rasters, 
-        carbon_results=carbon_results,
-        vector_files={
-            'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
-            #'boreal': '/projects/my-public-bucket/databank/arc/wwf_circumboreal_Dissolve.gpkg'
-        },
-        vector_columns={
-            'ecoregions': ['ECO_NAME', 'REALM'],
-            #'boreal': ['REALM']
-        },
-        transform=rasters['transform'],  # Get this from your open raster file
-        crs=rasters['crs']  # Get this from your open raster file
-    )
-    pixel_df['ID'] = TILE_NUM
+        print(f"Tile {TILE_NUM} has no tree cover trend data; wont proceed with C accumulation analysis.\nExiting.\n")
+        return   
 
-    if N_PIX_SAMPLE is None:
-        print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
-        sample_size = len(pixel_df)
-    else:
-        print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
-        # Save pixel dataframe (sample to avoid very large files)
-        sample_size = min(N_PIX_SAMPLE, len(pixel_df))
-        
-    pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
-    print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
-
-    # Sample 10% of the rows
-    SAMP_FRAC=0.1
-    sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
-    sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
-    print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
+    print(f"Dictionary of class rasters: {rasters.keys()}\n")
+    print(f"{rasters['trend_class'].min()},{rasters['trend_class'].max()}")
+    print(f"Count of -9999: {np.sum(rasters['trend_class'] == -9999)}")
+    print(f"Count of nan: {np.sum(np.isnan(rasters['trend_class']))}")
+    print(f"Count of unique: {np.unique(rasters['trend_class'], return_counts=True)}")
     
-    print("Calculating area and total carbon by class...")
-    # Calculate area and total carbon by class
-    summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
-                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort','trend_class', 'pvalue_class', 'deciduous_class']) 
-    summary_df = summary_df[summary_df['pixel_count']>0]
-    summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
+    if np.all(np.isnan(rasters['trend_class'] )):
+        #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
+        print('\tNo canopy trends; no canopy trend class raster made.\nExiting.\n')
+        return
+
+    if DO_WRITE_COG: # just for testing...
+        print("Creating pixel-level dataframe...")
+        pixel_df = create_pixel_dataframe(
+            rasters=rasters, 
+            carbon_results=carbon_results,
+            vector_files={
+                'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
+                #'boreal': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/arc/wwf_circumboreal_Dissolve.gpkg'
+            },
+            vector_columns={
+                'ecoregions': ['ECO_NAME', 'REALM'],
+                #'boreal': ['REALM']
+            },
+            transform=rasters['transform'],  # Get this from your open raster file
+            crs=rasters['crs']  # Get this from your open raster file
+        )
+        pixel_df['ID'] = TILE_NUM
+    
+        if N_PIX_SAMPLE is None:
+            print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
+            sample_size = len(pixel_df)
+        else:
+            print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
+            # Save pixel dataframe (sample to avoid very large files)
+            sample_size = min(N_PIX_SAMPLE, len(pixel_df))
+            
+        pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
+        print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
+    
+        # Sample 10% of the rows
+        SAMP_FRAC=0.1
+        sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
+        sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
+        print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
+        
+        print("Calculating area and total carbon by class...")
+        # Calculate area and total carbon by class
+        summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
+                                                    groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort',
+                                                                    'trend_class', 'pvalue_class', 'deciduous_class']) 
+        summary_df = summary_df[summary_df['pixel_count']>0]
+        summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
     
     print("Calculating Monte Carlo totals for carbon by class...")
     # Get unique class combinations
@@ -983,9 +1025,14 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
             for pval_idx, _ in enumerate(pvalue_class_labels):  # 2 p-value classes
                 for decid_idx, _ in enumerate(deciduous_class_labels):  # 3 deciduous classes
                     class_combinations.append((age_idx, trend_idx, pval_idx, decid_idx))
+                    
+    if np.all(rasters['canopy_trend'] == 255):
+        #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
+        print('\tNo canopy trends; no canopy trend class raster made.')
+        return
     
     # Calculate Monte Carlo totals for carbon by class
-    monte_carlo_totals = calculate_monte_carlo_totals(
+    monte_carlo_totals = calculate_monte_carlo_class_totals(
         rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
     )
     monte_carlo_totals.to_csv(os.path.join(output_dir, f"monte_carlo_totals_{TILE_NUM:07}.csv"), index=False)
