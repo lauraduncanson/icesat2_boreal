@@ -3,7 +3,7 @@ algorithm_name: run_carbon_accumulation
 algorithm_version: carbon_accumulation_v1
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 16GB
-docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.2.0
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
 inputs:
   config: []
   positional:
@@ -15,7 +15,7 @@ inputs:
     description: the unique id of a polygon tile (AOI)
     name: in_tile_num
     required: true
-  - default: 5
+  - default: '5'
     description: The number of monte carlo simulations to sample from AGB and age data (w/ mean, stdev)
     name: n_sims
     required: true
