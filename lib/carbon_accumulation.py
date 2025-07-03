@@ -203,10 +203,10 @@ def create_class_rasters(rasters, nodata_value=-9999):
     for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
         mask = (rasters['age_mean'] > lower) & (rasters['age_mean'] <= upper)
         rasters['age_class'][mask] = i
-    print(f'\tFinished age class raster: {rasters['age_class'].shape}')
+    print(f"\tFinished age class raster: {rasters['age_class'].shape}")
 
     if np.all(rasters['canopy_trend'] == nodata_value):
-        print('\tNo canopy trends; no canopy trend class raster made.')
+        print("\tNo canopy trends; no canopy trend class raster made.")
     else:
         # Create canopy trend classes
         # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
@@ -236,7 +236,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         print(f'\tFinished pvalue class raster: {rasters['pvalue_class'].shape}')
         
     if np.all(rasters['deciduous'] == nodata_value):
-        print('\tNo deciduous fraction; no deciduous fraction class raster made.')
+        print("\tNo deciduous fraction; no deciduous fraction class raster made.")
     else:
         # Create deciduous fraction classes
         # ['conifer','mixed','deciduous']
