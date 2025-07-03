@@ -878,171 +878,172 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     pvalue_class_labels = ['not sig', 'sig (p<0.05)']+['no trend\navailable']
     deciduous_class_labels = ['conifer', 'mixed', 'deciduous']
 
-    # Break if there is no TCC trend data
-    if file_paths['canopy_trend'] is None:
-        print(f"Tile {TILE_NUM} doesnt have tree cover trends calc'd, skipping...")
+    # # Break if there is no TCC trend data
+    # if file_paths['canopy_trend'] is None:
+    #     print(f"Tile {TILE_NUM} doesnt have tree cover trends calc'd, skipping...")
+    # else:
+    
+    # Define paths to raster files
+    raster_paths = list(file_paths.values())
+    
+    # Define pixel area in hectares (30m resolution)
+    # 30m x 30m = 900 sq. meters = 0.09 hectares
+    pixel_area_ha = 0.09
+    
+    print("Reading and preparing raster data...")
+    # Read and prepare raster data
+    rasters = read_and_prepare_rasters(raster_paths)
+    
+    print("Creating classification rasters...")
+    # Create classification rasters
+    rasters = create_class_rasters(rasters)
+    
+    print("Performing Monte Carlo simulations for carbon accumulation...")
+       
+    carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed)
+
+    if DO_WRITE_COG:
+        carbon_results_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 
+                                 carbon_results['carbon_acc_ci_lower'], carbon_results['carbon_acc_ci_upper'], 
+                                 carbon_results['carbon_acc_pi_lower'], carbon_results['carbon_acc_pi_upper']
+                                ])
+        carbon_results_stack_names = ["carbon_acc_mean", "carbon_acc_std", 
+                              "carbon_acc_ci_lower", "carbon_acc_ci_upper", 
+                              "carbon_acc_pi_lower", "carbon_acc_pi_upper"]
+                
+        # write COG to disk
+        write_cog(
+                    carbon_results_stack, 
+                    os.path.join(output_dir, f'boreal_cacc_2020_{TILE_NUM:07}.tif'), 
+                    rasters['crs'], 
+                    rasters['transform'], 
+                    carbon_results_stack_names, 
+                    out_crs=rasters['crs'],
+                    input_nodata_value= -9999
+                     )
+
+    if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
+        print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
+        return
+        
+    print("Creating pixel-level dataframe...")
+    # Create pixel-level dataframe
+    ##pixel_df = create_pixel_dataframe(rasters, carbon_results
+    
+    # Example call with vector files
+    pixel_df = create_pixel_dataframe(
+        rasters=rasters, 
+        carbon_results=carbon_results,
+        vector_files={
+            'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
+            #'boreal': '/projects/my-public-bucket/databank/arc/wwf_circumboreal_Dissolve.gpkg'
+        },
+        vector_columns={
+            'ecoregions': ['ECO_NAME', 'REALM'],
+            #'boreal': ['REALM']
+        },
+        transform=rasters['transform'],  # Get this from your open raster file
+        crs=rasters['crs']  # Get this from your open raster file
+    )
+    pixel_df['ID'] = TILE_NUM
+
+    if N_PIX_SAMPLE is None:
+        print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
+        sample_size = len(pixel_df)
     else:
-        # Define paths to raster files
-        raster_paths = list(file_paths.values())
+        print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
+        # Save pixel dataframe (sample to avoid very large files)
+        sample_size = min(N_PIX_SAMPLE, len(pixel_df))
         
-        # Define pixel area in hectares (30m resolution)
-        # 30m x 30m = 900 sq. meters = 0.09 hectares
-        pixel_area_ha = 0.09
-        
-        print("Reading and preparing raster data...")
-        # Read and prepare raster data
-        rasters = read_and_prepare_rasters(raster_paths)
-        
-        print("Creating classification rasters...")
-        # Create classification rasters
-        rasters = create_class_rasters(rasters)
-        
-        print("Performing Monte Carlo simulations for carbon accumulation...")
-           
-        carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed)
+    pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
+    print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
+
+    # Sample 10% of the rows
+    SAMP_FRAC=0.1
+    sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
+    sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
+    print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
     
-        if DO_WRITE_COG:
-            carbon_results_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 
-                                     carbon_results['carbon_acc_ci_lower'], carbon_results['carbon_acc_ci_upper'], 
-                                     carbon_results['carbon_acc_pi_lower'], carbon_results['carbon_acc_pi_upper']
-                                    ])
-            carbon_results_stack_names = ["carbon_acc_mean", "carbon_acc_std", 
-                                  "carbon_acc_ci_lower", "carbon_acc_ci_upper", 
-                                  "carbon_acc_pi_lower", "carbon_acc_pi_upper"]
-                    
-            # write COG to disk
-            write_cog(
-                        carbon_results_stack, 
-                        os.path.join(output_dir, f'boreal_cacc_2020_{TILE_NUM:07}.tif'), 
-                        rasters['crs'], 
-                        rasters['transform'], 
-                        carbon_results_stack_names, 
-                        out_crs=rasters['crs'],
-                        input_nodata_value= -9999
-                         )
-        
-        if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
-            print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
-            return
-            
-        print("Creating pixel-level dataframe...")
-        # Create pixel-level dataframe
-        ##pixel_df = create_pixel_dataframe(rasters, carbon_results
-        
-        # Example call with vector files
-        pixel_df = create_pixel_dataframe(
-            rasters=rasters, 
-            carbon_results=carbon_results,
-            vector_files={
-                'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
-                #'boreal': '/projects/my-public-bucket/databank/arc/wwf_circumboreal_Dissolve.gpkg'
-            },
-            vector_columns={
-                'ecoregions': ['ECO_NAME', 'REALM'],
-                #'boreal': ['REALM']
-            },
-            transform=rasters['transform'],  # Get this from your open raster file
-            crs=rasters['crs']  # Get this from your open raster file
-        )
-        pixel_df['ID'] = TILE_NUM
+    print("Calculating area and total carbon by class...")
+    # Calculate area and total carbon by class
+    summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
+                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort','trend_class', 'pvalue_class', 'deciduous_class']) 
+    summary_df = summary_df[summary_df['pixel_count']>0]
+    summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
     
-        if N_PIX_SAMPLE is None:
-            print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
-            sample_size = len(pixel_df)
-        else:
-            print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
-            # Save pixel dataframe (sample to avoid very large files)
-            sample_size = min(N_PIX_SAMPLE, len(pixel_df))
-            
-        pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
-        print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
+    print("Calculating Monte Carlo totals for carbon by class...")
+    # Get unique class combinations
+    class_combinations = []
+    for age_idx, _ in enumerate(age_class_labels):  # 8 age classes
+        for trend_idx, _ in enumerate(trend_class_labels):  # 5 trend classes
+            for pval_idx, _ in enumerate(pvalue_class_labels):  # 2 p-value classes
+                for decid_idx, _ in enumerate(deciduous_class_labels):  # 3 deciduous classes
+                    class_combinations.append((age_idx, trend_idx, pval_idx, decid_idx))
     
-        # Sample 10% of the rows
-        SAMP_FRAC=0.1
-        sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
-        sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
-        print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
+    # Calculate Monte Carlo totals for carbon by class
+    monte_carlo_totals = calculate_monte_carlo_totals(
+        rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
+    )
+    monte_carlo_totals.to_csv(os.path.join(output_dir, f"monte_carlo_totals_{TILE_NUM:07}.csv"), index=False)
+    
+    if False:
+        print("Creating visualizations...")
+        # Create visualizations
+        plot_carbon_accumulation_by_age(pixel_df, output_dir)
+    
+    # Calculate grand total carbon with confidence intervals
+    grand_total_carbon = monte_carlo_totals['total_carbon_Pg_mean'].sum()
+    grand_total_ci_lower = monte_carlo_totals['total_carbon_Pg_ci_lower'].sum()
+    grand_total_ci_upper = monte_carlo_totals['total_carbon_Pg_ci_upper'].sum()
+    grand_total_pi_lower = monte_carlo_totals['total_carbon_Pg_pi_lower'].sum()
+    grand_total_pi_upper = monte_carlo_totals['total_carbon_Pg_pi_upper'].sum()
+    
+    print("\n===== CARBON STOCK RESULTS =====")
+    print(f"Total Carbon Stock: {grand_total_carbon:.9f} Pg C ({grand_total_carbon/1e-9:.4f} Mg C)")
+    print(f"95% Confidence Interval: ({grand_total_ci_lower:.9f}, {grand_total_ci_upper:.9f}) Pg C")
+    print(f"95% Prediction Interval: ({grand_total_pi_lower:.9f}, {grand_total_pi_upper:.9f}) Pg C")
+    
+    # Generate summary statistics by different groupings
+    print("\nGenerating summary statistics by various groupings...")
+    
+    # By age class
+    age_summary = monte_carlo_totals.groupby('age_class').agg({
+        'total_carbon_Pg_mean': 'sum',
+        'total_carbon_Pg_ci_lower': 'sum',
+        'total_carbon_Pg_ci_upper': 'sum'
+    }).reset_index()
+    # Preserve categorical order
+    age_summary['age_class'] = age_summary['age_class'].astype(
+        CategoricalDtype(categories=age_class_labels, ordered=True))
+    age_summary.to_csv(os.path.join(output_dir, f"age_class_summary_{TILE_NUM:07}.csv"), index=False)
+    
+    # By trend class
+    trend_summary = monte_carlo_totals.groupby('trend_class').agg({
+        'total_carbon_Pg_mean': 'sum',
+        'total_carbon_Pg_ci_lower': 'sum',
+        'total_carbon_Pg_ci_upper': 'sum'
+    }).reset_index()
+    # Preserve categorical order
+    trend_summary['trend_class'] = trend_summary['trend_class'].astype(
+        CategoricalDtype(categories=trend_class_labels, ordered=True))
+    trend_summary.to_csv(os.path.join(output_dir, f"trend_class_summary_{TILE_NUM:07}.csv"), index=False)
+    
+    # By deciduous class
+    deciduous_summary = monte_carlo_totals.groupby('deciduous_class').agg({
+        'total_carbon_Pg_mean': 'sum',
+        'total_carbon_Pg_ci_lower': 'sum',
+        'total_carbon_Pg_ci_upper': 'sum'
+    }).reset_index()
+    # Preserve categorical order
+    deciduous_summary['deciduous_class'] = deciduous_summary['deciduous_class'].astype(
+        CategoricalDtype(categories=deciduous_class_labels, ordered=True))
+    deciduous_summary.to_csv(os.path.join(output_dir, f"deciduous_class_summary_{TILE_NUM:07}.csv"), index=False)
+    
+    # Write to a JSON file
+    with open(os.path.join(output_dir, 'input_data.json'), 'w') as json_file:
+        json.dump(BASIN_COG_DICT, json_file)
         
-        print("Calculating area and total carbon by class...")
-        # Calculate area and total carbon by class
-        summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
-                                                    groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort','trend_class', 'pvalue_class', 'deciduous_class']) 
-        summary_df = summary_df[summary_df['pixel_count']>0]
-        summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
-        
-        print("Calculating Monte Carlo totals for carbon by class...")
-        # Get unique class combinations
-        class_combinations = []
-        for age_idx, _ in enumerate(age_class_labels):  # 8 age classes
-            for trend_idx, _ in enumerate(trend_class_labels):  # 5 trend classes
-                for pval_idx, _ in enumerate(pvalue_class_labels):  # 2 p-value classes
-                    for decid_idx, _ in enumerate(deciduous_class_labels):  # 3 deciduous classes
-                        class_combinations.append((age_idx, trend_idx, pval_idx, decid_idx))
-        
-        # Calculate Monte Carlo totals for carbon by class
-        monte_carlo_totals = calculate_monte_carlo_totals(
-            rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
-        )
-        monte_carlo_totals.to_csv(os.path.join(output_dir, f"monte_carlo_totals_{TILE_NUM:07}.csv"), index=False)
-        
-        if False:
-            print("Creating visualizations...")
-            # Create visualizations
-            plot_carbon_accumulation_by_age(pixel_df, output_dir)
-        
-        # Calculate grand total carbon with confidence intervals
-        grand_total_carbon = monte_carlo_totals['total_carbon_Pg_mean'].sum()
-        grand_total_ci_lower = monte_carlo_totals['total_carbon_Pg_ci_lower'].sum()
-        grand_total_ci_upper = monte_carlo_totals['total_carbon_Pg_ci_upper'].sum()
-        grand_total_pi_lower = monte_carlo_totals['total_carbon_Pg_pi_lower'].sum()
-        grand_total_pi_upper = monte_carlo_totals['total_carbon_Pg_pi_upper'].sum()
-        
-        print("\n===== CARBON STOCK RESULTS =====")
-        print(f"Total Carbon Stock: {grand_total_carbon:.9f} Pg C ({grand_total_carbon/1e-9:.4f} Mg C)")
-        print(f"95% Confidence Interval: ({grand_total_ci_lower:.9f}, {grand_total_ci_upper:.9f}) Pg C")
-        print(f"95% Prediction Interval: ({grand_total_pi_lower:.9f}, {grand_total_pi_upper:.9f}) Pg C")
-        
-        # Generate summary statistics by different groupings
-        print("\nGenerating summary statistics by various groupings...")
-        
-        # By age class
-        age_summary = monte_carlo_totals.groupby('age_class').agg({
-            'total_carbon_Pg_mean': 'sum',
-            'total_carbon_Pg_ci_lower': 'sum',
-            'total_carbon_Pg_ci_upper': 'sum'
-        }).reset_index()
-        # Preserve categorical order
-        age_summary['age_class'] = age_summary['age_class'].astype(
-            CategoricalDtype(categories=age_class_labels, ordered=True))
-        age_summary.to_csv(os.path.join(output_dir, f"age_class_summary_{TILE_NUM:07}.csv"), index=False)
-        
-        # By trend class
-        trend_summary = monte_carlo_totals.groupby('trend_class').agg({
-            'total_carbon_Pg_mean': 'sum',
-            'total_carbon_Pg_ci_lower': 'sum',
-            'total_carbon_Pg_ci_upper': 'sum'
-        }).reset_index()
-        # Preserve categorical order
-        trend_summary['trend_class'] = trend_summary['trend_class'].astype(
-            CategoricalDtype(categories=trend_class_labels, ordered=True))
-        trend_summary.to_csv(os.path.join(output_dir, f"trend_class_summary_{TILE_NUM:07}.csv"), index=False)
-        
-        # By deciduous class
-        deciduous_summary = monte_carlo_totals.groupby('deciduous_class').agg({
-            'total_carbon_Pg_mean': 'sum',
-            'total_carbon_Pg_ci_lower': 'sum',
-            'total_carbon_Pg_ci_upper': 'sum'
-        }).reset_index()
-        # Preserve categorical order
-        deciduous_summary['deciduous_class'] = deciduous_summary['deciduous_class'].astype(
-            CategoricalDtype(categories=deciduous_class_labels, ordered=True))
-        deciduous_summary.to_csv(os.path.join(output_dir, f"deciduous_class_summary_{TILE_NUM:07}.csv"), index=False)
-        
-        # Write to a JSON file
-        with open(os.path.join(output_dir, 'input_data.json'), 'w') as json_file:
-            json.dump(BASIN_COG_DICT, json_file)
-            
-        print(f"\nAnalysis complete! Results saved to {output_dir}")
+    print(f"\nAnalysis complete! Results saved to {output_dir}")
     
 def main():
     
