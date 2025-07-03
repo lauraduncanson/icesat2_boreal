@@ -14,6 +14,7 @@ from shapely.geometry import box
 from rastoolslib import *
 import mosaiclib
 from CovariateUtils import write_cog
+import argparse
 
 def process_multiple_rasters(TILE_NUM_LIST, num_simulations=50, n_cores=None, RANDOM_SEED=True):
     """
