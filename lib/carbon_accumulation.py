@@ -80,7 +80,7 @@ def process_multiple_rasters(TILE_NUM_LIST, num_simulations=50, n_cores=None, RA
         # 'all_simulation_sums': all_simulation_sums
     }
 
-def read_and_prepare_rasters(raster_paths, nodata_values=None):
+def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
     """
     Read multiple raster datasets and prepare them for analysis by masking nodata values.
     
@@ -88,17 +88,15 @@ def read_and_prepare_rasters(raster_paths, nodata_values=None):
     -----------
     raster_paths : list
         List of paths to raster files
-    nodata_values : dict or None
-        Dictionary mapping raster indices to their nodata values
+    nodata_values : int
+        raster nodata value 
         
     Returns:
     --------
     dict
         Dictionary with raster data and metadata
     """
-    if nodata_values is None:
-        nodata_values = {}
-    
+   
     rasters = {}
     
     # Read biomass raster (index 0)
@@ -111,7 +109,7 @@ def read_and_prepare_rasters(raster_paths, nodata_values=None):
         rasters['shape'] = rasters['biomass_mean'].shape
         
         # Create a mask for valid data (not -9999)
-        mask_array = rasters['biomass_mean'] != -9999
+        mask_array = rasters['biomass_mean'] != nodata_value
         
         # Apply mask to biomass data
         rasters['biomass_mean'] = np.where(mask_array, rasters['biomass_mean'], np.nan)
@@ -123,14 +121,14 @@ def read_and_prepare_rasters(raster_paths, nodata_values=None):
         rasters['age_std'] = src.read(2)
         
         # Apply mask to age data
-        mask_array = rasters['age_mean'] != -9999
+        mask_array = rasters['age_mean'] != nodata_value
         rasters['age_mean'] = np.where(mask_array, rasters['age_mean'], np.nan)
         rasters['age_std'] = np.where(mask_array, rasters['age_std'], np.nan)
     
     # Read landcover raster (index 2)
     with rasterio.open(raster_paths[2]) as src:
         rasters['landcover'] = src.read(1)
-        mask_array = rasters['landcover'] != -9999
+        mask_array = rasters['landcover'] != nodata_value
         rasters['landcover'] = np.where(mask_array, rasters['landcover'], np.nan)
     
     # Read topography raster (index 3)
@@ -143,46 +141,46 @@ def read_and_prepare_rasters(raster_paths, nodata_values=None):
         
         # Apply mask
         for band in ['elevation', 'slope', 'tsri', 'tpi', 'slopemask']:
-            mask_array = rasters[band] != -9999
+            mask_array = rasters[band] != nodata_value
             rasters[band] = np.where(mask_array, rasters[band], np.nan)
             
     if raster_paths[4] is not None:
         # Read tree canopy cover raster (index 4)
         with rasterio.open(raster_paths[4]) as src:
             rasters['canopy_cover'] = src.read(1)
-            mask_array = (rasters['canopy_cover'] != -9999) & (rasters['canopy_cover'] != 255)
+            mask_array = (rasters['canopy_cover'] != nodata_value) & (rasters['canopy_cover'] != 255)
             rasters['canopy_cover'] = np.where(mask_array, rasters['canopy_cover'], np.nan)
     else:
-        rasters['canopy_cover'] = np.full_like(rasters['biomass_mean'] , -9999)
+        rasters['canopy_cover'] = np.full_like(rasters['biomass_mean'] , nodata_value)
 
     if raster_paths[5] is not None:
         # Read tree canopy cover trends raster (index 5)
         with rasterio.open(raster_paths[5]) as src:
             rasters['canopy_trend'] = src.read(1)
-            mask_array = (rasters['canopy_trend'] != -9999) & (rasters['canopy_trend'] != 255)
+            mask_array = (rasters['canopy_trend'] != nodata_value) & (rasters['canopy_trend'] != 255)
             rasters['canopy_trend'] = np.where(mask_array, rasters['canopy_trend'], np.nan)
         
         # Read p-value raster (index 6)
         with rasterio.open(raster_paths[6]) as src:
             rasters['pvalue'] = src.read(1)
-            mask_array = (rasters['pvalue'] != -9999) & (rasters['pvalue'] != 255)
+            mask_array = (rasters['pvalue'] != nodata_value) & (rasters['pvalue'] != 255)
             rasters['pvalue'] = np.where(mask_array, rasters['pvalue'], np.nan)
     else:
-        rasters['canopy_trend'] = np.full_like(rasters['biomass_mean'] , -9999)
-        rasters['pvalue'] = np.full_like(rasters['biomass_mean'] , -9999)
+        rasters['canopy_trend'] = np.full_like(rasters['biomass_mean'] , nodata_value)
+        rasters['pvalue'] = np.full_like(rasters['biomass_mean'] , nodata_value)
         
     if raster_paths[7] is not None:        
         # Read deciduous fraction raster (index 7)
         with rasterio.open(raster_paths[7]) as src:
             rasters['deciduous'] = src.read(1)
-            mask_array = (rasters['deciduous'] != -9999) & (rasters['deciduous'] != 255)
+            mask_array = (rasters['deciduous'] != nodata_value) & (rasters['deciduous'] != 255)
             rasters['deciduous'] = np.where(mask_array, rasters['deciduous'], np.nan)
     else:
-        rasters['deciduous'] = np.full_like(rasters['biomass_mean'] , -9999)
+        rasters['deciduous'] = np.full_like(rasters['biomass_mean'] , nodata_value)
         
     return rasters
 
-def create_class_rasters(rasters):
+def create_class_rasters(rasters, nodata_value=-9999):
     """
     Create classification rasters based on the input data.
     
@@ -205,35 +203,42 @@ def create_class_rasters(rasters):
     for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
         mask = (rasters['age_mean'] > lower) & (rasters['age_mean'] <= upper)
         rasters['age_class'][mask] = i
-    
-    # Create canopy trend classes
-    # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
-    rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32)
-    
-    trend_mask_1 = rasters['canopy_trend'] < -2
-    trend_mask_2 = (rasters['canopy_trend'] >= -2) & (rasters['canopy_trend'] < -0.5)
-    trend_mask_4 = (rasters['canopy_trend'] <= 2) & (rasters['canopy_trend'] > 0.5)
-    trend_mask_5 = rasters['canopy_trend'] > 2
-    trend_mask_3 = ~(trend_mask_1 | trend_mask_2 | trend_mask_4 | trend_mask_5) & ~np.isnan(rasters['canopy_trend'])
-    
-    rasters['trend_class'][trend_mask_1] = 0  # Strong decline
-    rasters['trend_class'][trend_mask_2] = 1  # Weak decline
-    rasters['trend_class'][trend_mask_3] = 2  # Stable
-    rasters['trend_class'][trend_mask_4] = 3  # Weak increase
-    rasters['trend_class'][trend_mask_5] = 4  # Strong increase
-    
-    # Create p-value classes
-    # ['not sig', 'sig (p<0.05)']
-    rasters['pvalue_class'] = np.full_like(rasters['pvalue'], np.nan, dtype=np.float32)
-    rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
-    rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
-    
-    # Create deciduous fraction classes
-    # ['conifer','mixed','deciduous']
-    rasters['deciduous_class'] = np.full_like(rasters['deciduous'], np.nan, dtype=np.float32)
-    rasters['deciduous_class'][rasters['deciduous'] < 33] = 0  # Conifer
-    rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
-    rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
+    print('\tFinished age class raster.')
+
+    if np.all(rasters['canopy_trend'] == nodata_value):
+        print('\tNo canopy trends; no canopy trend class raster made.')
+    else:
+        # Create canopy trend classes
+        # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
+        rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32)
+        
+        trend_mask_1 = rasters['canopy_trend'] < -2
+        trend_mask_2 = (rasters['canopy_trend'] >= -2) & (rasters['canopy_trend'] < -0.5)
+        trend_mask_4 = (rasters['canopy_trend'] <= 2) & (rasters['canopy_trend'] > 0.5)
+        trend_mask_5 = rasters['canopy_trend'] > 2
+        trend_mask_3 = ~(trend_mask_1 | trend_mask_2 | trend_mask_4 | trend_mask_5) & ~np.isnan(rasters['canopy_trend'])
+        
+        rasters['trend_class'][trend_mask_1] = 0  # Strong decline
+        rasters['trend_class'][trend_mask_2] = 1  # Weak decline
+        rasters['trend_class'][trend_mask_3] = 2  # Stable
+        rasters['trend_class'][trend_mask_4] = 3  # Weak increase
+        rasters['trend_class'][trend_mask_5] = 4  # Strong increase
+        
+        # Create p-value classes
+        # ['not sig', 'sig (p<0.05)']
+        rasters['pvalue_class'] = np.full_like(rasters['pvalue'], np.nan, dtype=np.float32)
+        rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
+        rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
+        
+    if np.all(rasters['deciduous'] == nodata_value):
+        print('\tNo deciduous fraction; no deciduous fraction class raster made.')
+    else:
+        # Create deciduous fraction classes
+        # ['conifer','mixed','deciduous']
+        rasters['deciduous_class'] = np.full_like(rasters['deciduous'], np.nan, dtype=np.float32)
+        rasters['deciduous_class'][rasters['deciduous'] < 33] = 0  # Conifer
+        rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
+        rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
     
     return rasters
 
@@ -893,33 +898,32 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         rasters = create_class_rasters(rasters)
         
         print("Performing Monte Carlo simulations for carbon accumulation...")
-
-        if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
-            print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
-            return
-            
+           
         carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed)
     
         if DO_WRITE_COG:
-            raster_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 
+            carbon_results_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 
                                      carbon_results['carbon_acc_ci_lower'], carbon_results['carbon_acc_ci_upper'], 
                                      carbon_results['carbon_acc_pi_lower'], carbon_results['carbon_acc_pi_upper']
                                     ])
-            raster_stack_names = ["carbon_acc_mean", "carbon_acc_std", 
+            carbon_results_stack_names = ["carbon_acc_mean", "carbon_acc_std", 
                                   "carbon_acc_ci_lower", "carbon_acc_ci_upper", 
                                   "carbon_acc_pi_lower", "carbon_acc_pi_upper"]
                     
             # write COG to disk
             write_cog(
-                        raster_stack, 
+                        carbon_results_stack, 
                         os.path.join(output_dir, f'boreal_cacc_2020_{TILE_NUM:07}.tif'), 
                         rasters['crs'], 
                         rasters['transform'], 
-                        raster_stack_names, 
+                        carbon_results_stack_names, 
                         out_crs=rasters['crs'],
                         input_nodata_value= -9999
                          )
-        
+        if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
+            print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
+            return
+            
         print("Creating pixel-level dataframe...")
         # Create pixel-level dataframe
         ##pixel_df = create_pixel_dataframe(rasters, carbon_results
@@ -929,7 +933,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
             rasters=rasters, 
             carbon_results=carbon_results,
             vector_files={
-                'ecoregions': '/projects/my-public-bucket/databank/wwf_terr_ecos.gpkg',
+                'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
                 #'boreal': '/projects/my-public-bucket/databank/arc/wwf_circumboreal_Dissolve.gpkg'
             },
             vector_columns={
@@ -1032,28 +1036,6 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         deciduous_summary['deciduous_class'] = deciduous_summary['deciduous_class'].astype(
             CategoricalDtype(categories=deciduous_class_labels, ordered=True))
         deciduous_summary.to_csv(os.path.join(output_dir, f"deciduous_class_summary_{TILE_NUM:07}.csv"), index=False)
-        
-        # # Plot total carbon by age class with confidence intervals
-        # p_total = (
-        #     ggplot(age_summary, aes(x='age_class', y='total_carbon_Pg_mean')) +
-        #     geom_bar(stat='identity', fill='steelblue', alpha=0.7) +
-        #     geom_errorbar(
-        #         aes(ymin='total_carbon_Pg_ci_lower', ymax='total_carbon_Pg_ci_upper'),
-        #         width=0.2, color='black'
-        #     ) +
-        #     labs(
-        #         x='Age Class (years)',
-        #         y='Total Carbon Stock (Pg C)',
-        #         title='Total Carbon Stock by Forest Age Class with 95% Confidence Intervals'
-        #     ) +
-        #     theme_minimal() +
-        #     theme(
-        #         axis_text_x=element_text(angle=45, hjust=1),
-        #         figure_size=(10, 6)
-        #     )
-        # )
-        # p_total.save(os.path.join(output_dir, f'total_carbon_by_age_{TILE_NUM:07}.png'), dpi=300)
-        # pixel_df = None
         
         # Write to a JSON file
         with open(os.path.join(output_dir, 'input_data.json'), 'w') as json_file:
