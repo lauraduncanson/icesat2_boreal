@@ -920,6 +920,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
                         out_crs=rasters['crs'],
                         input_nodata_value= -9999
                          )
+        
         if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
             print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
             return
