@@ -11,16 +11,16 @@ unset PROJ_LIB
 
 mkdir output
 
-FILENAMELIST=$(ls -d input/*)
+# FILENAMELIST=$(ls -d input/*)
 
 basedir=$( cd "$(dirname "$0")" ; pwd -P )  # goes to alg_3-1-5/
 
 # First file in input/ dir
 # TODO: Fragile relying on alphabetical order
 
-FILENAMELIST=($(ls -d input/*))
-INPUT1="${PWD}/${FILENAMELIST[0]}"
-INPUT2="${PWD}/${FILENAMELIST[1]}"
+# FILENAMELIST=($(ls -d input/*))
+# INPUT1="${PWD}/${FILENAMELIST[0]}"
+# INPUT2="${PWD}/${FILENAMELIST[1]}"
 
 ## Hard coded args for each run (if any; usually just output dir)
 
