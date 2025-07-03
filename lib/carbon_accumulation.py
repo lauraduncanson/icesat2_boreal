@@ -836,10 +836,11 @@ def plot_carbon_accumulation_by_age(df, output_dir):
 
 
 def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed = None, N_PIX_SAMPLE = 100000, DO_WRITE_COG=False,
-                               extent_type = 'tile', output_dir = "/projects/my-public-bucket/carbon_accumulation_analysis_TEST"):
-    
-    # Define output directory
-    output_dir = os.path.join(output_dir, extent_type, f"{TILE_NUM:07}")    
+                               extent_type = 'tile', output_dir = "/projects/my-public-bucket/carbon_accumulation_analysis_TEST", local=False):
+
+    if local:
+        # Define output directory
+        output_dir = os.path.join(output_dir, extent_type, f"{TILE_NUM:07}")    
     os.makedirs(output_dir, exist_ok=True)
     
     """
