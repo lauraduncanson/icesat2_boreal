@@ -19,10 +19,6 @@ inputs:
     description: The number of monte carlo simulations to sample from AGB and age data (w/ mean, stdev)
     name: n_sims
     required: true
-  - default: 'None'
-    description: The number of pixels to sample from the pixel-level dataframe
-    name: n_pix_samples
-    required: true
   - default: 'tile'
     description: The type of extent that is used w/ in_tile_num to specify output sub-dir.
     name: extent_type

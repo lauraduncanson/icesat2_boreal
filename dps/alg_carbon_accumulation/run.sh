@@ -36,6 +36,5 @@ python ${basedir}/../../lib/carbon_accumulation.py \
 --in_tile_num ${2} \
 --output_dir ${OUTPUTDIR} \
 --n_sims ${3} \
---n_pix_samples ${4} \
---extent_type ${5} \
+--extent_type ${4} \
 --do_write_cog

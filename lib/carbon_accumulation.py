@@ -1104,7 +1104,7 @@ def main():
     parser.add_argument("--output_dir", type=str, help="The path for the JSON files to be written")
     parser.add_argument("--n_sims", type=int, default=5, help="The number of monte carlo simulations to sample from AGB and age data (w/ mean, stdev)")
     parser.add_argument("--seed", type=int, default=123, help="The random seed to set for reproducability")
-    parser.add_argument("--n_pix_samples", type=int, default=100000, help="The number of pixels to sample from the pixel-level dataframe")
+    parser.add_argument("--n_pix_samples", type=int, default=None, help="The number of pixels to sample from the pixel-level dataframe")
     parser.add_argument("--extent_type", type=str, choices=['tile','hydrobasin'], default='tile', help="The type of extent that is used w/ in_tile_num to specify output sub-dir.")
     parser.add_argument('--do_write_cog', dest='do_write_cog', action='store_true', help='Write a cloud-optimized geotiff of results.')
     parser.set_defaults(do_write_cog=False)
