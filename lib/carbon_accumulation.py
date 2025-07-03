@@ -226,14 +226,14 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['trend_class'][trend_mask_5] = 4  # Strong increase
         rasters['trend_class'][trend_mask_5] = 4  # Strong increase
         rasters['trend_class'][trend_mask_fill] = np.nan
-        print(f'\tFinished trend class raster: {rasters['trend_class'].shape}')
+        print(f"\tFinished trend class raster: {rasters['trend_class'].shape}")
         
         # Create p-value classes
         # ['not sig', 'sig (p<0.05)']
         rasters['pvalue_class'] = np.full_like(rasters['pvalue'], np.nan, dtype=np.float32)
         rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
         rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
-        print(f'\tFinished pvalue class raster: {rasters['pvalue_class'].shape}')
+        print(f"\tFinished pvalue class raster: {rasters['pvalue_class'].shape}")
         
     if np.all(rasters['deciduous'] == nodata_value):
         print("\tNo deciduous fraction; no deciduous fraction class raster made.")
@@ -244,7 +244,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['deciduous_class'][rasters['deciduous'] < 33] = 0  # Conifer
         rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
         rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
-        print(f'\tFinished deciduous class raster: {rasters['deciduous_class'].shape}')
+        print(f"\tFinished deciduous class raster: {rasters['deciduous_class'].shape}")
     
     return rasters
 
