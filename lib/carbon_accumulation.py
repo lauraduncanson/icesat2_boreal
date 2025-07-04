@@ -210,7 +210,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
     else:
         # Create canopy trend classes
         # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
-        rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32)
+        rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32) # prob want to put this before if statement so you get NaN values in the case of no trends.
         
         trend_mask_fill = (rasters['canopy_trend'] == 255)
         trend_mask_1 = rasters['canopy_trend'] < -2
@@ -234,13 +234,13 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
         rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
         print(f"\tFinished pvalue class raster: {rasters['pvalue_class'].shape}")
-        
+
+    rasters['deciduous_class'] = np.full_like(rasters['deciduous'], np.nan, dtype=np.float32)
     if np.all(rasters['deciduous'] == nodata_value):
-        print("\tNo deciduous fraction; no deciduous fraction class raster made.")
+        print("\tNo deciduous fraction; all raster deciduous fraction class values set to NaN.")
     else:
         # Create deciduous fraction classes
         # ['conifer','mixed','deciduous']
-        rasters['deciduous_class'] = np.full_like(rasters['deciduous'], np.nan, dtype=np.float32)
         rasters['deciduous_class'][rasters['deciduous'] < 33] = 0  # Conifer
         rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
         rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
@@ -974,48 +974,47 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         print('\tNo canopy trends; no canopy trend class raster made.\nExiting.\n')
         return
 
-    if DO_WRITE_COG: # just for testing...
-        print("Creating pixel-level dataframe...")
-        pixel_df = create_pixel_dataframe(
-            rasters=rasters, 
-            carbon_results=carbon_results,
-            vector_files={
-                'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
-                #'boreal': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/arc/wwf_circumboreal_Dissolve.gpkg'
-            },
-            vector_columns={
-                'ecoregions': ['ECO_NAME', 'REALM'],
-                #'boreal': ['REALM']
-            },
-            transform=rasters['transform'],  # Get this from your open raster file
-            crs=rasters['crs']  # Get this from your open raster file
-        )
-        pixel_df['ID'] = TILE_NUM
-    
-        if N_PIX_SAMPLE is None:
-            print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
-            sample_size = len(pixel_df)
-        else:
-            print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
-            # Save pixel dataframe (sample to avoid very large files)
-            sample_size = min(N_PIX_SAMPLE, len(pixel_df))
-            
-        pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
-        print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
-    
-        # Sample 10% of the rows
-        SAMP_FRAC=0.1
-        sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
-        sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
-        print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
+    print("Creating pixel-level dataframe...")
+    pixel_df = create_pixel_dataframe(
+        rasters=rasters, 
+        carbon_results=carbon_results,
+        vector_files={
+            'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
+            #'boreal': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/arc/wwf_circumboreal_Dissolve.gpkg'
+        },
+        vector_columns={
+            'ecoregions': ['ECO_NAME', 'REALM'],
+            #'boreal': ['REALM']
+        },
+        transform=rasters['transform'],  # Get this from your open raster file
+        crs=rasters['crs']  # Get this from your open raster file
+    )
+    pixel_df['ID'] = TILE_NUM
+
+    if N_PIX_SAMPLE is None:
+        print(f"Setting sample size to full length of data frame ({len(pixel_df)})...")
+        sample_size = len(pixel_df)
+    else:
+        print(f"Setting sample size to a specific number of rows from the data frame ({N_PIX_SAMPLE})...")
+        # Save pixel dataframe (sample to avoid very large files)
+        sample_size = min(N_PIX_SAMPLE, len(pixel_df))
         
-        print("Calculating area and total carbon by class...")
-        # Calculate area and total carbon by class
-        summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
-                                                    groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort',
-                                                                    'trend_class', 'pvalue_class', 'deciduous_class']) 
-        summary_df = summary_df[summary_df['pixel_count']>0]
-        summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
+    pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
+    print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
+
+    # Sample 10% of the rows
+    SAMP_FRAC=0.1
+    sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
+    sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
+    print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
+    
+    print("Calculating area and total carbon by class...")
+    # Calculate area and total carbon by class
+    summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
+                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort',
+                                                                'trend_class', 'pvalue_class', 'deciduous_class']) 
+    summary_df = summary_df[summary_df['pixel_count']>0]
+    summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
     
     print("Calculating Monte Carlo totals for carbon by class...")
     # Get unique class combinations
