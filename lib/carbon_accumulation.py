@@ -178,6 +178,7 @@ def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
     else:
         rasters['deciduous'] = np.full_like(rasters['biomass_mean'] , nodata_value)
         
+    print(f"\tOriginal raster dictionary keys: {rasters.keys()}")    
     return rasters
 
 def create_class_rasters(rasters, nodata_value=-9999):
@@ -235,7 +236,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
         print(f"\tFinished pvalue class raster: {rasters['pvalue_class'].shape}")
 
-    rasters['deciduous_class'] = np.full_like(rasters['deciduous'], np.nan, dtype=np.float32)
+    rasters['deciduous_class'] = np.full_like(rasters['deciduous'], 0, dtype=np.float32) #----- set to 0 instead of np.nan
     if np.all(rasters['deciduous'] == nodata_value):
         print("\tNo deciduous fraction; all raster deciduous fraction class values set to NaN.")
     else:
@@ -245,7 +246,8 @@ def create_class_rasters(rasters, nodata_value=-9999):
         rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
         rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
         print(f"\tFinished deciduous class raster: {rasters['deciduous_class'].shape}")
-    
+        
+    print(f"\tClass raster dictionary keys: {rasters.keys()}") 
     return rasters
 
 def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=None):
@@ -431,14 +433,14 @@ def create_pixel_dataframe(rasters, carbon_results,
     #df['age_cohort_raw'] = df['age_class_val'].map(lambda x: age_cohort_labels[int(x)] if not np.isnan(x) else np.nan)
     df['trend_class_raw'] = df['trend_class_val'].map(lambda x: trend_class_labels[int(x)] if not np.isnan(x) else 'no trend\navailable') #np.nan)
     df['pvalue_class_raw'] = df['pvalue_class_val'].map(lambda x: pvalue_class_labels[int(x)] if not np.isnan(x) else 'no trend\navailable') #np.nan)
-    df['deciduous_class_raw'] = df['deciduous_class_val'].map(lambda x: deciduous_class_labels[int(x)] if not np.isnan(x) else np.nan)
+    df['deciduous_class_raw'] = df['deciduous_class_val'].map(lambda x: deciduous_class_labels[int(x)] if not np.isnan(x) else 'no info\available')
     
     # Create ordered categorical types that preserve the order in the label lists
     age_cat_type = CategoricalDtype(categories=age_class_labels, ordered=True)
     #agecohort_cat_type = CategoricalDtype(categories=age_cohort_labels, ordered=True)
     trend_cat_type = CategoricalDtype(categories=trend_class_labels+['no trend\navailable'], ordered=True)
     pvalue_cat_type = CategoricalDtype(categories=pvalue_class_labels+['no trend\navailable'], ordered=True)
-    deciduous_cat_type = CategoricalDtype(categories=deciduous_class_labels, ordered=True)
+    deciduous_cat_type = CategoricalDtype(categories=deciduous_class_labels+['no info available'], ordered=True)
     
     # Convert to ordered categorical variables
     df['age_class'] = df['age_class_raw'].astype(age_cat_type)
@@ -491,7 +493,8 @@ def create_pixel_dataframe(rasters, carbon_results,
         # Clean up coordinate columns if not needed
         if 'x' in df.columns and 'y' in df.columns and 'geometry' not in df.columns:
             df = df.drop(['x', 'y'], axis=1)
-    
+
+    print(f"\tPixel data frame column names: {df.columns}")
     return df
 
 def calculate_area_and_total_carbon(df, pixel_area_ha, groupby_cols = ['age_class','age_cohort','trend_class', 'pvalue_class', 'deciduous_class']):
@@ -540,7 +543,7 @@ def calculate_area_and_total_carbon(df, pixel_area_ha, groupby_cols = ['age_clas
     # Preserve categorical order for plotting
     for col in groupby_cols:
         summary[col] = summary[col].astype(df[col].dtype)
-    
+
     return summary
     
 def calculate_nan_proportion(array):
@@ -602,7 +605,7 @@ def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinatio
     age_class_labels = ['non-forest','1-20', '21-36', '37-60', '61-80', '81-100', '101-150', '>150']
     trend_class_labels = ['decline\n(strong)', 'decline\n(weak)', 'stable', 'increase\n(weak)', 'increase\n(strong)']+['no trend\navailable']
     pvalue_class_labels = ['not sig', 'sig (p<0.05)']+['no trend\navailable']
-    deciduous_class_labels = ['conifer', 'mixed', 'deciduous']
+    deciduous_class_labels = ['conifer', 'mixed', 'deciduous']+['no info available']
 
     print(f"\tTotal class combos: {len(class_combinations)}")
 
@@ -660,7 +663,7 @@ def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinatio
             'total_carbon_Pg_pi_upper': pi_upper
         })
 
-    print(f"\Percent of class combos skipped: {100 * round(n_class_combos_skipped/len(class_combinations), 3)}")
+    print(f"\tPercent of class combos skipped: {100 * round(n_class_combos_skipped/len(class_combinations), 3)}")
     # Convert to DataFrame
     result_df = pd.DataFrame(results)
     print(f"\tCols: {result_df.columns}")
@@ -714,7 +717,8 @@ def plot_carbon_accumulation_by_age(df, output_dir):
     deciduous_colors = {
         'conifer': '#5e3c99', 
         'mixed': '#ffffbf',
-        'deciduous': '#fdb863'
+        'deciduous': '#fdb863',
+        'no info available': 'black'
     }
     
     # 1. Carbon accumulation by age class and trend class
@@ -910,12 +914,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     age_cohort_labels = ['non-forest','re-growth forest','re-growth forest', 'young forest','young forest','young forest', 'mature forest', 'old-growth forest']
     trend_class_labels = ['decline\n(strong)', 'decline\n(weak)', 'stable', 'increase\n(weak)', 'increase\n(strong)']+['no trend\navailable']
     pvalue_class_labels = ['not sig', 'sig (p<0.05)']+['no trend\navailable']
-    deciduous_class_labels = ['conifer', 'mixed', 'deciduous']
-
-    # # Break if there is no TCC trend data
-    # if file_paths['canopy_trend'] is None:
-    #     print(f"Tile {TILE_NUM} doesnt have tree cover trends calc'd, skipping...")
-    # else:
+    deciduous_class_labels = ['conifer', 'mixed', 'deciduous']+['no info available']
     
     # Define paths to raster files
     raster_paths = list(file_paths.values())
@@ -931,6 +930,30 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     print("Creating classification rasters...")
     # Create classification rasters
     rasters = create_class_rasters(rasters)
+
+    if False:
+        rasters_stack = np.stack([rasters['age_mean'], rasters['deciduous'] , 
+                                 rasters['age_class'], rasters['trend_class'], 
+                                 rasters['pvalue_class'], rasters['deciduous_class']
+                                ])
+        rasters_stack_names = [
+            #'biomass_mean', 'biomass_std',
+            'age_mean', 
+            #'age_std', 
+         #'landcover', 'elevation', 'slope', 'tsri', 'tpi', 'slopemask', 
+         #'canopy_cover', 'canopy_trend', 'pvalue', 
+         'deciduous', 'age_class', 'trend_class', 'pvalue_class', 'deciduous_class']
+                
+        # write COG to disk
+        write_cog(
+                    rasters_stack, 
+                    os.path.join(output_dir, f'rasters_2020_{TILE_NUM:07}.tif'), 
+                    rasters['crs'], 
+                    rasters['transform'], 
+                    rasters_stack_names, 
+                    out_crs=rasters['crs'],
+                    input_nodata_value= -9999
+                     )
     
     print("Performing Monte Carlo simulations for carbon accumulation...")
        
@@ -956,15 +979,12 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
                     input_nodata_value= -9999
                      )
 
-    # if np.count_nonzero(~np.isnan(rasters['canopy_trend'])) == 0:
-    #     print(f"Tile {TILE_NUM} has all NaN tree cover trend data; wont proceed with C accumulation analysis.\nExiting.")
-    #     return
     if file_paths['canopy_trend'] is None:
         print(f"Tile {TILE_NUM} has no tree cover trend data; wont proceed with C accumulation analysis.\nExiting.\n")
         return   
 
     print(f"Dictionary of class rasters: {rasters.keys()}\n")
-    print(f"{rasters['trend_class'].min()},{rasters['trend_class'].max()}")
+    print(f"Trend class min/max: {rasters['trend_class'].min()},{rasters['trend_class'].max()}")
     print(f"Count of -9999: {np.sum(rasters['trend_class'] == -9999)}")
     print(f"Count of nan: {np.sum(np.isnan(rasters['trend_class']))}")
     print(f"Count of unique: {np.unique(rasters['trend_class'], return_counts=True)}")
@@ -1029,8 +1049,9 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
         print('\tNo canopy trends; no canopy trend class raster made.')
         return
-    
+
     # Calculate Monte Carlo totals for carbon by class
+    print(f"\nPrint raster dict keys: {rasters.keys()}\n")
     monte_carlo_totals = calculate_monte_carlo_class_totals(
         rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
     )
