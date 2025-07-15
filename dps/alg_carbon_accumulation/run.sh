@@ -37,4 +37,5 @@ python ${basedir}/../../lib/carbon_accumulation.py \
 --output_dir ${OUTPUTDIR} \
 --n_sims ${3} \
 --extent_type ${4} \
---do_write_cog
+--do_write_cog \
+--update_age

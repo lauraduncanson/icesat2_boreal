@@ -16,69 +16,69 @@ import mosaiclib
 from CovariateUtils import write_cog
 import argparse
 
-def process_multiple_rasters(TILE_NUM_LIST, num_simulations=50, n_cores=None, RANDOM_SEED=True):
-    """
-    Process multiple rasters in parallel, combining their results.
+# def process_multiple_rasters(TILE_NUM_LIST, num_simulations=50, n_cores=None, RANDOM_SEED=True):
+#     """
+#     Process multiple rasters in parallel, combining their results.
     
-    Parameters:
-    -----------
-    TILE_NUM_LIST : list
-        List of tiles to raster files
-    num_simulations : int
-        Number of Monte Carlo simulations to run
-    n_cores : int
-        Number of cores to use (defaults to all available cores - 1)
+#     Parameters:
+#     -----------
+#     TILE_NUM_LIST : list
+#         List of tiles to raster files
+#     num_simulations : int
+#         Number of Monte Carlo simulations to run
+#     n_cores : int
+#         Number of cores to use (defaults to all available cores - 1)
         
-    Returns:
-    --------
-    dict
-        Dictionary with combined results
-    """
-    if n_cores is None:
-        n_cores = max(1, mp.cpu_count() - 1)
+#     Returns:
+#     --------
+#     dict
+#         Dictionary with combined results
+#     """
+#     if n_cores is None:
+#         n_cores = max(1, mp.cpu_count() - 1)
     
-    print(f"Processing {len(TILE_NUM_LIST)} tiles using {n_cores} cores...")
+#     print(f"Processing {len(TILE_NUM_LIST)} tiles using {n_cores} cores...")
     
-    # Create a pool of worker processes
-    pool = mp.Pool(processes=n_cores)
+#     # Create a pool of worker processes
+#     pool = mp.Pool(processes=n_cores)
 
-    if RANDOM_SEED:
-        print('Use random seeds...')
-        random_seeds = np.random.randint(0, 10000, size=len(TILE_NUM_LIST))
-    else:
-        print('Use the same seeds for reproducibility...')
-        random_seeds = [100 for t in TILE_NUM_LIST]
+#     if RANDOM_SEED:
+#         print('Use random seeds...')
+#         random_seeds = np.random.randint(0, 10000, size=len(TILE_NUM_LIST))
+#     else:
+#         print('Use the same seeds for reproducibility...')
+#         random_seeds = [100 for t in TILE_NUM_LIST]
     
-    # Set up the parallel execution with different seeds for each process
-    process_func = partial(CARBON_ACC_ANALYSIS_SINGLE, num_simulations=num_simulations)
-    tasks = [(path, seed) for path, seed in zip(TILE_NUM_LIST, random_seeds)]
+#     # Set up the parallel execution with different seeds for each process
+#     process_func = partial(CARBON_ACC_ANALYSIS_SINGLE, num_simulations=num_simulations)
+#     tasks = [(path, seed) for path, seed in zip(TILE_NUM_LIST, random_seeds)]
     
-    # Execute processing in parallel with progress bar
-    results = []
-    with tqdm(total=len(tasks), desc="Processing rasters") as pbar:
-        for task in tasks:
-            result = pool.apply_async(process_func, args=(task[0],), 
-                                     kwds={'random_seed': task[1]},
-                                     callback=lambda _: pbar.update())
-            results.append(result)
+#     # Execute processing in parallel with progress bar
+#     results = []
+#     with tqdm(total=len(tasks), desc="Processing rasters") as pbar:
+#         for task in tasks:
+#             result = pool.apply_async(process_func, args=(task[0],), 
+#                                      kwds={'random_seed': task[1]},
+#                                      callback=lambda _: pbar.update())
+#             results.append(result)
         
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+#         # Close the pool and wait for all processes to finish
+#         pool.close()
+#         pool.join()
     
-    # Collect results
-    raster_results = [res.get() for res in results]
+#     # Collect results
+#     raster_results = [res.get() for res in results]
     
-    return {
-        'raster_results': raster_results,
-        # 'combined_mean_sum': combined_mean_sum,
-        # 'combined_std': combined_std,
-        # 'combined_ci_lower': combined_ci_lower,
-        # 'combined_ci_upper': combined_ci_upper,
-        # 'combined_pi_lower': combined_pi_lower,
-        # 'combined_pi_upper': combined_pi_upper,
-        # 'all_simulation_sums': all_simulation_sums
-    }
+#     return {
+#         'raster_results': raster_results,
+#         # 'combined_mean_sum': combined_mean_sum,
+#         # 'combined_std': combined_std,
+#         # 'combined_ci_lower': combined_ci_lower,
+#         # 'combined_ci_upper': combined_ci_upper,
+#         # 'combined_pi_lower': combined_pi_lower,
+#         # 'combined_pi_upper': combined_pi_upper,
+#         # 'all_simulation_sums': all_simulation_sums
+#     }
 
 def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
     """
@@ -177,11 +177,107 @@ def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
             rasters['deciduous'] = np.where(mask_array, rasters['deciduous'], np.nan)
     else:
         rasters['deciduous'] = np.full_like(rasters['biomass_mean'] , nodata_value)
+
+    if raster_paths[8] is not None:
+        print("Read TP standage raster (index 8)...")
+        with rasterio.open(raster_paths[8]) as src:
+            rasters['age_alt'] = src.read(1)
+            mask_array = (rasters['age_alt'] != nodata_value) & (rasters['age_alt'] != 255)
+            rasters['age_alt'] = np.where(mask_array, rasters['age_alt'], np.nan)
+    else:
+        rasters['age_alt'] = np.full_like(rasters['biomass_mean'] , nodata_value)
         
     print(f"\tOriginal raster dictionary keys: {rasters.keys()}")    
     return rasters
 
-def create_class_rasters(rasters, nodata_value=-9999):
+def run_update_forest_age(rasters, nodata_value=-9999, AGE_MEAN_TP_OUTSIDE_LANDSAT=100):
+    
+    '''Update 2020 Forest Age data to combine estimates from 2 sources: Besnard et al & TerraPulse
+    '''
+    pixel_area_ha = 0.09
+    AGE_MAX_REGROWTH_TERRAPULSE = 36
+    
+    print(f"\tUpdate to Besnard Age (2020) with TerraPulse Age (2020) before creating class rasters...")
+    '''
+    # There will be cases where pixels do NOT achieve a 'Forest' classification based on Besnard thresholds 
+            - these are typically sparse forests that are in fact boreal forest.
+    # To return these missing age estimates (which otherwise appear as 0 indicating non-forest, we use the TerraPulse Stand Age dataset (2020)
+    #    Some of these will have TerraPulse Boreal Age estimates (only if within TerraPulse specified boreal and within Landsat-era) 
+    #       [Condition 1] we will use these estimates where available to estimate age for within-boreal and within-Landsat era
+    #    Some of these will have Age fill values=50, where TerraPulse indicated 'Forest' but could not estimate Age (outside Landsat era)
+    #       [Condition 2] we use AGE_MEAN_TP_OUTSIDE_LANDSAT and AGE_STD_TP_OUTSIDE_LANDSAT 
+    #                  - this supplies an intermediate age value between regrowing forests 1-36 yrs old and old growth >250 with a high STD
+    #                    representing the diff between this intermediate value and the max regrowth age (36)
+    # This decision allows us to account for forest C that would otherwise be ignored using just current Forest definition from 2020 ensemble data from Besnard et al 
+    '''
+    if True:
+        
+        # Condition 1
+        print(f"\tUpdating Forest Age with TerraPulse Stand Age for Condition 1: Inside Landsat-era (1984-2020)...")
+        forest_age_update_condition_1 = (
+            #(rasters['age_mean'] == nodata_value) &
+            #(np.isnan(rasters['age_mean'])) &
+            ( ( (np.isnan(rasters['age_mean'])) | (rasters['age_mean'] == nodata_value) | (rasters['age_mean'] == 0) ) ) &
+            ( 
+                (rasters['age_alt'] > 0) & # Use > 0 b/c water shows as value=0 <----- CHK THIS : >=
+                (rasters['age_alt'] <= AGE_MAX_REGROWTH_TERRAPULSE) 
+            )   # below this are valid age values for Landsat-era forest from TerraPulse from yr 2020 data
+        )
+        # Count the number of pixels that met the condition
+        print(f"\t\t..changing n={np.sum(forest_age_update_condition_1)} pixels.")
+        added_hectares_from_cond_1 = pixel_area_ha * np.sum(forest_age_update_condition_1)
+        print(f"\t\t...this adds n={added_hectares_from_cond_1:.3f} hectares to C accumulation analysis.")
+        total_hectares_tile = rasters['age_class'].shape[0] * rasters['age_class'].shape[1] * 30 * 30 / 10000
+        print(f"\t\t...{100*added_hectares_from_cond_1/total_hectares_tile:.3f} % of tile.")
+        
+        # Apply forest age update condition
+        rasters['age_mean_update'] = np.where(
+            forest_age_update_condition_1,
+            rasters['age_alt'],        # value to use if condition is True
+            rasters['age_mean']        # keep existing value if condition is False
+        )
+        rasters['age_std_update'] = np.where(
+            forest_age_update_condition_1,
+            0,        # value if condition is True
+            rasters['age_std']        # keep existing value if condition is False # <--- to test, change to a large std value (100) if TP age >36
+        )
+    #############
+    # Condition 2
+    print(f"\tUpdating Forest Age with TerraPulse Stand Age for Condition 2: Outside Landsat-era (pre-1984 disturbance)...")
+    forest_age_update_condition_2 = (
+        #(rasters['age_mean'] == nodata_value) &
+        #(np.isnan(rasters['age_mean'])) &
+        ( ( (np.isnan(rasters['age_mean'])) | (rasters['age_mean'] == nodata_value) | (rasters['age_mean'] == 0)) ) &
+        (rasters['age_alt'] == 50)  # fill value for Age for forest >= 37 yrs from TerraPulse from yr 2020 data
+    )
+    # Count the number of pixels that met the condition
+    print(f"\t\t...changing n={np.sum(forest_age_update_condition_2)} pixels.")
+    added_hectares_from_cond_2 = pixel_area_ha * np.sum(forest_age_update_condition_2)
+    print(f"\t\t...this adds n={added_hectares_from_cond_2:.3f} hectares to C accumulation analysis.")
+    total_hectares_tile = rasters['age_class'].shape[0] * rasters['age_class'].shape[1] * 30 * 30 / 10000
+    print(f"\t\t...{100*added_hectares_from_cond_2/total_hectares_tile:.3f} % of tile.")
+    
+    # Apply forest age update condition
+    rasters['age_mean_update'] = np.where(
+        forest_age_update_condition_2,
+        AGE_MEAN_TP_OUTSIDE_LANDSAT,        # value to use if condition is True - the TP age fill value for this would be 50.
+        rasters['age_mean_update']        # keep existing value if condition is False
+    )
+    rasters['age_std_update'] = np.where(
+        forest_age_update_condition_2,
+        AGE_MEAN_TP_OUTSIDE_LANDSAT - AGE_MAX_REGROWTH_TERRAPULSE,   # value to use if condition is True - this imparts HIGH uncertainty for a very rough estimate
+        rasters['age_std_update']        # keep existing value if condition is False 
+    )
+
+    # Houskeeping
+    rasters['age_mean_primary'] = rasters['age_mean'] # this is the original age from Besnard only
+    rasters['age_std_primary'] = rasters['age_std']
+    rasters['age_mean'] = rasters['age_mean_update']  # this is now the updated age from Besnard & TerraPulse
+    rasters['age_std'] = rasters['age_std_update'] 
+    
+    return rasters
+
+def create_class_rasters(rasters, nodata_value=-9999, UPDATE_AGE=False, AGE_MEAN_TP_OUTSIDE_LANDSAT=100):
     """
     Create classification rasters based on the input data.
     
@@ -199,42 +295,53 @@ def create_class_rasters(rasters, nodata_value=-9999):
     age_classes = ['non-forest','1-20', '21-36', '37-60', '61-80', '81-100', '101-150', '>150']
     age_bins = [0, 0, 20, 36, 60, 80, 100, 150, np.inf]
 
-    rasters['age_class'] = np.full_like(rasters['age_mean'], 0, dtype=np.float32) #---------------
+    AGE_SOURCE_LIST = ['age_mean']
+    rasters['age_class'] = np.full_like(rasters['age_mean'], 0, dtype=np.float32) #  0 means non-forest by default
+    if UPDATE_AGE: 
+        rasters['age_class_primary'] = np.full_like(rasters['age_mean'], 0, dtype=np.float32) #  0 means non-forest by default
+        rasters = run_update_forest_age(rasters, nodata_value=-9999, AGE_MEAN_TP_OUTSIDE_LANDSAT=100)
+        AGE_SOURCE_LIST.append('age_mean_primary')
 
-    for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
-        mask = (rasters['age_mean'] > lower) & (rasters['age_mean'] <= upper)
-        rasters['age_class'][mask] = i
-    print(f"\tFinished age class raster: {rasters['age_class'].shape}")
+    # Loop across the multiple Age rasters 
+    for AGE_SOURCE in AGE_SOURCE_LIST:
+        if AGE_SOURCE == 'age_mean': AGE_CLASS_NAME = 'age_class'
+        if AGE_SOURCE == 'age_mean_primary': AGE_CLASS_NAME = 'age_class_primary'
+        for i, (lower, upper) in enumerate(zip(age_bins[:-1], age_bins[1:])):
+            mask = (rasters[AGE_SOURCE] > lower) & (rasters[AGE_SOURCE] <= upper)
+            rasters[AGE_CLASS_NAME][mask] = i
+        print(f"\tFinished age class raster based on {AGE_SOURCE}: {rasters[AGE_CLASS_NAME].shape}")
 
     if np.all(rasters['canopy_trend'] == nodata_value):
         print("\tNo canopy trends; no canopy trend class raster made.")
-    else:
-        # Create canopy trend classes
-        # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
-        rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32) # prob want to put this before if statement so you get NaN values in the case of no trends.
-        
-        trend_mask_fill = (rasters['canopy_trend'] == 255)
-        trend_mask_1 = rasters['canopy_trend'] < -2
-        trend_mask_2 = (rasters['canopy_trend'] >= -2) & (rasters['canopy_trend'] < -0.5)
-        trend_mask_4 = (rasters['canopy_trend'] <= 2) & (rasters['canopy_trend'] > 0.5)
-        trend_mask_5 = rasters['canopy_trend'] > 2
-        trend_mask_3 = ~(trend_mask_1 | trend_mask_2 | trend_mask_4 | trend_mask_5) & ~np.isnan(rasters['canopy_trend'])
-        
-        rasters['trend_class'][trend_mask_1] = 0  # Strong decline
-        rasters['trend_class'][trend_mask_2] = 1  # Weak decline
-        rasters['trend_class'][trend_mask_3] = 2  # Stable
-        rasters['trend_class'][trend_mask_4] = 3  # Weak increase
-        rasters['trend_class'][trend_mask_5] = 4  # Strong increase
-        rasters['trend_class'][trend_mask_5] = 4  # Strong increase
-        rasters['trend_class'][trend_mask_fill] = np.nan
-        print(f"\tFinished trend class raster: {rasters['trend_class'].shape}")
-        
-        # Create p-value classes
-        # ['not sig', 'sig (p<0.05)']
-        rasters['pvalue_class'] = np.full_like(rasters['pvalue'], np.nan, dtype=np.float32)
-        rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
-        rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
-        print(f"\tFinished pvalue class raster: {rasters['pvalue_class'].shape}")
+    #else:
+    
+    # Create canopy trend classes
+    # ['decline\n(strong)','decline\n(weak)','stable','increase\n(weak)','increase\n(strong)']
+    #rasters['trend_class'] = np.full_like(rasters['canopy_trend'], np.nan, dtype=np.float32) # prob want to put this before if statement so you get NaN values in the case of no trends.
+    rasters['trend_class'] = np.full_like(rasters['canopy_trend'], 5, dtype=np.float32) # defaults to 'no trend available'
+    
+    trend_mask_fill = (rasters['canopy_trend'] == 255)
+    trend_mask_1 = rasters['canopy_trend'] < -2
+    trend_mask_2 = (rasters['canopy_trend'] >= -2) & (rasters['canopy_trend'] < -0.5)
+    trend_mask_4 = (rasters['canopy_trend'] <= 2) & (rasters['canopy_trend'] > 0.5)
+    trend_mask_5 = rasters['canopy_trend'] > 2
+    trend_mask_3 = ~(trend_mask_1 | trend_mask_2 | trend_mask_4 | trend_mask_5) & ~np.isnan(rasters['canopy_trend'])
+    
+    rasters['trend_class'][trend_mask_1] = 0  # Strong decline
+    rasters['trend_class'][trend_mask_2] = 1  # Weak decline
+    rasters['trend_class'][trend_mask_3] = 2  # Stable
+    rasters['trend_class'][trend_mask_4] = 3  # Weak increase
+    rasters['trend_class'][trend_mask_5] = 4  # Strong increase
+    rasters['trend_class'][trend_mask_5] = 4  # Strong increase
+    rasters['trend_class'][trend_mask_fill] = 5 #np.nan  use 5 'no trend available'
+    print(f"\tFinished trend class raster: {rasters['trend_class'].shape}")
+    
+    # Create p-value classes
+    # ['not sig', 'sig (p<0.05)']
+    rasters['pvalue_class'] = np.full_like(rasters['pvalue'], 2, dtype=np.float32) # defaults to 'no trend available'
+    rasters['pvalue_class'][rasters['pvalue'] >= 0.05] = 0  # Not significant
+    rasters['pvalue_class'][rasters['pvalue'] < 0.05] = 1   # Significant
+    print(f"\tFinished pvalue class raster: {rasters['pvalue_class'].shape}")
 
     rasters['deciduous_class'] = np.full_like(rasters['deciduous'], 0, dtype=np.float32) #----- set to 0 instead of np.nan
     if np.all(rasters['deciduous'] == nodata_value):
@@ -249,7 +356,7 @@ def create_class_rasters(rasters, nodata_value=-9999):
         
     print(f"\tClass raster dictionary keys: {rasters.keys()}") 
     return rasters
-
+    
 def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=None):
     """
     Perform Monte Carlo simulations to derive carbon accumulation estimates.
@@ -337,22 +444,129 @@ def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=Non
     print('\n--Completed C accumulation analysis.--\n')
     
     return {
-        'carbon_mean': carbon_mean,
-        'carbon_std': carbon_std,
-        'carbon_acc_mean': carbon_acc_mean,
-        'carbon_acc_std': carbon_acc_std,
-        'carbon_acc_ci_lower': carbon_acc_ci_lower,
-        'carbon_acc_ci_upper': carbon_acc_ci_upper,
-        'carbon_acc_pi_lower': carbon_acc_pi_lower,
-        'carbon_acc_pi_upper': carbon_acc_pi_upper,
+        'carbon_mean': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_mean),  #carbon_mean,
+        'carbon_std': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_std),
+        'carbon_acc_mean': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_mean),
+        'carbon_acc_std': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_std),
+        'carbon_acc_ci_lower': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_ci_lower),
+        'carbon_acc_ci_upper': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_ci_upper),
+        'carbon_acc_pi_lower': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_pi_lower),
+        'carbon_acc_pi_upper': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_pi_upper),
         'sim_carbon': sim_carbon,
         'sim_carbon_acc': sim_carbon_acc
     }
+# def monte_carlo_carbon_accumulation_working(rasters, num_simulations=50, random_seed=None):
+#     """
+#     Perform Monte Carlo simulations to derive carbon accumulation estimates.
+    
+#     Parameters:
+#     -----------
+#     rasters : dict
+#         Dictionary with raster data
+#     num_simulations : int
+#         Number of Monte Carlo simulations to run
+#     random_seed : int
+#         Random seed for reproducibility
+        
+#     Returns:
+#     --------
+#     dict
+#         Dictionary with carbon accumulation results
+#     """
+#     if random_seed is not None:
+#         np.random.seed(random_seed)
+    
+#     # Initialize arrays for results
+#     rows, cols = rasters['shape']
+#     carbon_mean = np.full_like(rasters['biomass_mean'], np.nan)
+#     carbon_std = np.full_like(rasters['biomass_std'], np.nan)
+#     carbon_acc_mean = np.full_like(rasters['biomass_mean'], np.nan)
+#     carbon_acc_std = np.full_like(rasters['biomass_std'], np.nan)
+
+#     # -- ATTEMPT -- use zeros like [np.zeros((num_simulations, rows, cols)] but then apply the biomass nodata mask at the end
+#     # thought will give modata for water and other masked out LC but then 0 C accum for land areas that are non-forest (yet still have AGB values)
+    
+#     # Create arrays for simulation results
+#     sim_carbon     = np.full((num_simulations, rows, cols), np.nan) #np.zeros((num_simulations, rows, cols))
+#     sim_age        = np.full((num_simulations, rows, cols), np.nan) #np.zeros((num_simulations, rows, cols))
+#     sim_carbon_acc = np.full((num_simulations, rows, cols), np.nan) #np.zeros((num_simulations, rows, cols))
+    
+#     # Get valid pixels (not NaN in both biomass and age)
+#     if True: # this doesnt seem to do anything when set to 0
+#         # Set nan to non-forest age mean value = 0.5, std = 0
+#         rasters['age_mean'] = np.nan_to_num(rasters['age_mean'], nan=0.0)  # < ---- se this to 0 or 0.5?
+#         rasters['age_std'] = np.nan_to_num(rasters['age_std'], nan=0)
+#     if False:
+#         rasters['age_mean'] = np.where(np.isnan(rasters['age_mean']), 0, rasters['age_mean'])
+#         rasters['age_std'] = np.where(np.isnan(rasters['age_std']), 0, rasters['age_std'])
+
+#     valid_mask = ~np.isnan(rasters['biomass_mean']) & ~np.isnan(rasters['age_mean']) # this is important, lets you return 0 age pixels
+#     valid_indices = np.where(valid_mask)
+
+#     # Ensure biomass standard deviation is non-negative
+#     rasters['biomass_std'] = np.maximum(rasters['biomass_std'], 0)
+    
+#     # Ensure age standard deviation is non-negative
+#     rasters['age_std'] = np.maximum(rasters['age_std'], 0)
+    
+#     # Perform Monte Carlo simulations
+#     for i in range(num_simulations):
+#         # Generate random biomass values
+#         sim_biomass = np.random.normal(
+#             rasters['biomass_mean'], 
+#             rasters['biomass_std']
+#         )
+
+#         # Calculate carbon (50% of biomass)
+#         sim_carbon[i] = sim_biomass * 0.5
+        
+#         # Generate random age values
+#         sim_age[i] = np.random.normal(
+#             rasters['age_mean'], 
+#             rasters['age_std']
+#         )
+        
+#         # Calculate carbon accumulation (carbon / age)
+#         # Only for valid pixels with age > 0 to avoid division by zero 
+#         valid_age_mask = (sim_age[i] > 0) & valid_mask # ...but nothing changes when using >=0....something after this masks out 0s?
+#         sim_carbon_acc[i][valid_age_mask] = sim_carbon[i][valid_age_mask] / sim_age[i][valid_age_mask]
+    
+#     # Calculate mean and standard deviation of carbon and carbon accumulation
+#     carbon_mean = np.mean(sim_carbon, axis=0)
+#     carbon_std = np.std(sim_carbon, axis=0, ddof=1)
+#     carbon_acc_mean = np.mean(sim_carbon_acc, axis=0)
+#     carbon_acc_std = np.std(sim_carbon_acc, axis=0, ddof=1)
+    
+#     # Calculate confidence intervals for carbon accumulation
+#     t_value = stats.t.ppf(0.975, num_simulations - 1)
+#     carbon_acc_sem = carbon_acc_std / np.sqrt(num_simulations)
+#     carbon_acc_ci_lower = carbon_acc_mean - t_value * carbon_acc_sem
+#     carbon_acc_ci_upper = carbon_acc_mean + t_value * carbon_acc_sem
+    
+#     # Calculate prediction intervals for carbon accumulation
+#     carbon_acc_pred_std = np.sqrt(carbon_acc_std**2 + carbon_acc_sem**2)
+#     carbon_acc_pi_lower = carbon_acc_mean - t_value * carbon_acc_pred_std
+#     carbon_acc_pi_upper = carbon_acc_mean + t_value * carbon_acc_pred_std
+    
+#     print('\n--Completed C accumulation analysis.--\n')
+    
+#     return {
+#         'carbon_mean':     carbon_mean, #np.where(~valid_mask, np.nan, carbon_mean), # results in 0s in lots of forest.
+#         'carbon_std':      carbon_std,
+#         'carbon_acc_mean': carbon_acc_mean,
+#         'carbon_acc_std':  carbon_acc_std,
+#         'carbon_acc_ci_lower': carbon_acc_ci_lower,
+#         'carbon_acc_ci_upper': carbon_acc_ci_upper,
+#         'carbon_acc_pi_lower': carbon_acc_pi_lower,
+#         'carbon_acc_pi_upper': carbon_acc_pi_upper,
+#         'sim_carbon': sim_carbon,
+#         'sim_carbon_acc': sim_carbon_acc
+#     }
 
 import pandas as pd
 from pandas.api.types import CategoricalDtype
 
-def create_pixel_dataframe(rasters, carbon_results, 
+def create_pixel_dataframe(rasters, carbon_results, UPDATE_AGE=False,
                            vector_files=None, vector_columns=None, transform=None, crs=None):
     """
     Create a pandas DataFrame with pixel-level data with ordered categorical variables,
@@ -401,7 +615,15 @@ def create_pixel_dataframe(rasters, carbon_results,
         'biomass': rasters['biomass_mean'][valid_indices],
         'biomass_std': rasters['biomass_std'][valid_indices],
         'age': rasters['age_mean'][valid_indices],
-        'age_std': rasters['age_std'][valid_indices],
+        'age_std': rasters['age_std'][valid_indices]
+    }
+    if UPDATE_AGE:
+        data.update({
+                    'age_mean_primary': rasters['age_mean_primary'][valid_indices],
+                    'age_std_primary': rasters['age_std_primary'][valid_indices],
+                    'age_alt': rasters['age_alt'][valid_indices]
+                    })
+    data.update({
         'carbon': carbon_results['carbon_mean'][valid_indices],
         'carbon_std': carbon_results['carbon_std'][valid_indices],
         'carbon_acc': carbon_results['carbon_acc_mean'][valid_indices],
@@ -410,13 +632,13 @@ def create_pixel_dataframe(rasters, carbon_results,
         'carbon_acc_ci_upper': carbon_results['carbon_acc_ci_upper'][valid_indices],
         'carbon_acc_pi_lower': carbon_results['carbon_acc_pi_lower'][valid_indices],
         'carbon_acc_pi_upper': carbon_results['carbon_acc_pi_upper'][valid_indices]
-    }
+    })
     
     # Add classification data
     age_class_labels = ['non-forest','1-20', '21-36', '37-60', '61-80', '81-100', '101-150', '>150']
     age_cohort_labels = ['non-forest','re-growth forest','re-growth forest', 'young forest','young forest','young forest', 'mature forest', 'old-growth forest']
-    trend_class_labels = ['decline\n(strong)', 'decline\n(weak)', 'stable', 'increase\n(weak)', 'increase\n(strong)']
-    pvalue_class_labels = ['not sig', 'sig (p<0.05)']
+    trend_class_labels = ['decline\n(strong)', 'decline\n(weak)', 'stable', 'increase\n(weak)', 'increase\n(strong)', 'no trend\navailable']
+    pvalue_class_labels = ['not sig', 'sig (p<0.05)', 'no trend\navailable']
     deciduous_class_labels = ['conifer', 'mixed', 'deciduous']
     
     # Add class values
@@ -433,13 +655,13 @@ def create_pixel_dataframe(rasters, carbon_results,
     #df['age_cohort_raw'] = df['age_class_val'].map(lambda x: age_cohort_labels[int(x)] if not np.isnan(x) else np.nan)
     df['trend_class_raw'] = df['trend_class_val'].map(lambda x: trend_class_labels[int(x)] if not np.isnan(x) else 'no trend\navailable') #np.nan)
     df['pvalue_class_raw'] = df['pvalue_class_val'].map(lambda x: pvalue_class_labels[int(x)] if not np.isnan(x) else 'no trend\navailable') #np.nan)
-    df['deciduous_class_raw'] = df['deciduous_class_val'].map(lambda x: deciduous_class_labels[int(x)] if not np.isnan(x) else 'no info\available')
+    df['deciduous_class_raw'] = df['deciduous_class_val'].map(lambda x: deciduous_class_labels[int(x)] if not np.isnan(x) else 'no info available')
     
     # Create ordered categorical types that preserve the order in the label lists
     age_cat_type = CategoricalDtype(categories=age_class_labels, ordered=True)
     #agecohort_cat_type = CategoricalDtype(categories=age_cohort_labels, ordered=True)
-    trend_cat_type = CategoricalDtype(categories=trend_class_labels+['no trend\navailable'], ordered=True)
-    pvalue_cat_type = CategoricalDtype(categories=pvalue_class_labels+['no trend\navailable'], ordered=True)
+    trend_cat_type = CategoricalDtype(categories=trend_class_labels, ordered=True) #+['no trend\navailable']
+    pvalue_cat_type = CategoricalDtype(categories=pvalue_class_labels, ordered=True) #+['no trend\navailable']
     deciduous_cat_type = CategoricalDtype(categories=deciduous_class_labels+['no info available'], ordered=True)
     
     # Convert to ordered categorical variables
@@ -611,7 +833,9 @@ def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinatio
 
     # Process each class combination
     n_class_combos_skipped = 0
+
     for age_idx, trend_idx, pval_idx, decid_idx in class_combinations:
+            
         # Create mask for this class combination
         mask = (
             (age_class == age_idx) &
@@ -662,8 +886,10 @@ def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinatio
             'total_carbon_Pg_pi_lower': pi_lower,
             'total_carbon_Pg_pi_upper': pi_upper
         })
+    pct_skipped = 100 * round(n_class_combos_skipped/len(class_combinations), 3)
+    print(f"\tPercent of class combos skipped: {pct_skipped}")
 
-    print(f"\tPercent of class combos skipped: {100 * round(n_class_combos_skipped/len(class_combinations), 3)}")
+    #if pct_skipped < 100:
     # Convert to DataFrame
     result_df = pd.DataFrame(results)
     print(f"\tCols: {result_df.columns}")
@@ -682,197 +908,7 @@ def calculate_monte_carlo_class_totals(rasters, carbon_results, class_combinatio
     
     return result_df
 
-def plot_carbon_accumulation_by_age(df, output_dir):
-    """
-    Create boxplots of carbon accumulation by age class for different class combinations.
-    
-    Parameters:
-    -----------
-    df : DataFrame
-        Pandas DataFrame with pixel-level data
-    output_dir : str
-        Directory to save output plots
-        
-    Returns:
-    --------
-    None
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    
-    trend_colors = {
-        'decline\n(strong)': '#a6611a',
-        'decline\n(weak)': '#dfc27d',
-        'stable': '#f5f5f5',
-        'increase\n(weak)': '#80cdc1',
-        'increase\n(strong)': '#018571',
-        'no trend\navailable': 'black'
-    }
-    
-    pvalue_colors = {
-        'not sig': '#fc8d59',
-        'sig (p<0.05)': '#91bfdb',
-        'no trend\navailable': 'black'
-    }
-    
-    deciduous_colors = {
-        'conifer': '#5e3c99', 
-        'mixed': '#ffffbf',
-        'deciduous': '#fdb863',
-        'no info available': 'black'
-    }
-    
-    # 1. Carbon accumulation by age class and trend class
-    p1 = (
-        ggplot(df, aes(x='age_class', y='carbon_acc', fill='trend_class')) +
-        geom_boxplot(position=position_dodge(width=0.8), outlier_size=1) +
-        scale_fill_manual(values=trend_colors) +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            fill='Canopy Trend'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=45, hjust=1),
-            figure_size=(12, 8)
-        ) +
-        ggtitle('Carbon Accumulation by Age and Canopy Trend')
-    )
-    print(p1)
-    p1.save(os.path.join(output_dir, 'carbon_acc_by_age_trend.png'), dpi=300, bg='white')
-    
-    # 2. Carbon accumulation by age class and significance class
-    p2 = (
-        ggplot(df, aes(x='age_class', y='carbon_acc', fill='pvalue_class')) +
-        geom_boxplot(position=position_dodge(width=0.8), outlier_size=1) +
-        scale_fill_manual(values=pvalue_colors) +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            fill='Significance'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=45, hjust=1),
-            figure_size=(12, 8)
-        ) +
-        ggtitle('Carbon Accumulation by Age and Statistical Significance')
-    )
-    print(p2)
-    p2.save(os.path.join(output_dir, 'carbon_acc_by_age_significance.png'), dpi=300, bg='white')
-    
-    # 3. Carbon accumulation by age class and deciduous class
-    p3 = (
-        ggplot(df, aes(x='age_class', y='carbon_acc', fill='deciduous_class')) +
-        geom_boxplot(position=position_dodge(width=0.8), outlier_size=1) +
-        scale_fill_manual(values=deciduous_colors) +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            fill='Forest Type'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=45, hjust=1),
-            figure_size=(12, 8)
-        ) +
-        ggtitle('Carbon Accumulation by Age and Forest Type')
-    )
-    print(p3)
-    p3.save(os.path.join(output_dir, 'carbon_acc_by_age_forest_type.png'), dpi=300, bg='white')
-    
-    # 4. Carbon accumulation confidence intervals by age and trend
-    summary_df = df.groupby(['age_class', 'trend_class']).agg({
-        'carbon_acc': 'mean',
-        'carbon_acc_ci_lower': 'mean',
-        'carbon_acc_ci_upper': 'mean',
-        'carbon_acc_pi_lower': 'mean',
-        'carbon_acc_pi_upper': 'mean'
-    }).reset_index()
-    
-    p4 = (
-        ggplot(summary_df, aes(x='age_class', y='carbon_acc', fill='trend_class')) +
-        geom_point(aes(color='trend_class'), size=3, position=position_dodge(width=0.8)) +
-        geom_errorbar(
-            aes(ymin='carbon_acc_ci_lower', ymax='carbon_acc_ci_upper', color='trend_class'),
-            width=0.2, position=position_dodge(width=0.8)
-        ) +
-        scale_fill_manual(values=trend_colors) +
-        scale_color_manual(values={k: v for k, v in trend_colors.items()}) +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            color='Canopy Trend',
-            fill='Canopy Trend'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=45, hjust=1),
-            figure_size=(12, 8)
-        ) +
-        ggtitle('Carbon Accumulation by Age and Canopy Trend (with 95% Confidence Intervals)')
-    )
-    print(p4)
-    p4.save(os.path.join(output_dir, 'carbon_acc_ci_by_age_trend.png'), dpi=300, bg='white')
-    
-    # 5. Carbon accumulation prediction intervals by age and forest type
-    p5 = (
-        ggplot(summary_df, aes(x='age_class', y='carbon_acc', fill='trend_class')) +
-        geom_point(aes(color='trend_class'), size=3, position=position_dodge(width=0.8)) +
-        geom_errorbar(
-            aes(ymin='carbon_acc_pi_lower', ymax='carbon_acc_pi_upper', color='trend_class'),
-            width=0.2, position=position_dodge(width=0.8)
-        ) +
-        scale_fill_manual(values=trend_colors) +
-        scale_color_manual(values={k: v for k, v in trend_colors.items()}) +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            color='Canopy Trend',
-            fill='Canopy Trend'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=45, hjust=1),
-            figure_size=(12, 8)
-        ) +
-        ggtitle('Carbon Accumulation by Age and Canopy Trend (with 95% Prediction Intervals)')
-    )
-    print(p5)
-    p5.save(os.path.join(output_dir, 'carbon_acc_pi_by_age_trend.png'), dpi=300, bg='white')
-    
-    # 6. Plot facet grid by all class combinations
-    # Select a subset to avoid too many plots
-    subset_df = df.sample(min(100000, len(df)))
-    
-    p6 = (
-        ggplot(subset_df, aes(x='age_class', y='carbon_acc', fill='deciduous_class')) +
-        geom_boxplot(position=position_dodge(width=0.8), outlier_size=0.5) +
-        scale_fill_manual(values=deciduous_colors) +
-        facet_grid('trend_class ~ pvalue_class') +
-        scale_y_continuous(limits=(0,2)) +
-        labs(
-            x='Age Class (years)',
-            y='Carbon Accumulation (Mg C/ha/year)',
-            fill='Forest Type'
-        ) +
-        theme_minimal() +
-        theme(
-            axis_text_x=element_text(angle=90, hjust=1, size=8),
-            figure_size=(15, 12)
-        ) +
-        ggtitle('Carbon Accumulation by Age, Forest Type, Trend, and Significance')
-    )
-    print(p6)
-    p6.save(os.path.join(output_dir, 'carbon_acc_facet_grid.png'), dpi=300, bg='white')
-
-
-def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed = None, N_PIX_SAMPLE = 100000, DO_WRITE_COG=False,
+def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed = None, N_PIX_SAMPLE = 100000, DO_WRITE_COG=False, UPDATE_AGE=False,
                                extent_type = 'tile', output_dir = "/projects/my-public-bucket/carbon_accumulation_analysis_TEST", local=False):
 
     if local:
@@ -890,6 +926,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         'biomass_cog_fn':   get_cog_s3_path(TILE_NUM, mosaiclib.AGB_TINDEX_FN_DICT[MAP_VERSION]),#'2020_v2.1'
         'height_cog_fn':    get_cog_s3_path(TILE_NUM, mosaiclib.HT_TINDEX_FN_DICT[MAP_VERSION]), #'2020_v2.1'
         'standage_cog_fn':  get_cog_s3_path(TILE_NUM, mosaiclib.MISC_TINDEX_FN_DICT['FORESTAGE_BES_2020']),
+        'standagealt_cog_fn':  get_cog_s3_path(TILE_NUM, mosaiclib.MISC_TINDEX_FN_DICT['AGE_TP_2020']),
         #'extent_gdf_fn':    TILE_GDF_FN,
         'tcc2020_cog_fn':   get_cog_s3_path(TILE_NUM, mosaiclib.MISC_TINDEX_FN_DICT['TCC_TP_2020']),
         'tccslope_cog_fn':  get_cog_s3_path(TILE_NUM, mosaiclib.MISC_TINDEX_FN_DICT['TCCTREND_TP_2020']),
@@ -897,7 +934,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         'decidpred_cog_fn': get_cog_s3_path(TILE_NUM, mosaiclib.MISC_TINDEX_FN_DICT['DECPRED_AB_2015']),
     }
 
-    # Define paths to your raster files
+    # Define paths to your raster files - the order here is critical for read_and_prepare_rasters()
     file_paths = {
         'biomass': BASIN_COG_DICT['biomass_cog_fn'],
         'age': BASIN_COG_DICT['standage_cog_fn'],
@@ -906,8 +943,12 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
         'canopy_cover': BASIN_COG_DICT['tcc2020_cog_fn'],
         'canopy_trend': BASIN_COG_DICT['tccslope_cog_fn'],
         'trend_pvalue': BASIN_COG_DICT['tccpvalue_cog_fn'],
-        'deciduous_fraction': BASIN_COG_DICT['decidpred_cog_fn']
+        'deciduous_fraction': BASIN_COG_DICT['decidpred_cog_fn'],
+        'age_alt': BASIN_COG_DICT['standagealt_cog_fn']
     }
+
+    # Set this for everything
+    nodata_value = -9999
     
     # Define class labels
     age_class_labels = ['non-forest','1-20', '21-36', '37-60', '61-80', '81-100', '101-150', '>150']
@@ -929,20 +970,39 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     
     print("Creating classification rasters...")
     # Create classification rasters
-    rasters = create_class_rasters(rasters)
-
-    if False:
-        rasters_stack = np.stack([rasters['age_mean'], rasters['deciduous'] , 
-                                 rasters['age_class'], rasters['trend_class'], 
-                                 rasters['pvalue_class'], rasters['deciduous_class']
-                                ])
-        rasters_stack_names = [
-            #'biomass_mean', 'biomass_std',
-            'age_mean', 
-            #'age_std', 
-         #'landcover', 'elevation', 'slope', 'tsri', 'tpi', 'slopemask', 
-         #'canopy_cover', 'canopy_trend', 'pvalue', 
-         'deciduous', 'age_class', 'trend_class', 'pvalue_class', 'deciduous_class']
+    rasters = create_class_rasters(rasters, UPDATE_AGE=UPDATE_AGE) # -------------------- update Age with alternate info here
+    
+    if True:
+        # TODO: if you want to carry multiple 'age_class' fields through 
+        # (beyond just the raster exports for testing here to the pixel and smry dataframes)
+        # then you need to do more work to update this script.
+        rasters_age_class_list = [rasters['age_class']]
+        rasters_age_class_names_list = ['age_class']
+        if UPDATE_AGE: 
+            rasters_age_class_list.append(rasters['age_class_primary'])
+            rasters_age_class_names_list.append('age_class_primary')
+            # For testing and checking
+            rasters_stack = np.stack(
+                                        [rasters['age_mean'], rasters['age_mean_primary'], rasters['age_alt']]+ 
+                                        rasters_age_class_list#+
+                                        #[rasters['trend_class'], rasters['pvalue_class'], rasters['deciduous_class']]
+                                        
+                                    )
+            rasters_stack_names = ['age_mean', 'age_mean_primary', 'age_alt'] +\
+                                    rasters_age_class_names_list #+\
+                                  #['trend_class', 'pvalue_class', 'deciduous_class']
+                #'biomass_mean', 'biomass_std',
+                #'age_std', 
+                #'landcover', 'elevation', 'slope', 'tsri', 'tpi', 'slopemask', 
+                #'canopy_cover', 'canopy_trend', 'pvalue', 
+        else:
+            rasters_stack = np.stack(
+                                        [rasters['age_mean']] + 
+                                        rasters_age_class_list #+
+                                        #[rasters['trend_class'], rasters['pvalue_class'], rasters['deciduous_class']]
+                                    )
+            rasters_stack_names = ['age_mean']+rasters_age_class_names_list 
+            #+['trend_class', 'pvalue_class', 'deciduous_class'] 
                 
         # write COG to disk
         write_cog(
@@ -952,12 +1012,11 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
                     rasters['transform'], 
                     rasters_stack_names, 
                     out_crs=rasters['crs'],
-                    input_nodata_value= -9999
+                    input_nodata_value= nodata_value
                      )
     
     print("Performing Monte Carlo simulations for carbon accumulation...")
-       
-    carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed)
+    carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed) 
 
     if DO_WRITE_COG:
         carbon_results_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 
@@ -976,28 +1035,31 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
                     rasters['transform'], 
                     carbon_results_stack_names, 
                     out_crs=rasters['crs'],
-                    input_nodata_value= -9999
+                    input_nodata_value= nodata_value
                      )
 
     if file_paths['canopy_trend'] is None:
-        print(f"Tile {TILE_NUM} has no tree cover trend data; wont proceed with C accumulation analysis.\nExiting.\n")
-        return   
+        print(f"Tile {TILE_NUM} has no tree cover trend data; wont proceed with C accumulation analysis.")
+        print("Exiting...\n")
+        #return   
 
     print(f"Dictionary of class rasters: {rasters.keys()}\n")
     print(f"Trend class min/max: {rasters['trend_class'].min()},{rasters['trend_class'].max()}")
-    print(f"Count of -9999: {np.sum(rasters['trend_class'] == -9999)}")
+    print(f"Count of -9999: {np.sum(rasters['trend_class'] == nodata_value)}")
     print(f"Count of nan: {np.sum(np.isnan(rasters['trend_class']))}")
     print(f"Count of unique: {np.unique(rasters['trend_class'], return_counts=True)}")
     
     if np.all(np.isnan(rasters['trend_class'] )):
         #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
-        print('\tNo canopy trends; no canopy trend class raster made.\nExiting.\n')
-        return
+        print('\tNo canopy trends; no canopy trend class raster made.')
+        print('Not exiting yet, b/c we still want the mc and smry tables...\n')
+        #return rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
 
     print("Creating pixel-level dataframe...")
     pixel_df = create_pixel_dataframe(
         rasters=rasters, 
         carbon_results=carbon_results,
+        UPDATE_AGE=UPDATE_AGE,
         vector_files={
             'ecoregions': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/wwf_terr_ecos.gpkg', 
             #'boreal': 'https://maap-ops-workspace.s3.amazonaws.com/shared/montesano/databank/arc/wwf_circumboreal_Dissolve.gpkg'
@@ -1022,19 +1084,24 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     pixel_df.sample(sample_size).to_csv(os.path.join(output_dir, f"pixel_data_sample_{TILE_NUM:07}.csv"), index=False)
     print(f"Saved sample of {sample_size} pixels to pixel_data_sample_{TILE_NUM:07}.csv")
 
-    # Sample 10% of the rows
-    SAMP_FRAC=0.1
+    # Sample a % of the rows
+    SAMP_FRAC=0.01
     sampled_df = pixel_df.sample(frac=SAMP_FRAC, random_state=random_seed)
     sampled_df.to_csv(os.path.join(output_dir, f"pixel_data_sample10pct_{TILE_NUM:07}.csv"), index=False)
     print(f"Additionally, saved sample of {SAMP_FRAC*100}% of pixels to pixel_data_sample{int(SAMP_FRAC*100)}pct_{TILE_NUM:07}.csv")
     
-    print("Calculating area and total carbon by class...")
+    print(f"Calculating area and total carbon by class...")
     # Calculate area and total carbon by class
     summary_df = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
-                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME', 'age_class','age_cohort',
-                                                                'trend_class', 'pvalue_class', 'deciduous_class']) 
-    summary_df = summary_df[summary_df['pixel_count']>0]
-    summary_df.to_csv(os.path.join(output_dir, f"summary_by_class_{TILE_NUM:07}.csv"), index=False)
+                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME']+['age_class']+\
+                                                 ['age_cohort','trend_class', 'pvalue_class', 'deciduous_class']) 
+    summary_df = summary_df[summary_df['pixel_count']>0] # <-- why do this? it gets rid of all the smry combos that dont have any pixels
+    summary_df.to_csv(os.path.join(output_dir, f"summary_class_{TILE_NUM:07}.csv"), index=False)
+
+    summary_df_age_cohort = calculate_area_and_total_carbon(pixel_df, pixel_area_ha, 
+                                                groupby_cols = ['ecoregions_REALM','ecoregions_ECO_NAME','age_cohort']) 
+    summary_df_age_cohort = summary_df_age_cohort[summary_df_age_cohort['pixel_count']>0]
+    summary_df_age_cohort.to_csv(os.path.join(output_dir, f"summary_agecohort_{TILE_NUM:07}.csv"), index=False)
     
     print("Calculating Monte Carlo totals for carbon by class...")
     # Get unique class combinations
@@ -1048,7 +1115,14 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     if np.all(rasters['canopy_trend'] == 255):
         #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
         print('\tNo canopy trends; no canopy trend class raster made.')
-        return
+        #print('Exiting...\n')
+        #return
+
+    if np.all(np.isnan(rasters['trend_class'] )):
+        #  Need to catch case where trend raster is all NaN due to a tile available that is fully outside of boreal and has all NaN value
+        print('\tNo canopy trends; no canopy trend class raster made.')
+        #print('Exiting...\n')           
+        #return rasters, carbon_results, class_combinations, pixel_area_ha, num_simulations
 
     # Calculate Monte Carlo totals for carbon by class
     print(f"\nPrint raster dict keys: {rasters.keys()}\n")
@@ -1128,6 +1202,8 @@ def main():
     parser.add_argument("--extent_type", type=str, choices=['tile','hydrobasin'], default='tile', help="The type of extent that is used w/ in_tile_num to specify output sub-dir.")
     parser.add_argument('--do_write_cog', dest='do_write_cog', action='store_true', help='Write a cloud-optimized geotiff of results.')
     parser.set_defaults(do_write_cog=False)
+    parser.add_argument('--update_age', dest='update_age', action='store_true', help='Update Besnard Age 2020 with TerraPulse Age 2020 for 2 specific conditions.')
+    parser.set_defaults(update_age=False)
     args = parser.parse_args()    
     
     '''
@@ -1135,7 +1211,7 @@ def main():
     '''
 
     CARBON_ACC_ANALYSIS(args.map_version, args.in_tile_num, num_simulations=args.n_sims, random_seed=args.seed, N_PIX_SAMPLE=args.n_pix_samples, 
-                        DO_WRITE_COG=args.do_write_cog, extent_type=args.extent_type, output_dir=args.output_dir)
+                        DO_WRITE_COG=args.do_write_cog, UPDATE_AGE=args.update_age, extent_type=args.extent_type, output_dir=args.output_dir)
 
 if __name__ == "__main__":
     main()
