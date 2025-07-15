@@ -357,7 +357,7 @@ def create_class_rasters(rasters, nodata_value=-9999, UPDATE_AGE=False, AGE_MEAN
     print(f"\tClass raster dictionary keys: {rasters.keys()}") 
     return rasters
     
-def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=None):
+def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=None, nodata_value=-9999):
     """
     Perform Monte Carlo simulations to derive carbon accumulation estimates.
     
@@ -444,14 +444,14 @@ def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=Non
     print('\n--Completed C accumulation analysis.--\n')
     
     return {
-        'carbon_mean': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_mean),  #carbon_mean,
-        'carbon_std': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_std),
-        'carbon_acc_mean': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_mean),
-        'carbon_acc_std': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_std),
-        'carbon_acc_ci_lower': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_ci_lower),
-        'carbon_acc_ci_upper': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_ci_upper),
-        'carbon_acc_pi_lower': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_pi_lower),
-        'carbon_acc_pi_upper': np.where(np.isnan(rasters['biomass_mean']), np.nan, carbon_acc_pi_upper),
+        'carbon_mean': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_mean),  #carbon_mean,
+        'carbon_std': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_std),
+        'carbon_acc_mean': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_mean),
+        'carbon_acc_std': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_std),
+        'carbon_acc_ci_lower': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_ci_lower),
+        'carbon_acc_ci_upper': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_ci_upper),
+        'carbon_acc_pi_lower': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_pi_lower),
+        'carbon_acc_pi_upper': np.where(np.isnan(rasters['biomass_mean']), nodata_value, carbon_acc_pi_upper),
         'sim_carbon': sim_carbon,
         'sim_carbon_acc': sim_carbon_acc
     }
@@ -972,7 +972,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
     # Create classification rasters
     rasters = create_class_rasters(rasters, UPDATE_AGE=UPDATE_AGE) # -------------------- update Age with alternate info here
     
-    if True:
+    if False:
         # TODO: if you want to carry multiple 'age_class' fields through 
         # (beyond just the raster exports for testing here to the pixel and smry dataframes)
         # then you need to do more work to update this script.
@@ -1016,7 +1016,7 @@ def CARBON_ACC_ANALYSIS(MAP_VERSION, TILE_NUM, num_simulations = 5, random_seed 
                      )
     
     print("Performing Monte Carlo simulations for carbon accumulation...")
-    carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed) 
+    carbon_results = monte_carlo_carbon_accumulation(rasters, num_simulations=num_simulations, random_seed=random_seed, nodata_value=nodata_value) 
 
     if DO_WRITE_COG:
         carbon_results_stack = np.stack([carbon_results['carbon_acc_mean'], carbon_results['carbon_acc_std'] , 

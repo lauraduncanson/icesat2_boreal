@@ -87,6 +87,7 @@ TITILER_MOSAIC_REG_DICT = {
          '2018':None,
          '2018_test':None,
          '2019':None,
+         '2019max':None,
          '2020':None,
          '2021':None,
          '2022':None,
@@ -347,6 +348,8 @@ HLS_MOSAIC_JSON_FN_DICT = {
     '2018_test': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2018/mc0_mn50_07-01_08-31_2018_2018/HLS_tindex_master_mosaic.json',
     '2019_orig': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2019_orig/HLS_tindex_master_mosaic.json',
     '2019': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2019/HLS_tindex_master_mosaic.json',
+    '2019max': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/build_ms_composite_v1/HLS_H30_2019/HLS_tindex_master_mosaic.json',
+    '2024max': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/build_ms_composite_v1/HLS_H30_2024/HLS_tindex_master_mosaic.json',
     '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2020/HLS_tindex_master_mosaic.json',
     '2021': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2021/HLS_tindex_master_mosaic.json',
     '2022': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/HLS/HLS_stack_2023_v1/HLS_H30_2022/HLS_tindex_master_mosaic.json',
@@ -459,7 +462,10 @@ MISC_MOSAIC_JSON_FN_DICT = {
     'FORESTAGE100m_2020':  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE100m/tile_forestage_v1/forestage_2020/FORESTAGE100m_tindex_master_mosaic.json',
     'FORESTAGE_BES_2020':  's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/FORESTAGE/build_stack_v2023_2/FORESTAGE_BES_2020/FORESTAGE_tindex_master_mosaic.json',
     'DECPRED_AB_2015':     's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/DECIDFRAC/build_stack_v2023_2/DECPRED_AB_2015/DECIDFRAC_tindex_master_mosaic.json',
-
+    'CACC_2020_v3.0_test': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CACC/carbon_accumulation_v1/cacc_2020_v3.0_test3/CACC_tindex_master_mosaic.json',
+    'CACC_2020_v3.0_n05':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CACC/carbon_accumulation_v1/CACC_2020_v3.0_n05/CACC_tindex_master_mosaic.json',
+    'CACC_2020_v3.0_nsims050_v1':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CACC/carbon_accumulation_v1/CACC_2020_v3.0_nsims050/CACC_tindex_master_mosaic.json',
+    'CACC_2020_v3.0_nsims050':      's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/CACC/carbon_accumulation_v2/CACC_2020_v3.0_nsims050/CACC_tindex_master_mosaic.json',
 }
 MISC_TINDEX_FN_DICT = dict()
 for key, value in MISC_MOSAIC_JSON_FN_DICT.items():
@@ -676,8 +682,8 @@ DICT_BUILD_TINDEX_FORESTAGE2020 = {
     'VAR' : 'FORESTAGE',
     # In my bucket, this is ALWAYS used to identify output
     'BATCH_NAME' : f'FORESTAGE_BES_2020',
-    'YEAR_LIST': '2024 2025',
-    'DPS_MONTH_LIST' : '01 02 03 04 05 06 07 08 09 10 11 12',        
+    'YEAR_LIST': '2025',
+    'DPS_MONTH_LIST' : '07 08 09 10 11 12',    # reprocessed all tiles in July 2025 after noticing a bunch of tiles with nodata at tile edges.  
     'DPS_DAY_MIN' : 1 ,
     'TILES_INDEX_PATH': boreal_tile_index_path
 }

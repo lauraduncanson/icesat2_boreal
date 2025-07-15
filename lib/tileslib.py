@@ -104,6 +104,20 @@ MISC_TILES_LAYER_DICT = {
                                             SHOW_CBAR=True, 
                                             PARAMS_DICT = {"rescale": f"0,100", "bidx":"1", "colormap_name": 'cividis'}
                                             ),
+                    'CACC_2020_v3.0_n05': maplib_folium.make_tiles_layer_dict(
+                                            None, 
+                                            mosaiclib.MISC_MOSAIC_JSON_FN_DICT['CACC_2020_v3.0_n05'], 
+                                            "Carbon accumulation 2020 [MgC/ha/yr]", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"0,0.6", "bidx":"1", "colormap_name": 'turbo'}
+                                            ),
+                    'CACC_2020_v3.0_nsims050': maplib_folium.make_tiles_layer_dict(
+                                            None, 
+                                            mosaiclib.MISC_MOSAIC_JSON_FN_DICT['CACC_2020_v3.0_nsims050'], 
+                                            "Carbon accumulation 2020 [MgC/ha/yr]", 
+                                            SHOW_CBAR=True, 
+                                            PARAMS_DICT = {"rescale": f"0,0.6", "bidx":"1", "colormap_name": 'turbo'}
+                                            ),
 }
 #     if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
 #         TCC2020SLOPE_MAX = 2
@@ -188,6 +202,18 @@ HLS_NBR2_TILES_LAYER_DICT = {
                                                     "HLS 2019 NBR2", 
                                                     SHOW_CBAR=True,
                                                     PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
+                        '2019max': maplib_folium.make_tiles_layer_dict(
+                                                    None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2019max'],
+                                                    "HLS 2019max NBR2", 
+                                                    SHOW_CBAR=False,
+                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
+                        '2024max': maplib_folium.make_tiles_layer_dict(
+                                                    None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024max'],
+                                                    "HLS 2024max NBR2", 
+                                                    SHOW_CBAR=False,
+                                                    PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
                        '2020': maplib_folium.make_tiles_layer_dict(
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HLS NBR2']['2020'],
                                                     mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2020'],
@@ -225,7 +251,32 @@ HLS_NBR2_TILES_LAYER_DICT = {
                                                     SHOW_CBAR=True,
                                                     PARAMS_DICT = {"rescale": f"0.25, 0.45", "bidx":"13", "colormap_name": "nipy_spectral"}),
 }
-
+HLS_CNT_TILE_LAYER_DICT = {
+                        '2019': maplib_folium.make_tiles_layer_dict(
+                                                   None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2019'],
+                                                    "HLS 2019 COUNT", 
+                                                    SHOW_CBAR=False,
+                                                    PARAMS_DICT = {"rescale": f"0, 15", "bidx":"22", "colormap_name": "magma"}),
+                        '2019max': maplib_folium.make_tiles_layer_dict(
+                                                    None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2019max'],
+                                                    "HLS 2019max COUNT", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0, 15", "bidx":"22", "colormap_name": "magma"}),
+                        '2024': maplib_folium.make_tiles_layer_dict(
+                                                    None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024'],
+                                                    "HLS 2024 COUNT", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0, 15", "bidx":"22", "colormap_name": "magma"}),
+                        '2024max': maplib_folium.make_tiles_layer_dict(
+                                                    None,
+                                                    mosaiclib.HLS_MOSAIC_JSON_FN_DICT['2024max'],
+                                                    "HLS 2024max COUNT", 
+                                                    SHOW_CBAR=True,
+                                                    PARAMS_DICT = {"rescale": f"0, 15", "bidx":"22", "colormap_name": "magma"}),
+}
 AGB_TILE_LAYER_DICT = {
                             '2020_v2.0': maplib_folium.make_tiles_layer_dict(
                                                        mosaiclib.TITILER_MOSAIC_REG_DICT['AGB']['2020_v2.0'], 
@@ -359,9 +410,17 @@ HT_TILE_LAYER_DICT = {
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_neon38'], 
                                                     mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_neon38'], 
                                                     "Height [m] 2020 (HLS+Topo) NEON 38", 
-                                                    SHOW_CBAR=True, 
+                                                    SHOW_CBAR=False, 
                                                     # Success only with standard colormap_name
                                                     PARAMS_DICT = {"rescale": f"0, 50", "bidx":"1", "colormap_name": "inferno"}
+                                                   ),
+                            '2020_neon38_sd': maplib_folium.make_tiles_layer_dict(
+                                                    mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_neon38'], 
+                                                    mosaiclib.HT_MOSAIC_JSON_FN_DICT['2020_neon38'], 
+                                                    "Height [m] St. Dev 2020 (HLS+Topo) NEON 38", 
+                                                    SHOW_CBAR=True, 
+                                                    # Success only with standard colormap_name
+                                                    PARAMS_DICT = {"rescale": f"0, 5", "bidx":"2", "colormap_name": "plasma"}
                                                    ),
                             '2020_neon38atl08': maplib_folium.make_tiles_layer_dict(
                                                     mosaiclib.TITILER_MOSAIC_REG_DICT['HT']['2020_neon38atl08'], 
