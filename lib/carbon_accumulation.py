@@ -98,6 +98,7 @@ def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
     """
    
     rasters = {}
+    raster_list_names = ['biomass_mean','biomass_std','age_mean','age_std','age_alt','landcover','elevation','slope','tpi','tsri','slopemask','canopy_trend','pvalue','deciduous'] # handle this better - directly from 'raster_paths'
     
     # Read biomass raster (index 0)
     with rasterio.open(raster_paths[0]) as src:
@@ -186,6 +187,26 @@ def read_and_prepare_rasters(raster_paths, nodata_value=-9999):
             rasters['age_alt'] = np.where(mask_array, rasters['age_alt'], np.nan)
     else:
         rasters['age_alt'] = np.full_like(rasters['biomass_mean'] , nodata_value)
+
+    # Handle situations where the shape of the biomass and age data dont match (something with build_stack still isnt getting this correct for an arc of tiles in Eurasia)
+    # Check shapes before operation
+    print(f"Biomass shape: {rasters['biomass_mean'].shape}")
+    print(f"Age shape: {rasters['age_mean'].shape}")
+    
+    # Get the smaller dimensions
+    biomass_shape = rasters['biomass_mean'].shape
+    age_shape = rasters['age_mean'].shape
+    
+    min_rows = min(biomass_shape[0], age_shape[0])
+    min_cols = min(biomass_shape[1], age_shape[1])
+    
+    print(f"Trimming to: ({min_rows}, {min_cols})")
+    
+    # Update all rasters in the dictionary to the minimum shape
+    for key in raster_list_names:
+        original_shape = rasters[key].shape
+        rasters[key] = rasters[key][:min_rows, :min_cols]
+        print(f"Trimmed {key} from {original_shape} to {rasters[key].shape}")
         
     print(f"\tOriginal raster dictionary keys: {rasters.keys()}")    
     return rasters
@@ -353,7 +374,8 @@ def create_class_rasters(rasters, nodata_value=-9999, UPDATE_AGE=False, AGE_MEAN
         rasters['deciduous_class'][(rasters['deciduous'] >= 33) & (rasters['deciduous'] <= 66)] = 1  # Mixed
         rasters['deciduous_class'][rasters['deciduous'] > 66] = 2  # Deciduous
         print(f"\tFinished deciduous class raster: {rasters['deciduous_class'].shape}")
-        
+
+    
     print(f"\tClass raster dictionary keys: {rasters.keys()}") 
     return rasters
     
@@ -377,7 +399,7 @@ def monte_carlo_carbon_accumulation(rasters, num_simulations=50, random_seed=Non
     """
     if random_seed is not None:
         np.random.seed(random_seed)
-    
+
     # Initialize arrays for results
     rows, cols = rasters['shape']
     carbon_mean = np.full_like(rasters['biomass_mean'], np.nan)

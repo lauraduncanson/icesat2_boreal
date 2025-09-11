@@ -1,5 +1,5 @@
 import os
-
+    
 ######
 ######
 ###### LIBRARY OF MASTER TINDEX & MOSAIC JSON files associated with various iterations of the ABoVE Boreal AGB Density maps
@@ -7,7 +7,8 @@ import os
 ###### variables hold the paths to the tindex csv & mosaic json files on MAAP
 ###### import this into other notebooks: from mosaiclib import *
 
-boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg'
+boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004_model_ready.gpkg'
+
 MINI_DATELINE_TILES  = [400400,391600,382300,372800,363400,354000,4199500,4180700,4161900]
 LARGE_DATELINE_TILES = [3540,3634,3728,3823,3916,4004,41995,41807,41619]
 MERIDIAN_TILES       = [22938, 23219, 23828, 24109, 23548, 23782, 24670, 24389, 24108, 23501, 23547]
@@ -30,17 +31,24 @@ set_sub50_e_sib   = [4350,4351,4352,4388,4389,4390,4425,4426,4427]
 set_sub50_dc      = [36246,36247,36248,36023,36024,36025,35803,35804,35805]
 set_seward        = [3637,3638,3639,3543,3544,3545,3731,3732,3733]
 set_brooks        = [3175,3176,3177,3083,3084,3085,2994,2995,2996]
-set_quebes_fires  = [1380, 1381, 1382, 1383, 1384, 1385, 1386, 1322, 1323, 1324, 1325, 1326, 1327, 1261, 1262, 1263, 1264, 1265]
+set_quebec_fires  = [1380, 1381, 1382, 1383, 1384, 1385, 1386, 1322, 1323, 1324, 1325, 1326, 1327, 1261, 1262, 1263, 1264, 1265,1269,1211,1213] + list(range(1202,1208))
+set_sib_transect = list(range(2326,2341))
 
-VAL_TILES_TO_ADD_TO_TEST_TILES = [391, 423, 424, 457, 458, 495, 496, 497, 498, 532, 533, 534, 536, 537, 572, 573, 578, 612, 613, 622, 623, 624, 656, 657, 666, 667, 702, 704, 705, 706, 711, 747, 750, 752, 753, 756, 757, 797, 798, 800, 802, 843, 844, 845, 846, 847, 848, 849, 892, 893, 938, 939, 940, 941, 988, 989, 990, 992, 993, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1105, 1152, 1153, 1154, 1155, 1156, 1157, 1158, 1159, 1208, 1209, 1210, 1212, 1214, 1266, 1267, 1268, 1270, 1271, 1272, 1273, 1274, 1328, 1329, 1330, 1334, 1335, 1387, 1388, 1392, 1393, 1441, 1442, 1443, 1444, 1448, 1449, 1498, 1499, 1500, 1501, 1502, 1503, 1505, 1506, 1507, 1556, 1557, 1558, 1559, 1560, 1561, 1562, 1563, 1585, 1586, 1612, 1613, 1614, 1615, 1616, 1617, 1641, 1647, 1648, 1668, 1670, 1671, 1672, 1673, 1704, 1713, 1725, 1727, 1728, 1729, 1761, 1762, 1792, 1794, 1795, 1835, 1836, 1837, 1860, 1861, 1862, 1863, 1904, 1930, 1931, 1932, 1933, 1974, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2066, 2071, 2072, 2073, 2074, 2075, 2138, 2143, 2148, 2213, 2214, 2215, 2216, 2218, 2219, 2290, 2291, 2292, 2293, 2295, 2296, 2367, 2368, 2369, 2370, 2371, 2450, 2451, 2452, 2453, 2454, 2489, 2503, 2513, 2528, 2529, 2530, 2532, 2533, 2534, 2566, 2580, 2581, 2595, 2597, 2600, 2601, 2604, 2609, 2610, 2611, 2612, 2643, 2646, 2647, 2648, 2671, 2672, 2673, 2674, 2675, 2677, 2678, 2679, 2680, 2681, 2685, 2687, 2689, 2690, 2691, 2692, 2728, 2748, 2752, 2753, 2754, 2756, 2758, 2759, 2760, 2761, 2767, 2770, 2771, 2816, 2831, 2834, 2835, 2836, 2837, 2838, 2839, 2840, 2841, 2842, 2843, 2844, 2845, 2847, 2848, 2852, 2854, 2914, 2915, 2917, 2918, 2922, 2923, 2924, 2925, 2926, 2934, 3010, 3011, 3012, 3014, 3016, 3021, 3059, 3101, 3102, 3103, 3104, 3105, 3107, 3108, 3109, 3110, 3147, 3148, 3165, 3192, 3193, 3194, 3195, 3196, 3197, 3199, 3200, 3201, 3204, 3205, 3239, 3240, 3256, 3257, 3284, 3285, 3288, 3289, 3290, 3291, 3292, 3294, 3295, 3296, 3299, 3336, 3337, 3351, 3352, 3376, 3377, 3378, 3380, 3381, 3382, 3383, 3384, 3385, 3386, 3389, 3390, 3392, 3394, 3430, 3442, 3444, 3469, 3470, 3471, 3472, 3475, 3476, 3477, 3478, 3479, 3480, 3482, 3483, 3484, 3485, 3486, 3534, 3562, 3563, 3564, 3565, 3566, 3568, 3569, 3570, 3571, 3572, 3573, 3574, 3575, 3576, 3577, 3578, 3579, 3580, 3597, 3660, 3662, 3666, 3667, 3668, 3672, 3673, 3674, 3691, 3692, 3756, 3760, 3761, 3762, 3767, 3854, 3860, 3946, 3947, 3949, 3950, 3951, 3952, 4025, 4030, 4032, 4033, 4034, 4321, 4354, 33269, 33505, 33741, 36916, 36917, 37743, 37958, 39424]
+set_val_tiles = [391, 423, 424, 457, 458, 495, 496, 497, 498, 532, 533, 534, 536, 537, 572, 573, 578, 612, 613, 622, 623, 624, 656, 657, 666, 667, 702, 704, 705, 706, 711, 747, 750, 752, 753, 756, 757, 797, 798, 800, 802, 843, 844, 845, 846, 847, 848, 849, 892, 893, 938, 939, 940, 941, 988, 989, 990, 992, 993, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1105, 1152, 1153, 1154, 1155, 1156, 1157, 1158, 1159, 1208, 1209, 1210, 1212, 1214, 1266, 1267, 1268, 1270, 1271, 1272, 1273, 1274, 1328, 1329, 1330, 1334, 1335, 1387, 1388, 1392, 1393, 1441, 1442, 1443, 1444, 1448, 1449, 1498, 1499, 1500, 1501, 1502, 1503, 1505, 1506, 1507, 1556, 1557, 1558, 1559, 1560, 1561, 1562, 1563, 1585, 1586, 1612, 1613, 1614, 1615, 1616, 1617, 1641, 1647, 1648, 1668, 1670, 1671, 1672, 1673, 1704, 1713, 1725, 1727, 1728, 1729, 1761, 1762, 1792, 1794, 1795, 1835, 1836, 1837, 1860, 1861, 1862, 1863, 1904, 1930, 1931, 1932, 1933, 1974, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2066, 2071, 2072, 2073, 2074, 2075, 2138, 2143, 2148, 2213, 2214, 2215, 2216, 2218, 2219, 2290, 2291, 2292, 2293, 2295, 2296, 2367, 2368, 2369, 2370, 2371, 2450, 2451, 2452, 2453, 2454, 2489, 2503, 2513, 2528, 2529, 2530, 2532, 2533, 2534, 2566, 2580, 2581, 2595, 2597, 2600, 2601, 2604, 2609, 2610, 2611, 2612, 2643, 2646, 2647, 2648, 2671, 2672, 2673, 2674, 2675, 2677, 2678, 2679, 2680, 2681, 2685, 2687, 2689, 2690, 2691, 2692, 2728, 2748, 2752, 2753, 2754, 2756, 2758, 2759, 2760, 2761, 2767, 2770, 2771, 2816, 2831, 2834, 2835, 2836, 2837, 2838, 2839, 2840, 2841, 2842, 2843, 2844, 2845, 2847, 2848, 2852, 2854, 2914, 2915, 2917, 2918, 2922, 2923, 2924, 2925, 2926, 2934, 3010, 3011, 3012, 3014, 3016, 3021, 3059, 3101, 3102, 3103, 3104, 3105, 3107, 3108, 3109, 3110, 3147, 3148, 3165, 3192, 3193, 3194, 3195, 3196, 3197, 3199, 3200, 3201, 3204, 3205, 3239, 3240, 3256, 3257, 3284, 3285, 3288, 3289, 3290, 3291, 3292, 3294, 3295, 3296, 3299, 3336, 3337, 3351, 3352, 3376, 3377, 3378, 3380, 3381, 3382, 3383, 3384, 3385, 3386, 3389, 3390, 3392, 3394, 3430, 3442, 3444, 3469, 3470, 3471, 3472, 3475, 3476, 3477, 3478, 3479, 3480, 3482, 3483, 3484, 3485, 3486, 3534, 3562, 3563, 3564, 3565, 3566, 3568, 3569, 3570, 3571, 3572, 3573, 3574, 3575, 3576, 3577, 3578, 3579, 3580, 3597, 3660, 3662, 3666, 3667, 3668, 3672, 3673, 3674, 3691, 3692, 3756, 3760, 3761, 3762, 3767, 3854, 3860, 3946, 3947, 3949, 3950, 3951, 3952, 4025, 4030, 4032, 4033, 4034, 4321, 4354, 33269, 33505, 33741, 36916, 36917, 37743, 37958, 39424]
 
-ALL_TEST_TILES = VAL_TILES_TO_ADD_TO_TEST_TILES + \
-                set_quebes_fires + set_brooks + set_seward + \
+set_all_test_tiles = set_val_tiles + \
+                set_quebec_fires + set_brooks + set_seward + \
                 set_sub50_dc + set_sub50_e_sib + set_sub50_bc + \
                 set_sub50_sas + set_sub50_ont + set_sub50_sib + \
                 set_c_ca + set_w_sib + set_s_sib + set_s_scand + \
                 set_e_sib + set_n_sib + set_n_queb + set_nw_terr + \
-                set_bc_coast + set_ak_interior
+                set_bc_coast + set_ak_interior + set_sib_transect
+
+# These are already in 'set_all_test_tiles'
+set_agbd_change_demo_tiles = [3457, 
+                              3638, 1326, 1269, # already in set_all_test_tiles
+                              2108,518,517,516,890
+                             ] + list(range(470,480))
 
 BOREAL_TRAIN_DATA_FN_DICT = {                                                                                                                                                            
     '2019': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_ATL08_TRAIN/boreal_train_data_2019_n10_diffday0.csv',                                                        
@@ -102,6 +110,7 @@ TITILER_MOSAIC_REG_DICT = {
         '2020_v2.2': None,                                 # Ali runs w/o moss/lichen mask w/ S1
         '2024_v2.1': None,                                  # Ali runs w/o moss/lichen mask
         '2020_v3.0': None,
+        '2020_v3.1': None,
     },
     'HT':{
         '2020_v2.0':'ddd273a5-7979-41d1-a282-62c44ded9147',# Version2_SD runs w/ moss/lichen mask
@@ -114,6 +123,7 @@ TITILER_MOSAIC_REG_DICT = {
         '2022_v3.0': None,
         '2023_v3.0': None,
         '2024_v3.0': None,
+        '2020_v3.1': None,
         '2024_quebec_agu24': None,
         '2020_neon38': None,
         '2020_neon38atl08': None,
@@ -125,6 +135,8 @@ TITILER_MOSAIC_REG_DICT = {
         '2020_zero_short_veg_height': None,
         '2020_zero_short_veg_height_slope15': None,
         '2020_niter_250_ntrees_50_10_cores': None,
+        '2019_multiyearmodel': None,
+        '2020_multiyearmodel': None,
     },
     'TCC':{
         '2020':None,
@@ -244,6 +256,19 @@ AGB_MOSAIC_JSON_FN_DICT = {
     '2020_v2.2' : 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_S1H30_2020/full_run_no_uncert/AGB_tindex_master_mosaic.json',
     '2024_v2.1': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/AGB_H30_2024/full_run_no_uncert/AGB_tindex_master_mosaic.json',
     '2020_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/AGB_H30_2020/full_run/AGB_tindex_master_mosaic.json',
+    '2020_v3.1': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2020/full_run/AGB_tindex_master_mosaic.json',
+    # For AGBD change with multiyear model and atl08 v6: full_run_niter30_multiyear_atl08v6
+    '2019_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2019/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+    '2020_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2020/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+    '2021_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2021/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+    '2022_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2022/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+    '2023_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2023/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+    '2024_v3.1_multiyr': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/AGB_H30_2024/full_run_niter30_multiyear_atl08v6/AGB_tindex_master_mosaic.json',
+
+
+
+
+
 }
 AGB_TINDEX_FN_DICT = dict()
 for key, value in AGB_MOSAIC_JSON_FN_DICT.items():
@@ -270,6 +295,7 @@ HT_MOSAIC_JSON_FN_DICT = {
     '2022_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/Ht_H30_2022/full_run/HT_tindex_master_mosaic.json',
     '2023_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/Ht_H30_2023/full_run/HT_tindex_master_mosaic.json',
     '2024_v3.0': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.0.0/Ht_H30_2024/full_run/HT_tindex_master_mosaic.json',
+    '2020_v3.1': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/v3.1.0/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
 
     # Tests.....
     '2024_quebec_agu24': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.5/Ht_H30_2024/AGU24/HT_tindex_master_mosaic.json',
@@ -283,6 +309,8 @@ HT_MOSAIC_JSON_FN_DICT = {
     '2020_zero_short_veg_height': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.9/Ht_H30_2020/zero_short_veg_height/HT_tindex_master_mosaic.json',
     '2020_zero_short_veg_height_slope15': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.10/Ht_H30_2020/zero_short_veg_height_slope15/HT_tindex_master_mosaic.json',
     '2020_niter_250_ntrees_50_10_cores': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.11/Ht_H30_2020/niter_250_ntrees_50_10_cores/HT_tindex_master_mosaic.json',
+    '2019_multiyearmodel': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.15/Ht_H30_2019/full_run/HT_tindex_master_mosaic.json',
+    '2020_multiyearmodel': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/BOREAL_MAP/dev_v1.15/Ht_H30_2020/full_run/HT_tindex_master_mosaic.json',
 }
 HT_TINDEX_FN_DICT = dict()
 for key, value in HT_MOSAIC_JSON_FN_DICT.items():

@@ -306,20 +306,51 @@ def get_neighbors(input_gdf, input_id_field, input_id):
     
     return neighbors
 
-# def get_raster_zonalstats(in_gdf, vrt_fn, STATS_LIST = ['max','mean', 'median','std','min','sum','count']):
-#     '''For each feature in the in_gdf, append cols from STATS_LIST based on the raster summary stats for the same region in vrt_fn'''
-#     import rasterstats
-#     # Use join
-#     out_gdf = in_gdf.reset_index(drop=True).join(
-#                                                 pd.DataFrame(
-#                                                     rasterstats.zonal_stats(
-#                                                         vectors=in_gdf['geometry'], 
-#                                                         raster=vrt_fn, 
-#                                                         stats=STATS_LIST
-#                                                     )
-#                                                 )
-#                                             )
-#     return out_gdf
+from collections import Counter
+
+def find_duplicate_tiles(lst):
+    """
+    Find duplicates using Counter - shows count of each duplicate
+    """
+    counts = Counter(lst)
+    duplicate_tiles = {item: count for item, count in counts.items() if count > 1}
+    
+    print(f"Total items: {len(lst)}")
+    print(f"Unique items: {len(counts)}")
+    print(f"Duplicated items: {len(duplicate_tiles)}")
+    
+    return duplicate_tiles
+    
+def find_missing_tiles(boreal_tiles, tindex_csv_fn):
+    """
+    Find missing tiles by comparing a full list of tiles with completed tiles.
+    
+    Args:
+        full_tiles_list: List or set of all tiles that should be present
+        completed_tiles_list: List or set of tiles that are already completed
+    
+    Returns:
+        List of missing tiles
+    """
+    full_tiles_list = boreal_tiles.tile_num.to_list()
+    completed_tiles_list = pd.read_csv(tindex_csv_fn).tile_num.to_list()
+    
+    # Convert to sets for efficient difference operation
+    full_set = set(full_tiles_list)
+    completed_set = set(completed_tiles_list)
+    completed_list = list(completed_set)
+    
+    # Find missing tiles (elements in full_set but not in completed_set)
+    missing_tiles = list(full_set - completed_set)
+    
+    # Sort for easier review
+    missing_tiles.sort()
+    
+    print(f"Total tiles: {len(full_set)}")
+    print(f"Completed tiles: {len(completed_set)}")
+    print(f"Missing tiles: {len(missing_tiles)} ({len(missing_tiles)/len(full_set):.1%})")
+    
+    return missing_tiles, completed_list
 
 def GET_TILES_NEEDED(DPS_DATA_TYPE = 'HLS',
                     boreal_tile_index_path = '/projects/shared-buckets/montesano/databank/boreal_tiles_v004.gpkg',
