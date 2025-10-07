@@ -221,7 +221,8 @@ def MAP_REGISTERED_DPS_RESULTS(
                     SHOW_WIDGETS=False,
                     map_width=1000, map_height=500,
                     ADD_TILELAYER = None,
-                    ADD_GEOJSONLAYER = None
+                    ADD_GEOJSONLAYER = None,
+                    ADD_4326_GPKG = None
                    ):
     
     if ADD_TILELAYER is not None:
@@ -261,6 +262,20 @@ def MAP_REGISTERED_DPS_RESULTS(
         ecoboreal_buf = ecoboreal_aea_buf.to_crs(boreal_tile_index.crs)
         ecoboreal_layer = GeoJson(ecoboreal, name="Boreal extent from Ecoregions", style_function=lambda x:ecoboreal_style)
 
+    if ADD_4326_GPKG is not None:
+        if isinstance(ADD_4326_GPKG, list):
+            ADD_4326_GPKG_LIST = ADD_4326_GPKG
+        else:
+            ADD_4326_GPKG_LIST = [ADD_4326_GPKG]
+            
+        GEOJSON_FROM_ADD_4326_GPKG_LIST = []
+        for DICT_4326_GPKG in ADD_4326_GPKG_LIST:
+            gdf = geopandas.read_file(DICT_4326_GPKG['fn'])
+            GEOJSON_FROM_ADD_4326_GPKG_LIST.append(GeoJson(gdf, 
+                                                           name=DICT_4326_GPKG['desc'], 
+                                                           style_function=lambda x:DICT_4326_GPKG['style'],
+                                                          ))
+
     # Map the Layers
     #Map_Figure=Figure(width=map_width,height=map_height)
     Map_Figure=Figure()
@@ -294,6 +309,10 @@ def MAP_REGISTERED_DPS_RESULTS(
             print(f"Adding layer {ADD_TILELAYER['caption']}...")
             if ADD_TILELAYER["show_cbar"]:
                 m1.add_child(colormap_ADDED_TILELAYER_list[i])
+
+    if ADD_4326_GPKG is not None:
+        for i, ADD_GEOJSON_FROM_GPKG in enumerate(GEOJSON_FROM_ADD_4326_GPKG_LIST):
+            ADD_GEOJSON_FROM_GPKG.add_to(m1)
 
     if ADD_GEOJSONLAYER is not None:
         for i, ADD_GEOJSONLAYER in enumerate(ADD_GEOJSONLAYER_LIST):

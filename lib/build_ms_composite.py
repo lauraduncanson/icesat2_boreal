@@ -762,6 +762,7 @@ def main():
         master_json = get_ms_data(args.in_tile_fn, args.in_tile_layer, args.in_tile_id_col, args.in_tile_num, args.output_dir, args.sat_api, 
                                 args.start_year, args.end_year, args.start_month_day, args.end_month_day, args.max_cloud, 
                                 args.composite_type, args.local, ms_product, ms_version, args.min_n_filt_results, bands_dict=MS_BANDS_DICT)
+        
     else:
         master_json = args.json_file
     

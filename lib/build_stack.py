@@ -130,6 +130,24 @@ def get_tile_fn_list(tindex_fn_list, path_col, FOCAL_TILE=None):
         list_fn_pairs.append(focal_tile_fn_list)
     
     return list_fn_pairs 
+
+def get_fn_pairs_list(tindex_src_fn, tindex_mask_fn, path_col, FOCAL_TILE=None):
+    
+    list_fn_pairs = []
+    tindex_src = pd.read_csv(tindex_src_fn)
+    tindex_mask = pd.read_csv(tindex_mask_fn)
+    
+    if FOCAL_TILE is not None:
+        TILE_LIST = [FOCAL_TILE]
+    else:
+        TILE_LIST = tindex_src.tile_num.to_list()
+        
+    for FOCAL_TILE in TILE_LIST:
+        src_fn = tindex_src[tindex_src.tile_num == FOCAL_TILE][path_col].to_list()[0]
+        mask_fn = tindex_mask[tindex_mask.tile_num == FOCAL_TILE][path_col].to_list()[0]
+        list_fn_pairs.append((src_fn, mask_fn))
+    
+    return list_fn_pairs      
     
 def check_dims(fn_list: list):
     for fn in fn_list:
@@ -195,6 +213,7 @@ def diff_cogs(t1_fn, t2_fn, tile_num, output_dir: str, diff_id_name='diff_AGB_H3
     '''
     Write a difference map based on subtraction of first from second of 2 raster inputs
     '''
+    s3 = s3fs.S3FileSystem(anon=True)
     cog_names_list = [f'diff_{units}']
     
     arr_list = []

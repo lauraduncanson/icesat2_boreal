@@ -135,20 +135,54 @@ def query_stac(year, bbox, max_cloud, api, start_month_day, end_month_day, MS_pr
 
     while True:
         results_list = []
-        # Doing this loop to get around CMR bug: https://github.com/nasa/cmr-stac/pull/357
-        # Loop can be removed and product list inserted back into 'collections' parameter when fixed
-        for MS_prod in MS_product_list:
+        if True:
+            '''Use pystac_client to query the API for HLS file paths
+            '''
+            # Doing this loop to get around CMR bug: https://github.com/nasa/cmr-stac/pull/357
+            # Loop can be removed and product list inserted back into 'collections' parameter when fixed
+            for MS_prod in MS_product_list:
+                
+                search = catalog.search(
+                        collections=MS_prod,
+                        datetime=[start , end],
+                        bbox = bbox,
+                        limit=MAX_N_RESULTS,
+                        max_items=None
+                        ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
+                    )
+                results = search.get_all_items_as_dict()
+                print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
+                results_list.append(results)
+                
+        if False:
+            '''Use rustac to query local copy (*.parquet) of HLS file paths
+                Here need to get search of the *.parquet to return a results_list like what is returned after catalog.search() above
+            '''
+            from rustac import DuckdbClient
+            client = DuckdbClient(use_hive_partitioning=True)
             
-            search = catalog.search(
-                    collections=MS_prod,
-                    datetime=[start , end],
-                    bbox = bbox,
-                    limit=MAX_N_RESULTS,
-                    max_items=None
-                    ,query={"eo:cloud_cover":{"lte":max_cloud}} # used to not work..now it does
-                )
-            results = search.get_all_items_as_dict()
-            print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
+            # configure duckdb to find S3 credentials
+            client.execute(
+                """
+                CREATE OR REPLACE SECRET secret (
+                     TYPE S3,
+                     PROVIDER CREDENTIAL_CHAIN
+                );
+                """
+            )
+            
+            # use rustac/duckdb to search through the partitioned parquet dataset to find matching items
+            search = client.search(
+                #collections='HLSL30_2.0',
+                href="s3://maap-ops-workspace/shared/henrydevseed/hls-stac-geoparquet-v1/year=*/month=*/*.parquet",
+                datetime="2024-07-01T00:00:00Z/2024-08-31T23:59:59Z",
+                bbox=bbox,
+            )
+            ###results = search.get_all_items_as_dict()
+            results = dict()
+            results['features'] = search
+            #print(f"partial results ({MS_prod}):\t\t\t\t{len(results['features'])}")
+            print(f"partial results (---all ---):\t\t\t\t{len(results['features'])}")
             results_list.append(results)
 
         # This flattens the results list as well as doing a secondary cloud_cover filtering

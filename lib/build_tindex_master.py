@@ -146,6 +146,9 @@ def main():
     parser.set_defaults(tindex_append=False)
     parser.add_argument('--WRITE_TINDEX_MATCHES_GDF', dest='WRITE_TINDEX_MATCHES_GDF', action='store_true', help='Write a tindex gpkg from master json needed to build stack')
     parser.set_defaults(WRITE_TINDEX_MATCHES_GDF=False)
+    parser.add_argument('--WRITE_MSCOMP_DF', dest='WRITE_MSCOMP_DF', action='store_true', help='Write a table of MS composite parameterts from master json needed to understand composite creation variation')
+    parser.set_defaults(WRITE_MSCOMP_DF=False)
+    
     args = parser.parse_args()
     
     s3 = s3fs.S3FileSystem(anon=True)
@@ -465,7 +468,7 @@ def main():
             print(f'Writing tindex matches from master json to gpkg: {out_tindex_matches_gdf_fn}')
             tindex_matches_gdf.to_file(out_tindex_matches_gdf_fn, mode='w')
         
-        if 'HLS'in TYPE:
+        if 'HLS'in TYPE and args.WRITE_MSCOMP_DF:
             DPS_IDENTIFIER_STR = args.dps_identifier
             print(f'DPS Identifier: {DPS_IDENTIFIER_STR}')
             MS_COMP_NAME = DPS_IDENTIFIER_STR.split('/')[-1]
