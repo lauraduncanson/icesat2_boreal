@@ -672,7 +672,7 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
     #return output_arrays, output_files if output_file else None
     return output_arrays
 
-def create_summary_plots(output_arrays, output_file=None):
+def create_summary_plots(output_arrays, output_file=None, SHOW_PLOT=False):
     """
     Create summary plots of the trend analysis results
     """
@@ -721,7 +721,8 @@ def create_summary_plots(output_arrays, output_file=None):
         plt.savefig(f"{output_file}_summary_plots.png", dpi=300, bbox_inches='tight')
         print(f"Summary plots saved to: {output_file}_summary_plots.png")
     
-    plt.show()
+    if SHOW_PLOT:
+        plt.show()
     
 # ##############
 # ############ Bayesian
@@ -2087,8 +2088,8 @@ def main():
     on time series raster data, with options for OLS regression and breakpoint detection.
     """
 
-    # Start tracing memory usage at the beginning of script
-    tracemalloc.start()
+    # # Start tracing memory usage at the beginning of script
+    # tracemalloc.start()
     
     """Main function."""
     args = parse_arguments()
@@ -2155,11 +2156,11 @@ def main():
             traceback.print_exc()
         return 1
 
-    # Get current and peak memory usage
-    current, peak = tracemalloc.get_traced_memory()
-    print(f"\nPeak memory usage: {peak / 1024 / 1024:.2f} MB ({peak / 1024 / 1024 / 1024:.2f} GB)")
+    # # Get current and peak memory usage - this wasnt working when placed here - resulted in 2 hr runs...bad
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(f"\nPeak memory usage: {peak / 1024 / 1024:.2f} MB ({peak / 1024 / 1024 / 1024:.2f} GB)")
 
-    tracemalloc.stop()
+    # tracemalloc.stop()
     
 if __name__ == "__main__":
     sys.exit(main())
