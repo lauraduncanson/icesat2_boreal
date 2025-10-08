@@ -1,0 +1,36 @@
+algorithm_description: compute trends with ols and return trend classes
+algorithm_name: run_compute_trends_ols
+algorithm_version: run_compute_trends_ols_v1
+build_command: icesat2_boreal/dps/build_command_4.1.0.sh
+disk_space: 16GB
+docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
+inputs:
+  config: []
+  positional:
+  - default: ''
+    description: String (comma separated) indicating the specific rasters for the trend (AGB or HT)
+    name: value-rasters
+    required: true
+  - default: ''
+    description: String (comma separated) indicating the specific rasters for the dates of the trend (HLS comps)
+    name: --date-rasters
+    required: true
+  - default: ''
+    description: The output COG stem used for the trend and kendalclasses raster results
+    name: output
+    required: true
+  - default: ''
+    description: The alpha threshold for determining the trend significance 
+    name: extent_type
+    required: true
+  - default: ''
+    description: The number of processes for multiprocessing 
+    name: n-processes
+    required: true
+  - default: ''
+    description: The chunk size in pixels for each process 
+    name: chunk-size
+    required: true
+queue: maap-dps-worker-32gb
+repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
+run_command: icesat2_boreal/dps/alg_compute_trends_ols/run.sh
