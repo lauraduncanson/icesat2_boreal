@@ -21,7 +21,7 @@ inputs:
     required: true
   - default: ''
     description: The alpha threshold for determining the trend significance 
-    name: extent_type
+    name: alpha
     required: true
   - default: ''
     description: The number of processes for multiprocessing 
