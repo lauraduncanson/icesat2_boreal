@@ -13,7 +13,7 @@ inputs:
     required: true
   - default: ''
     description: String (comma separated) indicating the specific rasters for the dates of the trend (HLS comps)
-    name: --date-rasters
+    name: date-rasters
     required: true
   - default: ''
     description: The output COG stem used for the trend and kendalclasses raster results
