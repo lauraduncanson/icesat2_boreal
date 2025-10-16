@@ -1,6 +1,6 @@
 algorithm_description: build ms compositing algorithm for HLS
 algorithm_name: run_build_ms_composite
-algorithm_version: build_ms_composite_v1
+algorithm_version: build_ms_composite_v2
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 16GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
