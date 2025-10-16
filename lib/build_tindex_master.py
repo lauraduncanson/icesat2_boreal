@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'DECIDFRAC','CACC','all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'DECIDFRAC','CACC','TRENDOLS','TRENDCLASS','all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -207,7 +207,7 @@ def main():
             os.makedirs(args.outdir)
     
     if args.type == 'all':
-        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HLS','LC','HT','CACC']
+        TYPE_LIST = ['Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HLS','LC','HT','CACC','TRENDOLS','TRENDCLASS']
     else:
         TYPE_LIST = [args.type]
     
@@ -251,7 +251,7 @@ def main():
                 ends_with_str = "_cog.tif"
             if "HLS" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/*/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}*/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
                 ends_with_str = ".tif"
             if "Landsat" in TYPE:
@@ -277,6 +277,10 @@ def main():
                 if user is None: user = 'lduncanson'
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9].tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".tif"
+            if TYPE == 'TRENDCLASS':
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_kendallclasses.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+            if  TYPE == 'TRENDOLS':
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_ols.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
             if args.NO_DPS:
                 dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.tif"]
                 ends_with_str = ".tif"
@@ -366,7 +370,7 @@ def main():
                 df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         if 'DECIDFRAC' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
-        if 'CACC' in TYPE:
+        if 'CACC' in TYPE or 'TRENDCLASS' in TYPE or TYPE == 'TRENDOLS':
             df['tile_num'] = df['file'].str.split('_', expand=True)[3].str.strip('*.tif')
         if 'ATL08' in TYPE:
             
