@@ -417,12 +417,17 @@ def create_target_stack(target_spectral_index_name, first_band, second_band, fma
         #fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'snowice', 'water', 'aerosol_high']) # mask out snow
         fmaskarr_by = HLS_MASK(fmaskarr, MASK_LIST=['cloud', 'adj_cloud', 'cloud shadow', 'water', 'aerosol_high']) # keep snow
 
-    if target_spectral_index_name == 'evi':
-        print(' --- EVI not yet implemented ; using NDVI instead ---')
-        target_spectral_index_name = 'ndvi'
+    if target_spectral_index_name == 'evi2':
+        return np.ma.array(np.where(((fmaskarr_by==1) | (first_band_ma < rangelims_red[0]) | (first_band_ma > rangelims_red[1])), 
+                                    nodatavalue, 
+                                    2.5 * (second_band_ma - first_band_ma) / (second_band_ma + 2.4 * first_band_ma + 1)
+                                    ))
     if target_spectral_index_name == 'ndvi':
         print(f'min, max Red value before mask: {first_band_ma.min()}, {first_band_ma.max()} (red rangelims: {rangelims_red})')
-        return np.ma.array(np.where(((fmaskarr_by==1) | (first_band_ma < rangelims_red[0]) | (first_band_ma > rangelims_red[1])), nodatavalue, (second_band_ma-first_band_ma)/(second_band_ma+first_band_ma)))
+        return np.ma.array(np.where(((fmaskarr_by==1) | (first_band_ma < rangelims_red[0]) | (first_band_ma > rangelims_red[1])), 
+                                    nodatavalue, 
+                                    (second_band_ma-first_band_ma)/(second_band_ma+first_band_ma)
+                                   ))
     if target_spectral_index_name == 'ndsi':
         return np.ma.array(np.where((fmaskarr_by==1), nodatavalue, (first_band_ma-second_band_ma)/(first_band_ma+second_band_ma))) # not the same order as ndvi, evi
 
@@ -571,6 +576,12 @@ def calcEVI(blue, red, nir):
     print('\tEVI Created')
     return evi
 
+# EVI2
+def calcEVI2(red, nir):
+    evi2 = 2.5 * ((nir - red) / (nir + 2.4 * red + 1))
+    print('\tEVI Created')
+    return evi2
+
 # NBR
 def calcNBR(nir, swir2):
     nbr = (nir - swir2)/(nir + swir2)
@@ -666,7 +677,7 @@ def main():
     parser.add_argument("--rangelims_red", type=float, nargs=2, action='store', default=[-1e9, 1e9], help="The range limits for red band; outside of which will be masked out; eg [0.01, 0.1]")
     parser.add_argument("-hls", "--hls_product", choices=['S30','L30','H30'], nargs="?", type=str, default='L30', help="Specify the HLS product; M30 is our name for a combined HLS composite")
     parser.add_argument("-hlsv", "--hls_product_version", type=str, default='2.0', help="Specify the HLS product version")
-    parser.add_argument("--target_spectral_index", type=str, choices=['ndvi','ndsi'], nargs="?", default="ndvi", help="The target spectral index used with stat to composite a stack of input.")
+    parser.add_argument("--target_spectral_index", type=str, choices=['ndvi','ndsi','evi2'], nargs="?", default="ndvi", help="The target spectral index used with stat to composite a stack of input.")
     parser.add_argument("-ndvi", "--thresh_min_ndvi", type=float, default=0.1, help="NDVI threshold above which vegetation is valid.")
     parser.add_argument("-min_n", "--min_n_filt_results", type=int, default=0, help="Min number of filtered search results desired before hitting max cloud limit.")
     parser.add_argument("--stat", type=str, choices=['min','max','percentile'], nargs="?", default="max", help="Specify the stat for reducing the NDVI stack")
@@ -706,7 +717,8 @@ def main():
     '''
     if args.do_indices:
         bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
-                     'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', #NDSI,
+                     'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'EVI2', # updated
+                     'NBR', 'NBR2', 'TCB', 'TCG', 'TCW', #NDSI,
                      'ValidMask', 'Xgeo', 'Ygeo', 'JulianDate', 'yearDate','count']
     else:
         bandnames = ['Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2', 
@@ -803,21 +815,15 @@ def main():
     # Start reading data on aws:
     with rio.Env(aws_session):
         in_crs, crs_transform = MaskArrays(red_bands[0], in_bbox, height, width, args.composite_type, out_crs, out_crs, incl_trans=True)
-        # if args.composite_type=='HLS':
-        #     target_spec_idx_stack = [CreateNDVIstack_HLS(red_bands[i],nir_bands[i],fmask_bands[i], 
-        #                                      in_bbox, out_crs, out_crs, height, width, 
-        #                                      args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
-        # elif args.composite_type=='LC2SR':
-        #     target_spec_idx_stack = [CreateNDVIstack_LC2SR(red_bands[i],nir_bands[i],fmask_bands[i], 
-        #                                        in_bbox, out_crs, out_crs, height, width, 
-        #                                        args.composite_type, rangelims_red = args.rangelims_red) for i in range(len(red_bands))]
 
         # These are ordered from smallest to largest wavelength 
         if args.target_spectral_index == 'ndsi': first_bands, second_bands = (green_bands, swir_bands)
         if args.target_spectral_index == 'ndvi': first_bands, second_bands = (red_bands, nir_bands)
+        if args.target_spectral_index == 'evi2': first_bands, second_bands = (red_bands, nir_bands)
             
         target_spec_idx_stack = [create_target_stack(args.target_spectral_index, first_bands[i], second_bands[i], fmask_bands[i], 
-                                                     in_bbox, out_crs, out_crs, height, width, args.composite_type, rangelims_red = args.rangelims_red, nodatavalue=args.nodatavalue) for i in range(len(red_bands))]
+                                                     in_bbox, out_crs, out_crs, height, width, args.composite_type, 
+                                                     rangelims_red = args.rangelims_red, nodatavalue=args.nodatavalue) for i in range(len(red_bands))]
         
         print(f'\nFinished created masked {args.target_spectral_index} stack.\n')
        
@@ -840,34 +846,6 @@ def main():
     print(f"Create LUT of {args.target_spectral_index} positions using stat={args.stat}")
     for i in range(np.shape(target_spec_idx_stack_ma)[0]):
         SPEC_IDX_STK_tmp[i,:,:]=target_stat==i
-        
-    ##############
-    # kw_args = {'SPEC_IDX_STK_tmp': SPEC_IDX_STK_tmp, 'BoolMask': BoolMask, 'in_bbox': in_bbox, 'height': height, 'width': width, 'out_crs': out_crs, 'composite_type': args.composite_type, 'nodatavlue': args.nodatavalue}
-    # params_list = [
-    #     {'band_name': 'Blue', 'bands_list': blue_bands},
-    #     {'band_name': 'Green', 'bands_list': green_bands},
-    #     {'band_name': 'Red', 'bands_list': red_bands},
-    #     {'band_name': 'NIR', 'bands_list': nir_bands},
-    #     {'band_name': 'SWIR', 'bands_list': swir_bands},
-    #     {'band_name': 'SWIR2', 'bands_list': swir2_bands},
-    #     {'band_name': 'Julian Day', 'bands_list': swir2_bands},
-    #     {'band_name': 'Year', 'bands_list': swir2_bands},
-    #     {'band_name': 'Fmask', 'bands_list': fmask_bands},
-    # ]
-    # def wrapper_createcomposite(params):
-    #     aws_session = renew_session(params['composite_type'])
-
-    #     with rio.Env(aws_session):
-    #         print(f'Creating {params['band_name']} composite...')
-    #         _comp = CreateComposite(params['bands_list'], params['SPEC_IDX_STK_tmp'], params['BoolMask'], params['in_bbox'], params['height'], params['width'], params['out_crs'], params['out_crs'], params['composite_type'], params['nodatavalue'])
-    #         #print_array_stats(_comp)
-    #         return _comp
-
-    # from multiprocessing import Pool
-    # from functools import partial
-    
-    # with Pool(processes=6) as pool:
-    #     BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, JULIANcomp, YEARcomp, Fmaskcomp = pool.map(partial(wrapper_createcomposite, **kw_args), params_list)
             
     # create band-by-band composites: TODO multiprocess these
     aws_session = renew_session(args.composite_type)
@@ -932,6 +910,7 @@ def main():
         MSAVI = calcMSAVI(RedComp, NIRComp)
         NDMI =  calcNDMI(NIRComp, SWIRComp)
         EVI =   calcEVI(BlueComp, RedComp, NIRComp)
+        EVI2 =  calcEVI2(RedComp, NIRComp)
         NBR =   calcNBR(NIRComp, SWIR2Comp)
         NBR2 =  calcNBR2(SWIRComp, SWIR2Comp)
         TCB, TCG, TCW = tasseled_cap(np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp], [0, 1, 2]))
@@ -943,7 +922,7 @@ def main():
         print("Calculating X and Y pixel center coords...")
         Xgeo, Ygeo = get_pixel_coords(ValidMask, crs_transform)
         stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, 
-                              NDVIComp, SAVI, MSAVI, NDMI, EVI, NBR, NBR2, TCB, TCG, TCW, 
+                              NDVIComp, SAVI, MSAVI, NDMI, EVI, EVI2, NBR, NBR2, TCB, TCG, TCW, 
                               ValidMask, Xgeo, Ygeo, JULIANcomp, YEARcomp, CountComp], [0, 1, 2]) 
     else:
         stack = np.transpose([BlueComp, GreenComp, RedComp, NIRComp, SWIRComp, SWIR2Comp, 
