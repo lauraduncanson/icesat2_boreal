@@ -1,6 +1,6 @@
 algorithm_description: compute trends with ols and return trend classes
 algorithm_name: run_compute_trends_ols
-algorithm_version: compute_trends_ols_v1
+algorithm_version: compute_trends_ols_v2
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 16GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0
