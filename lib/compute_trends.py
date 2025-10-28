@@ -613,9 +613,14 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
         # Write COG here of stack
         # Stack
         # move axis of the stack so bands is first
-        stack = np.transpose([output_arrays['trendslope'],    output_arrays['trendintercept'], output_arrays['r2'], 
-                              output_arrays['trendslope_lo'], output_arrays['trendslope_hi'],
-                              output_arrays['kendall_tau'],   output_arrays['kendall_pvalue']
+        stack = np.transpose([
+                    np.where(np.isnan(output_arrays['trendslope']), nodata_value, output_arrays['trendslope']),    
+                    np.where(np.isnan(output_arrays['trendintercept']), nodata_value, output_arrays['trendintercept']),
+                    np.where(np.isnan(output_arrays['r2']), nodata_value, output_arrays['r2']), 
+                    np.where(np.isnan(output_arrays['trendslope_lo']), nodata_value, output_arrays['trendslope_lo']), 
+                    np.where(np.isnan(output_arrays['trendslope_hi']), nodata_value, output_arrays['trendslope_hi']),
+                    np.where(np.isnan(output_arrays['kendall_tau']), nodata_value, output_arrays['kendall_tau']),
+                    np.where(np.isnan(output_arrays['kendall_pvalue']), nodata_value, output_arrays['kendall_pvalue'])
                               #,output_arrays['n_obs']
                              ],
                              [0,1,2])
