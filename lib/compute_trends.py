@@ -37,7 +37,7 @@ def process_chunk_breakpoints(args):
     from ruptures import Pelt
     import numpy as np
     
-    chunk_values, chunk_dates, start_row, start_col, chunk_rows, chunk_cols, min_break_position, penalty = args
+    chunk_values, chunk_dates, start_row, start_col, chunk_rows, chunk_cols, min_break_position, penalty, nodata_value = args
     
     results = []
     for i in range(chunk_rows):
@@ -47,7 +47,7 @@ def process_chunk_breakpoints(args):
             pixel_idx = ((start_row + i), (start_col + j))
             
             result = compute_pixel_breakpoint_statistics(
-                (pixel_values, pixel_dates, pixel_idx, min_break_position, penalty)
+                (pixel_values, pixel_dates, pixel_idx, min_break_position, penalty, nodata_value)
             )
             results.append(result)
     
@@ -60,13 +60,13 @@ def compute_pixel_breakpoint_statistics(args):
     from ruptures import Pelt
     import numpy as np
     
-    pixel_values, pixel_dates, pixel_idx, min_break_position, penalty = args
+    pixel_values, pixel_dates, pixel_idx, min_break_position, penalty, nodata_value = args
     
     # Initialize result dictionary
     result = {
         'break_detected': 0,
         'break_year_index': -1,
-        'break_year': -9999,
+        'break_year': nodata_value,
         'break_magnitude': np.nan
     }
     
@@ -116,7 +116,7 @@ def compute_pixel_breakpoint_statistics(args):
     return result
 
 def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE, 
-                             chunk_size=300, min_break_position=0.7, penalty=10, n_processes=None):
+                             chunk_size=300, min_break_position=0.7, penalty=10, n_processes=None, nodata_value=-9999):
     """
     Detect breakpoints in raster time series data and write results to COG using multiprocessing
     
@@ -178,7 +178,7 @@ def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE,
         # Check if date_data has nodata values and replace with NaN
         date_data = np.where(date_data < 1900, np.nan, date_data)  # Years should be > 2000
         date_data = np.where(date_data > 2099, np.nan, date_data)  # Years should be < 2030
-        date_data = np.where(date_data == -9999, np.nan, date_data)  # Handle explicit nodata
+        date_data = np.where(date_data == nodata_value, np.nan, date_data)  # Handle explicit nodata
         date_stack[i] = date_data
     
     print("Preparing data for parallel breakpoint processing...")
@@ -187,7 +187,7 @@ def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE,
     output_arrays = {
         'break_detected': np.zeros((height, width), dtype=np.uint8),
         'break_year_index': np.full((height, width), -1, dtype=np.int16),
-        'break_year': np.full((height, width), -9999, dtype=np.float32),
+        'break_year': np.full((height, width), nodata_value, dtype=np.float32),
         'break_magnitude': np.full((height, width), np.nan, dtype=np.float32)
     }
     
@@ -208,7 +208,7 @@ def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE,
             chunk_dates = date_stack[:, start_row:end_row, start_col:end_col]
             
             chunk_args.append((chunk_values, chunk_dates, start_row, start_col, 
-                             chunk_rows, chunk_cols, min_break_position, penalty))
+                             chunk_rows, chunk_cols, min_break_position, penalty, nodata_value))
             total_chunks += 1
     
     print(f"Processing {total_chunks} chunks in parallel for breakpoint detection...")
@@ -273,7 +273,7 @@ def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE,
         transform,
         stack_names,
         out_crs=crs,
-        input_nodata_value=-9999,
+        input_nodata_value=nodata_value,
         resampling='nearest'
     )
     
@@ -290,7 +290,7 @@ def detect_breakpoints_raster(value_raster_files, DATE_RASTER_FILES, OUT_FILE,
     print(f"Pixels with breakpoints detected: {break_pixels} ({break_percentage:.2f}%)")
     
     if break_pixels > 0:
-        valid_years = output_arrays['break_year'][output_arrays['break_year'] != -9999]
+        valid_years = output_arrays['break_year'][output_arrays['break_year'] != nodata_value]
         valid_magnitudes = output_arrays['break_magnitude'][~np.isnan(output_arrays['break_magnitude'])]
         
         if len(valid_years) > 0:
@@ -389,7 +389,7 @@ def compute_pixel_statistics(args):
     """
     Compute comprehensive trend statistics for a single pixel
     """
-    pixel_values, pixel_dates, pixel_idx, do_ols = args
+    pixel_values, pixel_dates, pixel_idx, do_ols, nodata_value = args
     
     # Initialize results dictionary
     results = {
@@ -406,7 +406,7 @@ def compute_pixel_statistics(args):
     
     # Remove invalid data points
     valid_mask = ~(np.isnan(pixel_values) | np.isnan(pixel_dates) | 
-                   (pixel_values == -9999) | (pixel_dates == -9999))
+                   (pixel_values == nodata_value) | (pixel_dates == nodata_value))
     
     if np.sum(valid_mask) < 3:  # Need at least 3 points for trend
         return results
@@ -452,7 +452,7 @@ def process_chunk(args):
     """
     Process a chunk of pixels using multiprocessing
     """
-    chunk_data, chunk_dates, start_row, start_col, chunk_rows, chunk_cols, do_ols = args
+    chunk_data, chunk_dates, start_row, start_col, chunk_rows, chunk_cols, do_ols, nodata_value = args
     
     results = []
     for i in range(chunk_rows):
@@ -461,14 +461,14 @@ def process_chunk(args):
             pixel_dates = chunk_dates[:, i, j]
             pixel_idx = ((start_row + i), (start_col + j))
             
-            result = compute_pixel_statistics((pixel_values, pixel_dates, pixel_idx, do_ols))
+            result = compute_pixel_statistics((pixel_values, pixel_dates, pixel_idx, do_ols, nodata_value))
             results.append(result)
     
     return results
 
 def stack_rasters_and_compute_trend(value_raster_files, date_raster_files, 
                                                    band_num=1, output_file=None, n_processes=None, 
-                                                   chunk_size=500, do_ols=False):
+                                                   chunk_size=500, do_ols=False, nodata_value=-9999):
     """
     Stack multiple rasters with corresponding date info and compute trends: OLS or Theil-Sen statistics
     
@@ -549,7 +549,7 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
             chunk_dates = date_stack[:, start_row:end_row, start_col:end_col]
             
             chunk_args.append((chunk_values, chunk_dates, start_row, start_col, 
-                             chunk_rows, chunk_cols, do_ols))
+                             chunk_rows, chunk_cols, do_ols, nodata_value))
             total_chunks += 1
     
     print(f"Processing {total_chunks} chunks in parallel...")
@@ -615,10 +615,15 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
         # move axis of the stack so bands is first
         stack = np.transpose([output_arrays['trendslope'],    output_arrays['trendintercept'], output_arrays['r2'], 
                               output_arrays['trendslope_lo'], output_arrays['trendslope_hi'],
-                              output_arrays['kendall_tau'],   output_arrays['kendall_pvalue'],
-                              output_arrays['n_obs']
-                             ], [0,1,2])
-        stack_names = ['trendslope', 'trendintercept', 'r2', 'trendslope_lo','trendslope_hi','kendall_tau','kendall_pvalue','n_obs']
+                              output_arrays['kendall_tau'],   output_arrays['kendall_pvalue']
+                              #,output_arrays['n_obs']
+                             ],
+                             [0,1,2])
+        stack_names = ['trendslope', 'trendintercept', 'r2', 
+                       'trendslope_lo','trendslope_hi',
+                       'kendall_tau','kendall_pvalue'
+                       #,'n_obs'
+                      ]
 
         if do_ols: 
             TREND_METHOD = 'ols'
@@ -635,7 +640,7 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
                   out_crs = crs, 
                   #resolution = (res, res),
                   #align = True, 
-                  input_nodata_value=-9999,
+                  input_nodata_value=nodata_value,
                   resampling='cubic'
                  )
     
