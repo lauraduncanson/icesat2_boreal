@@ -226,7 +226,8 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=Tru
 
     img = reader(out_tmp_fn, bbox, tile_parts['geom_orig'].crs, tile_parts['geom_orig'].crs, height, width) # CURRENT WORKING
     ####img = reader(out_tmp_fn, bbox, tile_parts['geom_4326'].crs, tile_parts['geom_orig'].crs, height, width)     # CURRENT TESTING
-    topo_stack = img.as_masked().data
+    #topo_stack = img.as_masked().data
+    topo_stack = img.array
 
     ######
     # 2nd write (to a COG), this time the data is already clipped and reprojected - so neither of those should be needed - but they are when align=true.
@@ -249,7 +250,8 @@ def make_topo_stack_cog(dem_fn, topo_stack_cog_fn, tile_parts, res, do_scale=Tru
     with rio.open(topo_stack_cog_fn, 'w+', **dst_profile) as final_cog:
         final_cog.descriptions = tuple(topo_stack_names)
         final_cog.write(topo_stack)
-        cog_translate(final_cog, topo_stack_cog_fn, dst_profile, overview_resampling='cubic')
+        #cog_translate(final_cog, topo_stack_cog_fn, dst_profile, overview_resampling='cubic')
+    cog_translate(topo_stack_cog_fn, topo_stack_cog_fn, dst_profile, overview_resampling='cubic')
     print('Image written to disk:\t\t', topo_stack_cog_fn)
 
     return(topo_stack, topo_stack_names)

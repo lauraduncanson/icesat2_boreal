@@ -1,6 +1,6 @@
 algorithm_description: run the build_stack.py script
 algorithm_name: run_build_stack
-algorithm_version: build_stack_v2023_2
+algorithm_version: build_stack_v3
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 10GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.0

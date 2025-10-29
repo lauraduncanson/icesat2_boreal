@@ -176,7 +176,7 @@ def mask_cog(list_of_fn_pairs: list, mask_val_list: list, overwrite=False):
     with rasterio.open(mask_fn) as mask_ds:
     
         mask_arr = mask_ds.read(1)
-        print(f"\mask_arr shape: {mask_arr.shape}")
+        print(f"\nmask_arr shape: {mask_arr.shape}")
     
     # Apply the mask to each band
     for band_index in range(src_arr.shape[0]):
@@ -433,7 +433,7 @@ def build_stack_(stack_tile_fn: str, in_tile_id_col: str, stack_tile_id: str, ti
     # Writing tmp elevation COG so that we can read it in the way we need to (as a gdal.Dataset)
     #
     if (not os.path.isdir(tmp_out_path)): os.mkdir(tmp_out_path)
-    tileid = '_'.join([covar_src_name, str(stack_tile_id)])
+    tileid = '_'.join([covar_src_name, f'{stack_tile_id:07}'])
     ext = "cog.tif" 
     if not topo_off:
         cog_fn = os.path.join(tmp_out_path, "_".join([tileid, ext]))
