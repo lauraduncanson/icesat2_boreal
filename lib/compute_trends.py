@@ -11,6 +11,7 @@ from multiprocessing import Pool, cpu_count
 import warnings
 warnings.filterwarnings('ignore')
 from CovariateUtils import write_cog
+from compute_trends_masklib import *
 
 # # Bayesian imports
 # import pymc as pm
@@ -467,10 +468,15 @@ def process_chunk(args):
     return results
 
 def stack_rasters_and_compute_trend(value_raster_files, date_raster_files, 
+                                    landcover_path, topo_path,
+                                    conservative_masking=True, 
                                                    band_num=1, output_file=None, n_processes=None, 
-                                                   chunk_size=500, do_ols=False, nodata_value=-9999):
+                                                   chunk_size=500, do_ols=False, nodata_value=-9999,
+                                    **mask_params
+                                    ):
     """
     Stack multiple rasters with corresponding date info and compute trends: OLS or Theil-Sen statistics
+        - updated to include comprehensive masking to reduce low biomass areas with strong trends 
     
     Parameters:
     value_raster_files: list of paths to value rasters (band 1 will be used)
@@ -478,6 +484,21 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
     output_file: base name for output files
     n_processes: number of processes for parallel computation
     chunk_size: size of processing chunks
+    nodata_value: ndv to be identified and masked out
+    landcover_path : str
+        Path to land cover raster file
+    topo_path : str
+        Path to topography raster file
+    conservative_masking : bool
+        Whether to apply the comprehensive masking
+    **mask_params : dict
+        Additional parameters for masking, can include:
+        - biomass_threshold (default: 10)
+        - trend_threshold_lo (default: 3)
+        - trend_threshold_hi (default: 8)
+        - high_latitude_threshold (default: 60)
+        - slope_threshold (default: 5)
+        - window_size (default: 11)
     """
     
     if n_processes is None:
@@ -516,6 +537,26 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
         
         # Read date information
         date_stack[i] = read_date_info(date_file)
+
+    # Apply conservative masking if requested
+    if conservative_masking:
+        # Read auxiliary data
+        landcover, lc_transform, lc_crs = read_raster_with_profile(landcover_path, band=1)
+        slope = read_raster(topo_path, band=2)
+        
+        # Get latitude grid using the landcover raster's geospatial info
+        latitude = get_latitude_grid(landcover.shape, lc_transform, lc_crs)
+        
+        # Create comprehensive mask
+        keep_mask = create_comprehensive_mask(
+            value_stack, landcover, slope, latitude, **mask_params
+        )
+        
+        # Apply mask to both values and dates
+        value_stack = np.where(keep_mask[None, :, :], value_stack, np.nan)
+        date_stack = np.where(keep_mask[None, :, :], date_stack, np.nan)
+    else:
+        keep_mask = np.ones(value_stack.shape[1:], dtype=bool)
     
     print("Preparing data for parallel processing...")
     
@@ -731,502 +772,6 @@ def create_summary_plots(output_arrays, output_file=None, SHOW_PLOT=False):
     
     if SHOW_PLOT:
         plt.show()
-    
-# ##############
-# ############ Bayesian
-# ##############
-
-
-# def bayesian_trend_analysis(values, dates, n_samples=1000, target_accept=0.9):
-#     """
-#     Perform Bayesian linear trend analysis
-    
-#     Parameters:
-#     values: array of observed values
-#     dates: array of corresponding dates
-#     n_samples: number of MCMC samples
-#     target_accept: target acceptance rate for NUTS sampler
-    
-#     Returns:
-#     dict with posterior statistics
-#     """
-#     results = {
-#         'bayes_slope_mean': np.nan,
-#         'bayes_slope_std': np.nan,
-#         'bayes_slope_hdi_low': np.nan,
-#         'bayes_slope_hdi_high': np.nan,
-#         'bayes_intercept_mean': np.nan,
-#         'bayes_intercept_std': np.nan,
-#         'bayes_sigma_mean': np.nan,
-#         'bayes_r_hat': np.nan,
-#         'bayes_ess': np.nan,
-#         'bayes_prob_positive': np.nan,
-#         'bayes_prob_negative': np.nan
-#     }
-    
-#     try:
-#         # Standardize dates for numerical stability
-#         dates_std = (dates - np.mean(dates)) / np.std(dates)
-#         values_std = (values - np.mean(values)) / np.std(values)
-        
-#         with pm.Model() as model:
-#             # Priors
-#             slope = pm.Normal('slope', mu=0, sigma=2)
-#             intercept = pm.Normal('intercept', mu=0, sigma=2)
-#             sigma = pm.HalfNormal('sigma', sigma=1)
-            
-#             # Linear model
-#             mu = intercept + slope * dates_std
-            
-#             # Likelihood
-#             y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=values_std)
-            
-#             # Sample from posterior
-#             trace = pm.sample(
-#                 draws=n_samples,
-#                 tune=max(500, n_samples//2),
-#                 target_accept=target_accept,
-#                 return_inferencedata=True,
-#                 progressbar=False,
-#                 random_seed=42
-#             )
-        
-#         # Extract posterior samples
-#         posterior = trace.posterior
-#         slope_samples = posterior['slope'].values.flatten()
-#         intercept_samples = posterior['intercept'].values.flatten()
-#         sigma_samples = posterior['sigma'].values.flatten()
-        
-#         # Convert slope back to original scale
-#         slope_original_scale = slope_samples * (np.std(values) / np.std(dates))
-#         intercept_original_scale = (intercept_samples * np.std(values) + 
-#                                   np.mean(values) - 
-#                                   slope_original_scale * np.mean(dates))
-        
-#         # Compute statistics
-#         results['bayes_slope_mean'] = np.mean(slope_original_scale)
-#         results['bayes_slope_std'] = np.std(slope_original_scale)
-        
-#         # HDI (Highest Density Interval) - 95% credible interval
-#         slope_hdi = az.hdi(slope_original_scale, hdi_prob=0.95)
-#         results['bayes_slope_hdi_low'] = slope_hdi[0]
-#         results['bayes_slope_hdi_high'] = slope_hdi[1]
-        
-#         results['bayes_intercept_mean'] = np.mean(intercept_original_scale)
-#         results['bayes_intercept_std'] = np.std(intercept_original_scale)
-#         results['bayes_sigma_mean'] = np.mean(sigma_samples) * np.std(values)
-        
-#         # Diagnostics
-#         summary = az.summary(trace, var_names=['slope'])
-#         if not summary.empty:
-#             results['bayes_r_hat'] = summary.loc['slope', 'r_hat']
-#             results['bayes_ess'] = summary.loc['slope', 'ess_bulk']
-        
-#         # Probability of positive/negative trends
-#         results['bayes_prob_positive'] = np.mean(slope_original_scale > 0)
-#         results['bayes_prob_negative'] = np.mean(slope_original_scale < 0)
-        
-#     except Exception as e:
-#         # If Bayesian analysis fails, return NaN values
-#         print(f"Bayesian analysis failed: {str(e)}")
-#         pass
-    
-#     return results
-
-# def robust_bayesian_trend_analysis(values, dates, n_samples=500):
-#     """
-#     Robust Bayesian trend analysis using Student's t-distribution
-#     More robust to outliers than normal distribution
-#     """
-#     results = {
-#         'robust_bayes_slope_mean': np.nan,
-#         'robust_bayes_slope_std': np.nan,
-#         'robust_bayes_slope_hdi_low': np.nan,
-#         'robust_bayes_slope_hdi_high': np.nan,
-#         'robust_bayes_nu_mean': np.nan,  # degrees of freedom parameter
-#         'robust_bayes_prob_positive': np.nan
-#     }
-    
-#     try:
-#         # Standardize for numerical stability
-#         dates_std = (dates - np.mean(dates)) / np.std(dates)
-#         values_std = (values - np.mean(values)) / np.std(values)
-        
-#         with pm.Model() as robust_model:
-#             # Priors
-#             slope = pm.Normal('slope', mu=0, sigma=2)
-#             intercept = pm.Normal('intercept', mu=0, sigma=2)
-#             sigma = pm.HalfNormal('sigma', sigma=1)
-#             # Degrees of freedom for t-distribution (lower = more robust to outliers)
-#             nu = pm.Exponential('nu', lam=1/10) + 1
-            
-#             # Linear model
-#             mu = intercept + slope * dates_std
-            
-#             # Robust likelihood using Student's t-distribution
-#             y_obs = pm.StudentT('y_obs', nu=nu, mu=mu, sigma=sigma, observed=values_std)
-            
-#             # Sample
-#             trace = pm.sample(
-#                 draws=n_samples,
-#                 tune=max(500, n_samples//2),
-#                 target_accept=0.85,
-#                 return_inferencedata=True,
-#                 progressbar=False,
-#                 random_seed=42
-#             )
-        
-#         # Extract and transform results
-#         posterior = trace.posterior
-#         slope_samples = posterior['slope'].values.flatten()
-#         nu_samples = posterior['nu'].values.flatten()
-        
-#         # Convert to original scale
-#         slope_original_scale = slope_samples * (np.std(values) / np.std(dates))
-        
-#         results['robust_bayes_slope_mean'] = np.mean(slope_original_scale)
-#         results['robust_bayes_slope_std'] = np.std(slope_original_scale)
-        
-#         slope_hdi = az.hdi(slope_original_scale, hdi_prob=0.95)
-#         results['robust_bayes_slope_hdi_low'] = slope_hdi[0]
-#         results['robust_bayes_slope_hdi_high'] = slope_hdi[1]
-        
-#         results['robust_bayes_nu_mean'] = np.mean(nu_samples)
-#         results['robust_bayes_prob_positive'] = np.mean(slope_original_scale > 0)
-        
-#     except Exception as e:
-#         print(f"Robust Bayesian analysis failed: {str(e)}")
-#         pass
-    
-#     return results
-
-# def compute_comprehensive_pixel_statistics(args):
-#     """
-#     Enhanced version with Bayesian methods
-#     """
-#     pixel_values, pixel_dates, pixel_idx, use_bayesian, use_robust_bayesian = args
-    
-#     # Initialize results dictionary with all methods
-#     results = {
-#         # Classical methods
-#         'trendslope': np.nan,
-#         'trendintercept': np.nan,
-#         'r2': np.nan,
-#         'kendall_tau': np.nan,
-#         'kendall_pvalue': np.nan,
-#         'n_obs': 0,
-#         'trendslope_lo': np.nan,
-#         'trendslope_hi': np.nan,
-#         'pixel_idx': pixel_idx,
-        
-#         # Bayesian methods
-#         'bayes_slope_mean': np.nan,
-#         'bayes_slope_std': np.nan,
-#         'bayes_slope_hdi_low': np.nan,
-#         'bayes_slope_hdi_high': np.nan,
-#         'bayes_intercept_mean': np.nan,
-#         'bayes_intercept_std': np.nan,
-#         'bayes_sigma_mean': np.nan,
-#         'bayes_r_hat': np.nan,
-#         'bayes_ess': np.nan,
-#         'bayes_prob_positive': np.nan,
-#         'bayes_prob_negative': np.nan,
-        
-#         # Robust Bayesian methods
-#         'robust_bayes_slope_mean': np.nan,
-#         'robust_bayes_slope_std': np.nan,
-#         'robust_bayes_slope_hdi_low': np.nan,
-#         'robust_bayes_slope_hdi_high': np.nan,
-#         'robust_bayes_nu_mean': np.nan,
-#         'robust_bayes_prob_positive': np.nan
-#     }
-    
-#     # Remove invalid data points
-#     valid_mask = ~(np.isnan(pixel_values) | np.isnan(pixel_dates) | 
-#                    (pixel_values == -9999) | (pixel_dates == -9999))
-    
-#     if np.sum(valid_mask) < 3:  # Need at least 3 points for trend
-#         return results
-    
-#     valid_values = pixel_values[valid_mask]
-#     valid_dates = pixel_dates[valid_mask]
-#     results['n_obs'] = len(valid_values)
-    
-#     # Classical methods (Theil-Sen, Kendall's tau, etc.)
-#     try:
-#         # Theil-Sen trend estimation
-#         trendslope, trendintercept, trendslope_lo, trendslope_hi = theilslopes(valid_values, valid_dates)
-#         results['trendslope'] = trendslope
-#         results['trendintercept'] = trendintercept
-#         results['trendslope_lo'] = trendslope_lo
-#         results['trendslope_hi'] = trendslope_hi
-        
-#         # Kendall's tau test
-#         tau, kendall_p = kendalltau(valid_dates, valid_values)
-#         results['kendall_tau'] = tau
-#         results['kendall_pvalue'] = kendall_p
-        
-#         # R-squared calculation
-#         predicted_values = slope * valid_dates + intercept
-#         if len(valid_values) > 1:
-#             correlation, _ = pearsonr(valid_values, predicted_values)
-#             results['r2'] = correlation ** 2 if not np.isnan(correlation) else np.nan
-            
-#     except Exception as e:
-#         pass
-    
-#     # Bayesian methods
-#     if use_bayesian and len(valid_values) >= 4:  # Need more points for Bayesian
-#         try:
-#             bayes_results = bayesian_trend_analysis(valid_values, valid_dates)
-#             results.update(bayes_results)
-#         except Exception as e:
-#             pass
-    
-#     # Robust Bayesian methods
-#     if use_robust_bayesian and len(valid_values) >= 4:
-#         try:
-#             robust_bayes_results = robust_bayesian_trend_analysis(valid_values, valid_dates)
-#             results.update(robust_bayes_results)
-#         except Exception as e:
-#             pass
-    
-#     return results
-
-# def process_chunk_with_bayesian(args):
-#     """
-#     Enhanced chunk processing with Bayesian methods
-#     """
-#     (chunk_data, chunk_dates, start_row, start_col, chunk_rows, chunk_cols, 
-#      use_bayesian, use_robust_bayesian) = args
-    
-#     results = []
-#     for i in range(chunk_rows):
-#         for j in range(chunk_cols):
-#             pixel_values = chunk_data[:, i, j]
-#             pixel_dates = chunk_dates[:, i, j]
-#             pixel_idx = ((start_row + i), (start_col + j))
-            
-#             result = compute_comprehensive_pixel_statistics(
-#                 (pixel_values, pixel_dates, pixel_idx, use_bayesian, use_robust_bayesian)
-#             )
-#             results.append(result)
-    
-#     return results
-
-# def stack_rasters_and_compute_bayesian_theilsen(value_raster_files, date_raster_files, 
-#                                                output_file=None, n_processes=None, 
-#                                                chunk_size=200, use_bayesian=True, 
-#                                                use_robust_bayesian=True):
-#     """
-#     Enhanced version with Bayesian trend computation
-    
-#     Parameters:
-#     value_raster_files: list of paths to value rasters
-#     date_raster_files: list of paths to corresponding date rasters
-#     output_file: base name for output files
-#     n_processes: number of processes for parallel computation
-#     chunk_size: size of processing chunks (reduced for Bayesian methods)
-#     use_bayesian: whether to compute standard Bayesian trends
-#     use_robust_bayesian: whether to compute robust Bayesian trends
-#     """
-    
-#     if n_processes is None:
-#         n_processes = min(20, cpu_count())  # Reduced for Bayesian computation
-    
-#     print(f"Using {n_processes} processes for computation")
-#     print(f"Bayesian methods enabled: Standard={use_bayesian}, Robust={use_robust_bayesian}")
-    
-#     # [Previous data loading code remains the same...]
-#     # Validate input
-#     if len(value_raster_files) != len(date_raster_files):
-#         raise ValueError("Number of value and date rasters must match")
-    
-#     n_rasters = len(value_raster_files)
-#     print(f"Processing {n_rasters} raster pairs...")
-    
-#     # Read the first raster to get metadata
-#     with rasterio.open(value_raster_files[0]) as src:
-#         profile = src.profile
-#         height, width = src.height, src.width
-#         transform = src.transform
-#         crs = src.crs
-    
-#     print(f"Raster dimensions: {height} x {width}")
-    
-#     # Initialize arrays for all data
-#     value_stack = np.zeros((n_rasters, height, width), dtype=np.float32)
-#     date_stack = np.zeros((n_rasters, height, width), dtype=np.float32)
-    
-#     # Read all rasters
-#     print("Reading value and date rasters...")
-#     for i, (value_file, date_file) in enumerate(zip(value_raster_files, date_raster_files)):
-#         print(f"  Reading pair {i+1}/{n_rasters}")
-        
-#         with rasterio.open(value_file) as src:
-#             value_stack[i] = src.read(1)
-        
-#         date_stack[i] = read_date_info(date_file)
-    
-#     print("Preparing data for parallel processing...")
-    
-#     # Enhanced output arrays including Bayesian results
-#     output_arrays = {
-#         # Classical methods
-#         'trendslope': np.full((height, width), np.nan, dtype=np.float32),
-#         'trendintercept': np.full((height, width), np.nan, dtype=np.float32),
-#         'r2': np.full((height, width), np.nan, dtype=np.float32),
-#         'kendall_tau': np.full((height, width), np.nan, dtype=np.float32),
-#         'kendall_pvalue': np.full((height, width), np.nan, dtype=np.float32),
-#         'n_obs': np.full((height, width), 0, dtype=np.int16),
-#         'trendslope_lo': np.full((height, width), np.nan, dtype=np.float32),
-#         'trendslope_hi': np.full((height, width), np.nan, dtype=np.float32),
-#     }
-    
-#     # Add Bayesian arrays if requested
-#     if use_bayesian:
-#         bayesian_arrays = {
-#             'bayes_slope_mean': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_slope_std': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_slope_hdi_low': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_slope_hdi_high': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_intercept_mean': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_sigma_mean': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_r_hat': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_ess': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_prob_positive': np.full((height, width), np.nan, dtype=np.float32),
-#             'bayes_prob_negative': np.full((height, width), np.nan, dtype=np.float32),
-#         }
-#         output_arrays.update(bayesian_arrays)
-    
-#     if use_robust_bayesian:
-#         robust_bayesian_arrays = {
-#             'robust_bayes_slope_mean': np.full((height, width), np.nan, dtype=np.float32),
-#             'robust_bayes_slope_std': np.full((height, width), np.nan, dtype=np.float32),
-#             'robust_bayes_slope_hdi_low': np.full((height, width), np.nan, dtype=np.float32),
-#             'robust_bayes_slope_hdi_high': np.full((height, width), np.nan, dtype=np.float32),
-#             'robust_bayes_nu_mean': np.full((height, width), np.nan, dtype=np.float32),
-#             'robust_bayes_prob_positive': np.full((height, width), np.nan, dtype=np.float32),
-#         }
-#         output_arrays.update(robust_bayesian_arrays)
-    
-#     # Process in chunks
-#     chunk_args = []
-#     total_chunks = 0
-    
-#     for start_row in range(0, height, chunk_size):
-#         end_row = min(start_row + chunk_size, height)
-#         chunk_rows = end_row - start_row
-        
-#         for start_col in range(0, width, chunk_size):
-#             end_col = min(start_col + chunk_size, width)
-#             chunk_cols = end_col - start_col
-            
-#             chunk_values = value_stack[:, start_row:end_row, start_col:end_col]
-#             chunk_dates = date_stack[:, start_row:end_row, start_col:end_col]
-            
-#             chunk_args.append((chunk_values, chunk_dates, start_row, start_col, 
-#                              chunk_rows, chunk_cols, use_bayesian, use_robust_bayesian))
-#             total_chunks += 1
-    
-#     print(f"Processing {total_chunks} chunks in parallel...")
-    
-#     # Process chunks in parallel
-#     with Pool(processes=n_processes) as pool:
-#         chunk_results = []
-#         for i, result in enumerate(pool.imap(process_chunk_with_bayesian, chunk_args)):
-#             chunk_results.append(result)
-#             if (i + 1) % max(1, total_chunks // 10) == 0:
-#                 print(f"  Completed {i+1}/{total_chunks} chunks ({100*(i+1)/total_chunks:.1f}%)")
-    
-#     # Reassemble results (same as before but with more arrays)
-#     print("Assembling results...")
-#     chunk_idx = 0
-#     for start_row in range(0, height, chunk_size):
-#         end_row = min(start_row + chunk_size, height)
-        
-#         for start_col in range(0, width, chunk_size):
-#             end_col = min(start_col + chunk_size, width)
-            
-#             chunk_result = chunk_results[chunk_idx]
-#             result_idx = 0
-            
-#             for i in range(start_row, end_row):
-#                 for j in range(start_col, end_col):
-#                     result = chunk_result[result_idx]
-                    
-#                     for key in output_arrays.keys():
-#                         if key in result:
-#                             output_arrays[key][i, j] = result[key]
-                    
-#                     result_idx += 1
-            
-#             chunk_idx += 1
-    
-#     # Save results
-#     if output_file:
-#         print("Saving results...")
-        
-#         float_profile = profile.copy()
-#         float_profile.update(dtype=rasterio.float32, count=1, compress='lzw')
-        
-#         int_profile = profile.copy()
-#         int_profile.update(dtype=rasterio.int16, count=1, compress='lzw')
-        
-#         output_files = {}
-#         for key, array in output_arrays.items():
-#             output_filename = f"{output_file}_{key}.tif"
-#             current_profile = int_profile if key == 'n_obs' else float_profile
-            
-#             with rasterio.open(output_filename, 'w', **current_profile) as dst:
-#                 dst.write(array, 1)
-            
-#             output_files[key] = output_filename
-#             print(f"  Saved {key} to: {output_filename}")
-    
-#     # Enhanced summary statistics
-#     print("\n" + "="*60)
-#     print("COMPREHENSIVE TREND ANALYSIS SUMMARY")
-#     print("="*60)
-    
-#     # Classical methods summary
-#     print("\nCLASSICAL METHODS:")
-#     for key in ['trendslope', 'kendall_pvalue', 'r2', 'kendall_tau', 'n_obs']:
-#         if key in output_arrays:
-#             array = output_arrays[key]
-#             if key == 'n_obs':
-#                 valid_data = array[array > 0]
-#             else:
-#                 valid_data = array[~np.isnan(array)]
-            
-#             if len(valid_data) > 0:
-#                 print(f"  {key:15s}: mean={np.mean(valid_data):.6f}, "
-#                       f"median={np.median(valid_data):.6f}, "
-#                       f"std={np.std(valid_data):.6f}")
-    
-#     # Bayesian methods summary
-#     if use_bayesian:
-#         print("\nBAYESIAN METHODS:")
-#         for key in ['bayes_slope_mean', 'bayes_slope_std', 'bayes_prob_positive', 'bayes_r_hat']:
-#             if key in output_arrays:
-#                 array = output_arrays[key]
-#                 valid_data = array[~np.isnan(array)]
-#                 if len(valid_data) > 0:
-#                     print(f"  {key:20s}: mean={np.mean(valid_data):.6f}, "
-#                           f"median={np.median(valid_data):.6f}")
-    
-#     # Robust Bayesian methods summary
-#     if use_robust_bayesian:
-#         print("\nROBUST BAYESIAN METHODS:")
-#         for key in ['robust_bayes_slope_mean', 'robust_bayes_nu_mean', 'robust_bayes_prob_positive']:
-#             if key in output_arrays:
-#                 array = output_arrays[key]
-#                 valid_data = array[~np.isnan(array)]
-#                 if len(valid_data) > 0:
-#                     print(f"  {key:25s}: mean={np.mean(valid_data):.6f}, "
-#                           f"median={np.median(valid_data):.6f}")
-    
-#     return output_arrays, output_files if output_file else None
 
 ##########
 ########## Kendall Trends
@@ -1740,8 +1285,10 @@ def wrapper_kendall_tau_analysis(DICT_run, DATE_RASTER_FILES, N_PROCESSES, CHUNK
     
     # Define your raster files
     VALUE_RASTER_FILES = DICT_run['value_raster_files'] 
+    MASK_RASTER_FILES = DICT_run['mask_raster_files'] # here, 0 pos must be LC, 1 pos must be TOPO
     OUT_FILE = DICT_run['out_file']
     OUTDIR = DICT_run['outdir']
+    
     #!mkdir -p $outdir
 
     # Run the main trend analysis
@@ -1751,7 +1298,11 @@ def wrapper_kendall_tau_analysis(DICT_run, DATE_RASTER_FILES, N_PROCESSES, CHUNK
         output_file=f"{OUTDIR}/{OUT_FILE}",
         n_processes=N_PROCESSES,
         chunk_size=CHUNK_SIZE,
-        do_ols=DO_OLS
+        do_ols=DO_OLS,
+        landcover_path=MASK_RASTER_FILES[0], 
+        topo_path=MASK_RASTER_FILES[1],
+        conservative_masking=True, 
+        **DICT_run['mask_params']
     )
     
     if DO_OLS: 
@@ -1818,6 +1369,12 @@ Examples:
         nargs='+',
         help='List of date raster files corresponding to value rasters'
     )
+
+    parser.add_argument(
+        '--mask-rasters', '-m', 
+        nargs='+',
+        help='List of mask raster files with sequence [LC, topo] corresponding to value rasters'
+    )
     
     parser.add_argument(
         '--config', '-c',
@@ -1838,6 +1395,44 @@ Examples:
         type=str,
         default='./results',
         help='Output directory (default: ./results)'
+    )
+    
+    # Trend masking parameters
+    parser.add_argument(
+        '--biomass-threshold',
+        type=float,
+        default=10,
+        help='Biomass threshold for low biomass identification'
+    )
+    parser.add_argument(
+        '--trend-threshold-lo',
+        type=int,
+        default=3,
+        help='Kendall tau threshold for moderate declining trends (default 3)'
+    )
+    parser.add_argument(
+        '--trend-threshold-hi',
+        type=int,
+        default=8,
+        help='Kendall tau threshold for strong declining trends (default 8)'
+    )
+    parser.add_argument(
+        '--high-latitude-threshold',
+        type=float,
+        default=60,
+        help='Latitude threshold (degrees N)'
+    )
+    parser.add_argument(
+        '--slope-threshold',
+        type=int,
+        default=5,
+        help='Slope threshold (degrees) for moss/lichen masking below high lat threshold'
+    )
+    parser.add_argument(
+        '--window-size',
+        type=int,
+        default=11,
+        help='Window size for spatial context filtering'
     )
     
     # Analysis parameters
@@ -1941,103 +1536,103 @@ def validate_s3_credentials():
     except Exception as e:
         raise Exception(f"Error connecting to S3: {e}")
 
-def validate_inputs(args):
-    """Validate input arguments with S3 support."""
-    errors = []
-    s3_client = None
+# def validate_inputs(args):
+#     """Validate input arguments with S3 support."""
+#     errors = []
+#     s3_client = None
     
-    # Check if either config or direct inputs are provided
-    if not args.config and not args.value_rasters:
-        errors.append("Either --config or --value-rasters must be provided")
+#     # Check if either config or direct inputs are provided
+#     if not args.config and not args.value_rasters:
+#         errors.append("Either --config or --value-rasters must be provided")
     
-    # If using direct inputs, check required arguments
-    if args.value_rasters:
-        if not args.date_rasters:
-            errors.append("--date-rasters required when using --value-rasters")
-        elif len(args.value_rasters) != len(args.date_rasters):
-            errors.append("Number of value rasters must match number of date rasters")
+#     # If using direct inputs, check required arguments
+#     if args.value_rasters:
+#         if not args.date_rasters:
+#             errors.append("--date-rasters required when using --value-rasters")
+#         elif len(args.value_rasters) != len(args.date_rasters):
+#             errors.append("Number of value rasters must match number of date rasters")
     
-    # Check if S3 credentials are needed
-    s3_paths_exist = False
-    if args.value_rasters:
-        s3_paths_exist = any(is_s3_path(path) for path in args.value_rasters)
-    if args.date_rasters:
-        s3_paths_exist = s3_paths_exist or any(is_s3_path(path) for path in args.date_rasters)
-    if args.config and is_s3_path(args.config):
-        s3_paths_exist = True
+#     # Check if S3 credentials are needed
+#     s3_paths_exist = False
+#     if args.value_rasters:
+#         s3_paths_exist = any(is_s3_path(path) for path in args.value_rasters)
+#     if args.date_rasters:
+#         s3_paths_exist = s3_paths_exist or any(is_s3_path(path) for path in args.date_rasters)
+#     if args.config and is_s3_path(args.config):
+#         s3_paths_exist = True
     
-    # Initialize S3 client if needed
-    if s3_paths_exist:
-        try:
-            s3_client = validate_s3_credentials()
-        except Exception as e:
-            errors.append(str(e))
-            # Return early if S3 credentials are invalid
-            if errors:
-                print("Input validation errors:")
-                for error in errors:
-                    print(f"  - {error}")
-                sys.exit(1)
+#     # Initialize S3 client if needed
+#     if s3_paths_exist:
+#         try:
+#             s3_client = validate_s3_credentials()
+#         except Exception as e:
+#             errors.append(str(e))
+#             # Return early if S3 credentials are invalid
+#             if errors:
+#                 print("Input validation errors:")
+#                 for error in errors:
+#                     print(f"  - {error}")
+#                 sys.exit(1)
     
-    # Check file existence for value rasters
-    if args.value_rasters:
-        for raster in args.value_rasters:
-            if is_s3_path(raster):
-                try:
-                    bucket, key = parse_s3_path(raster)
-                    if not check_s3_object_exists(s3_client, bucket, key):
-                        errors.append(f"S3 object not found: {raster}")
-                except Exception as e:
-                    errors.append(f"Error checking S3 object {raster}: {e}")
-            else:
-                if not os.path.exists(raster):
-                    errors.append(f"Local file not found: {raster}")
+#     # Check file existence for value rasters
+#     if args.value_rasters:
+#         for raster in args.value_rasters:
+#             if is_s3_path(raster):
+#                 try:
+#                     bucket, key = parse_s3_path(raster)
+#                     if not check_s3_object_exists(s3_client, bucket, key):
+#                         errors.append(f"S3 object not found: {raster}")
+#                 except Exception as e:
+#                     errors.append(f"Error checking S3 object {raster}: {e}")
+#             else:
+#                 if not os.path.exists(raster):
+#                     errors.append(f"Local file not found: {raster}")
     
-    # Check file existence for date rasters
-    if args.date_rasters:
-        for raster in args.date_rasters:
-            if is_s3_path(raster):
-                try:
-                    bucket, key = parse_s3_path(raster)
-                    if not check_s3_object_exists(s3_client, bucket, key):
-                        errors.append(f"S3 object not found: {raster}")
-                except Exception as e:
-                    errors.append(f"Error checking S3 object {raster}: {e}")
-            else:
-                if not os.path.exists(raster):
-                    errors.append(f"Local file not found: {raster}")
+#     # Check file existence for date rasters
+#     if args.date_rasters:
+#         for raster in args.date_rasters:
+#             if is_s3_path(raster):
+#                 try:
+#                     bucket, key = parse_s3_path(raster)
+#                     if not check_s3_object_exists(s3_client, bucket, key):
+#                         errors.append(f"S3 object not found: {raster}")
+#                 except Exception as e:
+#                     errors.append(f"Error checking S3 object {raster}: {e}")
+#             else:
+#                 if not os.path.exists(raster):
+#                     errors.append(f"Local file not found: {raster}")
     
-    # Check config file existence
-    if args.config:
-        if is_s3_path(args.config):
-            try:
-                bucket, key = parse_s3_path(args.config)
-                if not check_s3_object_exists(s3_client, bucket, key):
-                    errors.append(f"S3 config file not found: {args.config}")
-            except Exception as e:
-                errors.append(f"Error checking S3 config file {args.config}: {e}")
-        else:
-            if not os.path.exists(args.config):
-                errors.append(f"Local config file not found: {args.config}")
+#     # Check config file existence
+#     if args.config:
+#         if is_s3_path(args.config):
+#             try:
+#                 bucket, key = parse_s3_path(args.config)
+#                 if not check_s3_object_exists(s3_client, bucket, key):
+#                     errors.append(f"S3 config file not found: {args.config}")
+#             except Exception as e:
+#                 errors.append(f"Error checking S3 config file {args.config}: {e}")
+#         else:
+#             if not os.path.exists(args.config):
+#                 errors.append(f"Local config file not found: {args.config}")
     
-    # Check parameter ranges
-    if not 0 < args.alpha < 1:
-        errors.append("Alpha must be between 0 and 1")
+#     # Check parameter ranges
+#     if not 0 < args.alpha < 1:
+#         errors.append("Alpha must be between 0 and 1")
     
-    if args.n_processes < 1:
-        errors.append("Number of processes must be >= 1")
+#     if args.n_processes < 1:
+#         errors.append("Number of processes must be >= 1")
     
-    if args.chunk_size < 1:
-        errors.append("Chunk size must be >= 1")
+#     if args.chunk_size < 1:
+#         errors.append("Chunk size must be >= 1")
     
-    if not 0 < args.min_break_position < 1:
-        errors.append("Min break position must be between 0 and 1")
+#     if not 0 < args.min_break_position < 1:
+#         errors.append("Min break position must be between 0 and 1")
     
-    if errors:
-        print("Input validation errors:")
-        for error in errors:
-            print(f"  - {error}")
-        sys.exit(1)
+#     if errors:
+#         print("Input validation errors:")
+#         for error in errors:
+#             print(f"  - {error}")
+#         sys.exit(1)
 
 # Optional: Update load_config function to support S3
 def load_config(config_file):
@@ -2067,6 +1662,7 @@ def prepare_run_dict(args, config=None):
         # Use config file parameters
         DICT_run = {
             'value_raster_files': config.get('value_raster_files', []),
+            'mask_raster_files': config.get('mask_raster_files', []),
             'out_file': config.get('out_file', args.output),
             'outdir': config.get('outdir', args.outdir)
         }
@@ -2081,10 +1677,19 @@ def prepare_run_dict(args, config=None):
         # Use command line arguments
         DICT_run = {
             'value_raster_files': args.value_rasters,
+            'mask_raster_files': args.mask_rasters,
             'out_file': args.output,
             'outdir': args.outdir
         }
-    
+        
+    DICT_run['mask_params'] = {
+        'biomass_threshold': args.biomass_threshold,
+        'trend_threshold_lo': args.trend_threshold_lo,
+        'trend_threshold_hi': args.trend_threshold_hi,
+        'high_latitude_threshold': args.high_latitude_threshold,
+        'slope_threshold': args.slope_threshold,
+        'window_size': args.window_size
+    }
     return DICT_run
 
 def main():
@@ -2121,6 +1726,7 @@ def main():
     os.makedirs(args.outdir, exist_ok=True)
     
     # Prepare parameters
+    #
     DICT_run = prepare_run_dict(args, config)
     
     # Prepare date raster files

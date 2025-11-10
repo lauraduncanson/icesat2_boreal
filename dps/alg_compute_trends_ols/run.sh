@@ -34,4 +34,7 @@ python ${basedir}/../../lib/compute_trends.py \
 --chunk-size ${6} \
 --do-ols \
 --no-breakpoints \
---verbose
+--verbose \
+--high-latitude-threshold ${7} \
+--biomass-threshold ${8} \
+--slope-threshold ${9}
