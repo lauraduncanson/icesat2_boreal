@@ -16,6 +16,10 @@ inputs:
     name: date-rasters
     required: true
   - default: ''
+    description: String (comma separated) indicating the specific rasters for the masking of pixels (LC and TOPO)
+    name: mask-rasters
+    required: true
+  - default: ''
     description: The output COG stem used for the trend and kendalclasses raster results
     name: output
     required: true

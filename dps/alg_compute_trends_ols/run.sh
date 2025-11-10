@@ -27,14 +27,15 @@ OUTPUTDIR="${PWD}/output"
 python ${basedir}/../../lib/compute_trends.py \
 --value-rasters ${1} \
 --date-rasters ${2} \
---output ${3} \
+--mask-rasters ${3} \
+--output ${4} \
 --outdir ${OUTPUTDIR} \
---alpha ${4} \
---n-processes ${5} \
---chunk-size ${6} \
+--alpha ${5} \
+--n-processes ${6} \
+--chunk-size ${7} \
 --do-ols \
 --no-breakpoints \
 --verbose \
---high-latitude-threshold ${7} \
---biomass-threshold ${8} \
---slope-threshold ${9}
+--high-latitude-threshold ${8} \
+--biomass-threshold ${9} \
+--slope-threshold ${10}
