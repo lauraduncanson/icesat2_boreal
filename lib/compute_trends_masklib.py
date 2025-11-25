@@ -89,6 +89,47 @@ def get_latitude_grid(shape, transform, crs):
     
     return latitude_grid
 
+def pad_array_to_shape(array, target_shape):
+    """
+    Pad array to target shape by replicating last row/column as needed.
+    
+    Parameters:
+    -----------
+    array : numpy array
+        Input array to pad
+    target_shape : tuple
+        Target shape (height, width)
+        
+    Returns:
+    --------
+    padded_array : numpy array
+        Array padded to target shape
+    """
+    import numpy as np
+    
+    current_shape = array.shape
+    target_height, target_width = target_shape
+    current_height, current_width = current_shape
+    
+    # Start with the original array
+    padded_array = array.copy()
+    
+    # Pad rows if needed (replicate last row)
+    if current_height < target_height:
+        rows_to_add = target_height - current_height
+        last_row = padded_array[-1:, :]  # Get last row, keep 2D
+        repeated_rows = np.repeat(last_row, rows_to_add, axis=0)
+        padded_array = np.vstack([padded_array, repeated_rows])
+    
+    # Pad columns if needed (replicate last column)
+    if current_width < target_width:
+        cols_to_add = target_width - current_width
+        last_col = padded_array[:, -1:]  # Get last column, keep 2D
+        repeated_cols = np.repeat(last_col, cols_to_add, axis=1)
+        padded_array = np.hstack([padded_array, repeated_cols])
+    
+    return padded_array
+
 def create_comprehensive_mask(agb_stack, landcover, slope, latitude,
                             biomass_threshold=10,
                             trend_threshold_lo=3,
@@ -129,6 +170,7 @@ def create_comprehensive_mask(agb_stack, landcover, slope, latitude,
     """
     
     # Mask 1: Multi-criteria filtering for moss/lichen pixels
+    print(f'Shapes or arrays:\n\tagb stack: {agb_stack.shape}\n\tlandcover: {landcover.shape}\n\tslope: {slope.shape}')
     multi_criteria_moss_lichen_mask = do_multi_criteria_moss_lichen_mask(
         agb_stack, landcover, slope, latitude, 
         biomass_threshold, high_latitude_threshold, slope_threshold
@@ -167,6 +209,27 @@ def do_multi_criteria_moss_lichen_mask(agb_stack, landcover, slope, latitude,
             1. masks out the true moss/lichen (likely no woody biomass recovery in progress)
             2. retains moss/lichen pixels often erroneously classifed over flat (slope < slope_threshold) and low biomass in low latitudes
     """
+    import numpy as np
+    
+    # Get reference shape from agb_stack (assuming it's 3D: time, height, width)
+    if agb_stack.ndim == 3:
+        ref_shape = agb_stack.shape[1:]  # Get height, width from (time, height, width)
+    else:
+        ref_shape = agb_stack.shape  # Assume 2D
+    
+    # Check and pad arrays to match reference shape if needed
+    if landcover.shape != ref_shape:
+        print(f"Padding landcover from {landcover.shape} to {ref_shape}")
+        landcover = pad_array_to_shape(landcover, ref_shape)
+    
+    if slope.shape != ref_shape:
+        print(f"Padding slope from {slope.shape} to {ref_shape}")
+        slope = pad_array_to_shape(slope, ref_shape)
+    
+    if latitude.shape != ref_shape:
+        print(f"Padding latitude from {latitude.shape} to {ref_shape}")
+        latitude = pad_array_to_shape(latitude, ref_shape)
+    
     # Low biomass identification
     mean_biomass = np.mean(agb_stack, axis=0)
     low_biomass = mean_biomass < biomass_threshold
