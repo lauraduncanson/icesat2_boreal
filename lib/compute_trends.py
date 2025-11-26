@@ -467,6 +467,68 @@ def process_chunk(args):
     
     return results
 
+def trim_array_to_shape(array, target_shape):
+    """
+    Trim array to target shape by removing excess rows/columns from the end.
+    
+    Parameters:
+    -----------
+    array : numpy array
+        Input array to trim
+    target_shape : tuple
+        Target shape (height, width)
+        
+    Returns:
+    --------
+    trimmed_array : numpy array
+        Array trimmed to target shape
+    """
+    import numpy as np
+    
+    current_shape = array.shape
+    target_height, target_width = target_shape
+    current_height, current_width = current_shape
+    
+    # Trim to target dimensions
+    trimmed_height = min(current_height, target_height)
+    trimmed_width = min(current_width, target_width)
+    
+    # Trim the array
+    trimmed_array = array[:trimmed_height, :trimmed_width]
+    
+    return trimmed_array
+
+def fix_array_shape(array, target_shape):
+    """
+    Fix array shape by either padding (if smaller) or trimming (if larger).
+    
+    Parameters:
+    -----------
+    array : numpy array
+        Input array to fix
+    target_shape : tuple
+        Target shape (height, width)
+        
+    Returns:
+    --------
+    fixed_array : numpy array
+        Array with corrected shape
+    """
+    current_shape = array.shape
+    
+    if current_shape == target_shape:
+        return array
+    
+    # If array is smaller in any dimension, pad it
+    if current_shape[0] < target_shape[0] or current_shape[1] < target_shape[1]:
+        array = pad_array_to_shape(array, target_shape)
+    
+    # If array is larger in any dimension, trim it
+    if array.shape[0] > target_shape[0] or array.shape[1] > target_shape[1]:
+        array = trim_array_to_shape(array, target_shape)
+    
+    return array
+
 def stack_rasters_and_compute_trend(value_raster_files, date_raster_files, 
                                     landcover_path, topo_path,
                                     conservative_masking=True, 
@@ -533,10 +595,24 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
         
         # Read value raster from band
         with rasterio.open(value_file) as src:
-            value_stack[i] = src.read(band_num)
+            value_data = src.read(band_num)
+            
+            # Fix shape if needed
+            if value_data.shape != (height, width):
+                print(f"  Fixing value raster shape from {value_data.shape} to {(height, width)}")
+                value_data = fix_array_shape(value_data, (height, width))
+            
+            value_stack[i] = value_data
         
         # Read date information
-        date_stack[i] = read_date_info(date_file)
+        date_data = read_date_info(date_file)
+        
+        # Fix shape if needed
+        if date_data.shape != (height, width):
+            print(f"  Fixing date raster shape from {date_data.shape} to {(height, width)}")
+            date_data = fix_array_shape(date_data, (height, width))
+        
+        date_stack[i] = date_data
 
     # Apply conservative masking if requested
     if conservative_masking:
@@ -544,8 +620,17 @@ def stack_rasters_and_compute_trend(value_raster_files, date_raster_files,
         landcover, lc_transform, lc_crs = read_raster_with_profile(landcover_path, band=1)
         slope = read_raster(topo_path, band=2)
         
-        # Get latitude grid using the landcover raster's geospatial info
-        latitude = get_latitude_grid(landcover.shape, lc_transform, lc_crs)
+        # Fix auxiliary data shapes if needed
+        if landcover.shape != (height, width):
+            print(f"Fixing landcover shape from {landcover.shape} to {(height, width)}")
+            landcover = fix_array_shape(landcover, (height, width))
+        
+        if slope.shape != (height, width):
+            print(f"Fixing slope shape from {slope.shape} to {(height, width)}")
+            slope = fix_array_shape(slope, (height, width))
+        
+        # Get latitude grid using the fixed landcover dimensions
+        latitude = get_latitude_grid((height, width), lc_transform, lc_crs)
         
         # Create comprehensive mask
         keep_mask = create_comprehensive_mask(
