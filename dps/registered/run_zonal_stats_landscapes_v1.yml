@@ -32,7 +32,7 @@ inputs:
     name: bands
     required: true
   - default: ''
-    description: Statistics to calculate: mean,std,min,max,count,sum,median,mode,nmad
+    description: Statistics to calculate
     name: statistics
     required: true
   - default: ''
