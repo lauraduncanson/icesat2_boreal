@@ -26,7 +26,7 @@ python ${basedir}/../../lib/zonal_stats_landscapes.py \
 --polygons ${1} \
 --polygon-id-col ${2} \
 --polygon-ids ${3} \
---output results.gpkg \
+--output  ${OUTPUTDIR}/results.gpkg \
 --mosaic-geojsons ${4} \
 --zs-col-prefix ${5} \
 --bands ${6} \
@@ -43,8 +43,8 @@ python ${basedir}/../../lib/zonal_stats_landscapes.py \
 --chunk-size ${17}
 
 python ${basedir}/../../lib/calculate_biomass_change.py \
---input results_polygon_summary.csv \
---output results_polygon_biomass_change.csv \
+--input  ${OUTPUTDIR}/results_polygon_summary.csv \
+--output  ${OUTPUTDIR}/results_polygon_biomass_change.csv \
 --year1-prefix ${18} \
 --year2-prefix ${19} \
 --simulations ${20}
