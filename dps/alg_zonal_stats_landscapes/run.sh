@@ -45,6 +45,7 @@ python ${basedir}/../../lib/zonal_stats_landscapes.py \
 python ${basedir}/../../lib/calculate_biomass_change.py \
 --input  ${OUTPUTDIR}/results_polygon_summary.csv \
 --output  ${OUTPUTDIR}/results_polygon_biomass_change.csv \
+--summary-output ${OUTPUTDIR}/results_change_summary.csv \
 --year1-prefix ${18} \
 --year2-prefix ${19} \
 --simulations ${20}
