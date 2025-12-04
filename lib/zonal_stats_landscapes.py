@@ -1659,8 +1659,9 @@ def create_polygon_summary(results_gdf: gpd.GeoDataFrame,
     # NEW: Print biomass summary if available
     biomass_cols = [col for col in summary_df.columns if 'biomass_pg' in col]
     if biomass_cols:
-        total_biomass = summary_df['total_biomass_pg'].sum() if 'total_biomass_pg' in summary_df.columns else 0
-        print(f"📊 Total biomass across all polygons: {total_biomass:.6f} Pg")
+        total_mean_biomass = summary_df['total_mean_biomass_pg'].sum() if 'total_mean_biomass_pg' in summary_df.columns else 0
+        total_std_biomass = summary_df['total_std_biomass_pg'].sum() if 'total_std_biomass_pg' in summary_df.columns else 0
+        print(f"📊 Total biomass across all polygons (mean +/- std): {total_mean_biomass:.6f} Pg +/- {total_std_biomass:.6f} Pg")
     
     return summary_df
 
@@ -1696,12 +1697,12 @@ def create_trend_age_summary(results_gdf: gpd.GeoDataFrame,
     biomass_prefixes = ['']  # For primary biomass (no prefix)
     
     # Find additional biomass datasets by looking for total_biomass_pg columns
-    biomass_cols = [col for col in results_gdf.columns if 'total_biomass_pg' in col]
+    biomass_cols = [col for col in results_gdf.columns if 'total_mean_biomass_pg' in col or 'total_std_biomass_pg' in col]
     for col in biomass_cols:
-        if col == 'total_biomass_pg':  # Skip primary biomass
+        if col == 'total_mean_biomass_pg' or col == 'total_std_biomass_pg':  # Skip primary biomass
             continue
         # Extract prefix (e.g., "deadwood_" from "deadwood_total_biomass_pg")
-        prefix = col.replace('total_biomass_pg', '')
+        prefix = col.replace('total_mean_biomass_pg', '').replace('total_std_biomass_pg', '')
         biomass_prefixes.append(prefix)
     
     print(f"Found biomass datasets with prefixes: {biomass_prefixes}")
@@ -1846,7 +1847,7 @@ from scipy import stats
 def estimate_biomass_with_uncertainty_mc(mean_density, std_density, pixel_area_ha=0.09, 
                                         n_simulations=1000, confidence_level=0.95):
     """
-    Estimate median biomass sum and uncertainty using Monte Carlo simulation
+    Estimate mean biomass sum and uncertainty using Monte Carlo simulation
     
     Parameters:
     -----------
@@ -1881,7 +1882,7 @@ def estimate_biomass_with_uncertainty_mc(mean_density, std_density, pixel_area_h
         total_biomass_sims[sim] = total_biomass_pg
     
     # Calculate statistics
-    median_biomass = np.median(total_biomass_sims)
+    #median_biomass = np.median(total_biomass_sims)
     mean_biomass = np.mean(total_biomass_sims)
     std_biomass = np.std(total_biomass_sims)
     
@@ -1895,7 +1896,7 @@ def estimate_biomass_with_uncertainty_mc(mean_density, std_density, pixel_area_h
     iqr = np.percentile(total_biomass_sims, 75) - np.percentile(total_biomass_sims, 25)
     
     return {
-        'median_biomass_pg': median_biomass,
+        #'median_biomass_pg': median_biomass,
         'mean_biomass_pg': mean_biomass,
         'std_biomass_pg': std_biomass,
         'lower_ci_pg': lower_ci,
@@ -1903,7 +1904,7 @@ def estimate_biomass_with_uncertainty_mc(mean_density, std_density, pixel_area_h
         'coefficient_of_variation': cv,
         'interquartile_range_pg': iqr,
         'confidence_level': confidence_level,
-        'uncertainty_percent': (upper_ci - lower_ci) / median_biomass * 100
+        'uncertainty_percent': (upper_ci - lower_ci) / mean_biomass * 100
     }
 
 def estimate_biomass_analytical(mean_density, std_density, pixel_area_ha=0.09):
@@ -1942,7 +1943,7 @@ def estimate_biomass_analytical(mean_density, std_density, pixel_area_ha=0.09):
     ci_95 = 1.96 * total_std_biomass_pg
     
     return {
-        'median_biomass_pg': median_biomass_pg,
+        #'median_biomass_pg': median_biomass_pg,
         'mean_biomass_pg': total_mean_biomass_pg,
         'std_biomass_pg': total_std_biomass_pg,
         'lower_ci_pg': total_mean_biomass_pg - ci_95,
@@ -2079,7 +2080,7 @@ def calculate_biomass_uncertainty_stats(mean_data, std_data, age_data=None, tren
                         # No pixels in this age×trend combination - add zero/NaN values
                         if method == 'monte_carlo':
                             zero_stats = {
-                                'median_biomass_pg': 0.0,
+                                #'median_biomass_pg': 0.0,
                                 'mean_biomass_pg': 0.0,
                                 'std_biomass_pg': np.nan,
                                 'lower_ci_pg': 0.0,
@@ -2090,7 +2091,7 @@ def calculate_biomass_uncertainty_stats(mean_data, std_data, age_data=None, tren
                             }
                         else:
                             zero_stats = {
-                                'median_biomass_pg': 0.0,
+                                #'median_biomass_pg': 0.0,
                                 'mean_biomass_pg': 0.0,
                                 'std_biomass_pg': np.nan,
                                 'lower_ci_pg': 0.0,

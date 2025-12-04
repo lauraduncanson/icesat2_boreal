@@ -25,7 +25,7 @@ def get_age_trend_combinations(df, year_prefix,
     for age_class in age_classes:
         for trend_class in trend_classes:
             # Check if this combination exists in the data
-            mean_col = f"{year_prefix}_{age_class}_trend_{trend_class}_median_biomass_pg"
+            mean_col = f"{year_prefix}_{age_class}_trend_{trend_class}_mean_biomass_pg"
             std_col = f"{year_prefix}_{age_class}_trend_{trend_class}_std_biomass_pg"
             
             if mean_col in df.columns and std_col in df.columns:
@@ -62,9 +62,9 @@ def calculate_age_trend_biomass_change_mc(df, year1_prefix='agb_2020', year2_pre
         for age_class, trend_class in combinations:
             
             # Column names for this age×trend combination
-            y1_mean_col = f"{year1_prefix}_{age_class}_trend_{trend_class}_median_biomass_pg"
+            y1_mean_col = f"{year1_prefix}_{age_class}_trend_{trend_class}_mean_biomass_pg"
             y1_std_col = f"{year1_prefix}_{age_class}_trend_{trend_class}_std_biomass_pg"
-            y2_mean_col = f"{year2_prefix}_{age_class}_trend_{trend_class}_median_biomass_pg"
+            y2_mean_col = f"{year2_prefix}_{age_class}_trend_{trend_class}_mean_biomass_pg"
             y2_std_col = f"{year2_prefix}_{age_class}_trend_{trend_class}_std_biomass_pg"
             
             try:
@@ -352,9 +352,9 @@ def create_simplified_long_format_table(df, year1_prefix='agb_2020', year2_prefi
     print("📊 Creating simplified long-format biomass table...")
     
     # Look for total biomass columns
-    year1_mean_col = f"{year1_prefix}_total_median_biomass_pg"
+    year1_mean_col = f"{year1_prefix}_total_mean_biomass_pg"
     year1_std_col = f"{year1_prefix}_total_std_biomass_pg"
-    year2_mean_col = f"{year2_prefix}_total_median_biomass_pg"
+    year2_mean_col = f"{year2_prefix}_total_mean_biomass_pg"
     year2_std_col = f"{year2_prefix}_total_std_biomass_pg"
     
     # Check if columns exist
