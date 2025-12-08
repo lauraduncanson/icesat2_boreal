@@ -36,7 +36,7 @@ inputs:
     name: statistics
     required: true
   - default: ''
-    description: Age class definitions like 0-10:young,11-20:medium,21-40:old
+    description: Age class definitions like young:0-10 medium:11-20 old:21-40:old
     name: age-classes
     required: true
   - default: ''
@@ -86,6 +86,10 @@ inputs:
   - default: ''
     description: Number of Monte Carlo simulations for calculate_biomass_change.py
     name: simulations
+    required: true
+  - default: ''
+    description: The name:index,band string list for paired mean and std of a misc input for monte carlo summarization by age x trend class 
+    name: uncertainty-pairs
     required: true
 queue: maap-dps-worker-16gb
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git

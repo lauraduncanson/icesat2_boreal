@@ -34,188 +34,6 @@ except ImportError:
 
 warnings.filterwarnings('ignore')
 
-def filter_intersecting_hydrobasins_spatial_index(hydrobasins, spatial_data, buffer_degrees=0.0001, verbose=False):
-    """
-    Filter hydrobasins to only include those that actually intersect with the spatial data geometries.
-    Uses spatial index for better performance.
-    
-    Parameters:
-    -----------
-    hydrobasins : geopandas.GeoDataFrame
-        Hydrobasins to filter
-    spatial_data : str, Path, or geopandas.GeoDataFrame
-        Can be:
-        - Raster file path (local or s3://) - uses raster extent
-        - GeoDataFrame - uses actual geometries
-        - Vector file path (shapefile, gpkg, etc.) - uses actual geometries
-    buffer_degrees : float
-        Buffer around bounds in degrees (only used for raster extent)
-    verbose : bool
-        Enable verbose output
-        
-    Returns:
-    --------
-    geopandas.GeoDataFrame
-        Filtered hydrobasins that intersect the spatial data
-    """
-    import geopandas as gpd
-    import rasterio
-    from shapely.geometry import box
-    from pathlib import Path
-    
-    if verbose:
-        print(f"Original hydrobasins count: {len(hydrobasins)}")
-    
-    def _identify_spatial_input(data):
-        """Identify the type of spatial input."""
-        if isinstance(data, gpd.GeoDataFrame):
-            return 'geodataframe'
-        elif isinstance(data, (str, Path)):
-            path_str = str(data).lower()
-            # Check for raster extensions
-            raster_extensions = ['.tif', '.tiff', '.nc', '.hdf', '.img', '.jp2', '.png', '.jpg']
-            vector_extensions = ['.shp', '.gpkg', '.geojson', '.kml', '.gml', '.json']
-            
-            if any(path_str.endswith(ext) for ext in raster_extensions):
-                return 'raster_path'
-            elif any(path_str.endswith(ext) for ext in vector_extensions):
-                return 'vector_path'
-            else:
-                # Try to determine by attempting to open
-                try:
-                    vsi_path = convert_s3_to_vsis3(str(data))
-                    with rasterio.open(vsi_path) as src:
-                        return 'raster_path'
-                except:
-                    try:
-                        gpd.read_file(str(data))
-                        return 'vector_path'
-                    except:
-                        return 'unknown'
-        else:
-            return 'unknown'
-    
-    # Identify input type
-    input_type = _identify_spatial_input(spatial_data)
-    
-    if verbose:
-        print(f"Spatial data type detected: {input_type}")
-    
-    # Get intersection geometry based on input type
-    if input_type == 'raster_path':
-        # Handle raster file path - create bounding box from raster extent
-        vsi_path = convert_s3_to_vsis3(str(spatial_data))
-        
-        with rasterio.open(vsi_path) as src:
-            bounds = src.bounds
-            spatial_crs = src.crs
-            
-            if verbose:
-                print(f"Raster bounds: {bounds}")
-                print(f"Raster CRS: {spatial_crs}")
-        
-        # Create bounding box geometry
-        if spatial_crs != hydrobasins.crs:
-            if verbose:
-                print(f"Transforming raster bounds from {spatial_crs} to {hydrobasins.crs}")
-            
-            from rasterio.warp import transform_bounds
-            transformed_bounds = transform_bounds(spatial_crs, hydrobasins.crs, 
-                                                bounds.left, bounds.bottom, 
-                                                bounds.right, bounds.top)
-            intersection_geom = box(transformed_bounds[0] - buffer_degrees,
-                                  transformed_bounds[1] - buffer_degrees,
-                                  transformed_bounds[2] + buffer_degrees,
-                                  transformed_bounds[3] + buffer_degrees)
-        else:
-            intersection_geom = box(bounds.left - buffer_degrees, 
-                                  bounds.bottom - buffer_degrees,
-                                  bounds.right + buffer_degrees, 
-                                  bounds.top + buffer_degrees)
-        
-        # Use single geometry for intersection
-        test_geometries = [intersection_geom]
-    
-    elif input_type == 'geodataframe':
-        # Handle GeoDataFrame directly - use actual geometries
-        spatial_gdf = spatial_data.copy()
-        
-        if verbose:
-            print(f"GeoDataFrame shape: {spatial_gdf.shape}")
-            print(f"GeoDataFrame CRS: {spatial_gdf.crs}")
-        
-        # Transform to hydrobasins CRS if needed
-        if spatial_gdf.crs != hydrobasins.crs:
-            if verbose:
-                print(f"Transforming GeoDataFrame from {spatial_gdf.crs} to {hydrobasins.crs}")
-            spatial_gdf = spatial_gdf.to_crs(hydrobasins.crs)
-        
-        # Use all geometries for intersection testing
-        test_geometries = spatial_gdf.geometry.tolist()
-    
-    elif input_type == 'vector_path':
-        # Handle vector file path - use actual geometries
-        vsi_path = convert_s3_to_vsis3(str(spatial_data))
-        spatial_gdf = gpd.read_file(vsi_path)
-        
-        if verbose:
-            print(f"Vector file shape: {spatial_gdf.shape}")
-            print(f"Vector file CRS: {spatial_gdf.crs}")
-        
-        # Transform to hydrobasins CRS if needed
-        if spatial_gdf.crs != hydrobasins.crs:
-            if verbose:
-                print(f"Transforming vector from {spatial_gdf.crs} to {hydrobasins.crs}")
-            spatial_gdf = spatial_gdf.to_crs(hydrobasins.crs)
-        
-        # Use all geometries for intersection testing
-        test_geometries = spatial_gdf.geometry.tolist()
-    
-    else:
-        raise ValueError(f"Unsupported spatial data type: {type(spatial_data)}. "
-                        f"Expected raster file path, GeoDataFrame, or vector file path.")
-    
-    # Create a combined geometry for spatial index querying
-    if len(test_geometries) == 1:
-        query_geom = test_geometries[0]
-    else:
-        # For multiple geometries, use the union for spatial indexing
-        from shapely.ops import unary_union
-        query_geom = unary_union(test_geometries)
-    
-    # Use spatial index for initial filtering
-    sindex = hydrobasins.sindex
-    possible_matches_index = list(sindex.intersection(query_geom.bounds))
-    possible_matches = hydrobasins.iloc[possible_matches_index]
-    
-    if verbose:
-        print(f"Spatial index candidates: {len(possible_matches)}")
-    
-    # Perform actual intersection test with all test geometries
-    intersecting_indices = []
-    
-    for idx, basin in possible_matches.iterrows():
-        basin_geom = basin.geometry
-        
-        # Test intersection with any of the test geometries
-        intersects = False
-        for test_geom in test_geometries:
-            if basin_geom.intersects(test_geom):
-                intersects = True
-                break
-        
-        if intersects:
-            intersecting_indices.append(idx)
-    
-    # Get the intersecting hydrobasins
-    filtered_hydrobasins = hydrobasins.loc[intersecting_indices].copy()
-    
-    if verbose:
-        print(f"Final filtered count: {len(filtered_hydrobasins)}")
-        print(f"Reduction: {len(hydrobasins) - len(filtered_hydrobasins)} basins removed")
-    
-    return filtered_hydrobasins.reset_index(drop=True) #  Now idx will be sequential 0, 1, 2, 3...
-
 def calculate_nmad(data):
     """Calculate Normalized Median Absolute Deviation"""
     if len(data) == 0:
@@ -259,7 +77,7 @@ def get_age_class_stats(data, age_classes=None):
     
     age_stats = {}
     
-    for (min_age, max_age), class_name in age_classes.items():
+    for class_name, (min_age, max_age) in age_classes.items():
         mask = (data >= min_age) & (data <= max_age)
         class_data = data[mask]
         
@@ -364,7 +182,7 @@ def get_trend_class_stats(trend_data, age_data=None, age_classes=None):
         valid_trend_for_age = trend_data[valid_both_mask]
         valid_simplified_for_age = simplified_trends[valid_both_mask]
         
-        for (min_age, max_age), age_class_name in age_classes.items():
+        for age_class_name, (min_age, max_age) in age_classes.items():
             age_mask = (valid_age_data >= min_age) & (valid_age_data <= max_age)
             age_trend_data = valid_trend_for_age[age_mask]
             age_simplified_trends = valid_simplified_for_age[age_mask]
@@ -435,7 +253,7 @@ def calculate_biomass_stats(biomass_data, age_data=None, trend_data=None, age_cl
         valid_biomass_for_age = biomass_pg_per_pixel[valid_both_mask]
         valid_density_for_age = biomass_data[valid_both_mask]
         
-        for (min_age, max_age), age_class_name in age_classes.items():
+        for age_class_name, (min_age, max_age) in age_classes.items():
             age_mask = (valid_age_data >= min_age) & (valid_age_data <= max_age)
             age_biomass_pg = valid_biomass_for_age[age_mask]
             age_density = valid_density_for_age[age_mask]
@@ -1184,7 +1002,7 @@ class SimplifiedZonalStats:
                                 stats_dict.update(age_stats)
                             else:
                                 # Add empty age class stats
-                                for (min_age, max_age), class_name in age_classes.items():
+                                for class_name, (min_age, max_age) in age_classes.items():
                                     stats_dict[f"{class_name}_count"] = 0
                                     stats_dict[f"{class_name}_mean"] = np.nan
                                     stats_dict[f"{class_name}_std"] = np.nan
@@ -1199,7 +1017,7 @@ class SimplifiedZonalStats:
                         
                         # Add empty age class stats if requested
                         if age_classes:
-                            for (min_age, max_age), class_name in age_classes.items():
+                            for class_name, (min_age, max_age) in age_classes.items():
                                 stats_dict[f"{class_name}_count"] = 0
                                 stats_dict[f"{class_name}_mean"] = np.nan
                                 stats_dict[f"{class_name}_std"] = np.nan
@@ -1214,7 +1032,7 @@ class SimplifiedZonalStats:
                     # Return NaN values for all statistics
                     base_stats = {stat: (np.nan if stat != 'count' else 0) for stat in statistics}
                     if age_classes:
-                        for (min_age, max_age), class_name in age_classes.items():
+                        for class_name, (min_age, max_age) in age_classes.items():
                             base_stats[f"{class_name}_count"] = 0
                             base_stats[f"{class_name}_mean"] = np.nan
                             base_stats[f"{class_name}_std"] = np.nan
@@ -1227,7 +1045,7 @@ class SimplifiedZonalStats:
             traceback.print_exc()
             base_stats = {stat: (np.nan if stat != 'count' else 0) for stat in statistics}
             if age_classes:
-                for (min_age, max_age), class_name in age_classes.items():
+                for class_name, (min_age, max_age) in age_classes.items():
                     base_stats[f"{class_name}_count"] = 0
                     base_stats[f"{class_name}_mean"] = np.nan
                     base_stats[f"{class_name}_std"] = np.nan
@@ -1523,14 +1341,14 @@ def create_age_class_summary(results_gdf: gpd.GeoDataFrame,
     
     # Find age class columns
     age_class_columns = []
-    for (min_age, max_age), class_name in age_classes.items():
+    for class_name, (min_age, max_age) in age_classes.items():
         age_class_columns.append(class_name)
     
     for idx, row in results_gdf.iterrows():
         polygon_id = row[polygon_id_source]
         
         # Process each age class
-        for (min_age, max_age), class_name in age_classes.items():
+        for class_name, (min_age, max_age) in age_classes.items():
             
             # Get pixel count for this age class
             count_col = f"{age_prefix}{class_name}_count" if age_prefix else f"{class_name}_count"
@@ -1713,7 +1531,7 @@ def create_trend_age_summary(results_gdf: gpd.GeoDataFrame,
         polygon_id = row[polygon_id_source]
         
         # Process each age class
-        for (min_age, max_age), age_class_name in age_classes.items():
+        for age_class_name, (min_age, max_age) in age_classes.items():
             
             # Get pixel count for this age class (from age data)
             age_count_cols = [col for col in results_gdf.columns if col.endswith(f"{age_class_name}_count")]
@@ -1828,16 +1646,33 @@ def create_trend_age_summary(results_gdf: gpd.GeoDataFrame,
     
     return summary_df
 
-def parse_age_classes(age_class_str):
-    """Parse age class string like '0-10:young,11-20:medium,21-40:old' """
-    if not age_class_str:
+# def parse_age_classes(age_class_str):
+#     """Parse age class string like '0-10:young,11-20:medium,21-40:old' """
+#     if not age_class_str:
+#         return None
+    
+#     age_classes = {}
+#     for class_def in age_class_str.split(','):
+#         range_part, label = class_def.split(':')
+#         min_age, max_age = map(int, range_part.split('-'))
+#         age_classes[(min_age, max_age)] = label.strip()
+    
+#     return age_classes
+def parse_age_classes(age_classes_str):
+    """Parse age classes from string format like 'young:0-20 mature:21-80 old:81-None'"""
+    if not age_classes_str:
         return None
     
     age_classes = {}
-    for class_def in age_class_str.split(','):
-        range_part, label = class_def.split(':')
-        min_age, max_age = map(int, range_part.split('-'))
-        age_classes[(min_age, max_age)] = label.strip()
+    for class_def in age_classes_str.split():  # Split on whitespace instead of ','
+        if ':' in class_def:  # Make sure it's a valid class definition
+            class_name, age_range = class_def.split(':')
+            min_age, max_age = age_range.split('-')
+            
+            min_age = int(min_age) if min_age != 'None' else None
+            max_age = int(max_age) if max_age != 'None' else None
+            
+            age_classes[class_name] = (min_age, max_age)
     
     return age_classes
 
@@ -2057,7 +1892,8 @@ def calculate_biomass_uncertainty_stats(mean_data, std_data, age_data=None, tren
             valid_std_data = std_data[valid_all_mask]
             
             # For each age×trend combination
-            for (min_age, max_age), age_class_name in age_classes.items():
+            #for (min_age, max_age), age_class_name in age_classes.items():
+            for age_class_name, (min_age, max_age) in age_classes.items():
                 age_mask = (valid_age_data >= min_age) & (valid_age_data <= max_age)
                 
                 for category_val, category_name in trend_category_names.items():
@@ -2137,8 +1973,12 @@ def main():
     # Processing options
     parser.add_argument('--statistics', default='mean,std,min,max,count',
                        help='Statistics to calculate: mean,std,min,max,count,sum,median,mode,nmad')
-    parser.add_argument('--age-classes', 
-                       help='Age class definitions like "0-10:young,11-20:medium,21-40:old"')
+    # parser.add_argument('--age-classes', 
+    #                    help='Age class definitions like "0-10:young,11-20:medium,21-40:old"')
+    # Age classes
+    parser.add_argument('--age-classes', nargs='*',
+                       help='Age class definitions (e.g., "young:0-20 mature:21-80 old:81-None")')
+    
     parser.add_argument('--processes', type=int, default=4,
                        help='Number of parallel processes')
     parser.add_argument('--chunk-size', type=int, default=50,
@@ -2182,7 +2022,14 @@ def main():
     mosaic_files = [f.strip() for f in args.mosaic_geojsons.split(',')]
     prefixes = [p.strip() for p in args.zs_col_prefix.split(',')]
     statistics = [s.strip() for s in args.statistics.split(',')]
-    age_classes = parse_age_classes(args.age_classes)
+
+    # Parse age classes
+    #age_classes = parse_age_classes(args.age_classes) # old parsing when separator was ','
+    if args.age_classes:
+        age_classes_str = ' '.join(args.age_classes)  # Join the list back into a string
+        age_classes = parse_age_classes(age_classes_str)
+    else:
+        age_classes = None
     
     # Validate age class requirements
     if age_classes:
@@ -2208,7 +2055,7 @@ def main():
         
         print(f"📈 Trend data: Mosaic {args.trend_mosaic_index} ({mosaic_files[args.trend_mosaic_index]}), Band {args.trend_band}")
 
-# Parse additional biomass datasets - UPDATED
+    # Parse additional biomass datasets - UPDATED
     additional_biomass_config = []
     if args.additional_biomass_indices and args.additional_biomass_bands:
         indices = [int(x.strip()) for x in args.additional_biomass_indices.split(',')]
