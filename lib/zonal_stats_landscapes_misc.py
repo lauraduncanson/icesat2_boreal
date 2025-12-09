@@ -1307,6 +1307,7 @@ def main():
     print(f"📍 Loading polygons from {args.polygons}")
     polygons_gdf = gpd.read_file(args.polygons)
     original_count = len(polygons_gdf)
+    #print(f"     IDs: {polygons_gdf.HYBAS_ID.to_list()}") # --- debug
     print(f"   Loaded {original_count} polygons")
     
     # Apply filter if provided
@@ -1318,7 +1319,8 @@ def main():
             print(f"⚠️  Warning: Filter query failed: {e}")
     
     if args.polygon_ids and args.polygon_id_col:
-        ids = [id.strip() for id in args.polygon_ids.split(',')]
+        #print(f"     Polygon IDs: {args.polygon_ids}") # ---- debug
+        ids = [int(id.strip()) for id in args.polygon_ids.split(',')]
         polygons_gdf = polygons_gdf.loc[polygons_gdf[args.polygon_id_col].isin(ids)]
         print(f"🔍 ID filter: {len(polygons_gdf)} polygons selected using col {args.polygon_id_col}")
     

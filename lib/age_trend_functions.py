@@ -93,3 +93,185 @@ def remap_trend_classes(kendall_classes):
         trend_categories[kendall_classes == kendall_class] = trend_category
     
     return trend_categories
+
+def filter_intersecting_hydrobasins_spatial_index(hydrobasins, spatial_data, buffer_degrees=0.0001, verbose=False):
+    """
+    Filter hydrobasins to only include those that actually intersect with the spatial data geometries.
+    Uses spatial index for better performance.
+    
+    Parameters:
+    -----------
+    hydrobasins : geopandas.GeoDataFrame
+        Hydrobasins to filter
+    spatial_data : str, Path, or geopandas.GeoDataFrame
+        Can be:
+        - Raster file path (local or s3://) - uses raster extent
+        - GeoDataFrame - uses actual geometries
+        - Vector file path (shapefile, gpkg, etc.) - uses actual geometries
+    buffer_degrees : float
+        Buffer around bounds in degrees (only used for raster extent)
+    verbose : bool
+        Enable verbose output
+        
+    Returns:
+    --------
+    geopandas.GeoDataFrame
+        Filtered hydrobasins that intersect the spatial data
+    """
+    import geopandas as gpd
+    import rasterio
+    from shapely.geometry import box
+    from pathlib import Path
+    
+    if verbose:
+        print(f"Original hydrobasins count: {len(hydrobasins)}")
+    
+    def _identify_spatial_input(data):
+        """Identify the type of spatial input."""
+        if isinstance(data, gpd.GeoDataFrame):
+            return 'geodataframe'
+        elif isinstance(data, (str, Path)):
+            path_str = str(data).lower()
+            # Check for raster extensions
+            raster_extensions = ['.tif', '.tiff', '.nc', '.hdf', '.img', '.jp2', '.png', '.jpg']
+            vector_extensions = ['.shp', '.gpkg', '.geojson', '.kml', '.gml', '.json']
+            
+            if any(path_str.endswith(ext) for ext in raster_extensions):
+                return 'raster_path'
+            elif any(path_str.endswith(ext) for ext in vector_extensions):
+                return 'vector_path'
+            else:
+                # Try to determine by attempting to open
+                try:
+                    vsi_path = convert_s3_to_vsis3(str(data))
+                    with rasterio.open(vsi_path) as src:
+                        return 'raster_path'
+                except:
+                    try:
+                        gpd.read_file(str(data))
+                        return 'vector_path'
+                    except:
+                        return 'unknown'
+        else:
+            return 'unknown'
+    
+    # Identify input type
+    input_type = _identify_spatial_input(spatial_data)
+    
+    if verbose:
+        print(f"Spatial data type detected: {input_type}")
+    
+    # Get intersection geometry based on input type
+    if input_type == 'raster_path':
+        # Handle raster file path - create bounding box from raster extent
+        vsi_path = convert_s3_to_vsis3(str(spatial_data))
+        
+        with rasterio.open(vsi_path) as src:
+            bounds = src.bounds
+            spatial_crs = src.crs
+            
+            if verbose:
+                print(f"Raster bounds: {bounds}")
+                print(f"Raster CRS: {spatial_crs}")
+        
+        # Create bounding box geometry
+        if spatial_crs != hydrobasins.crs:
+            if verbose:
+                print(f"Transforming raster bounds from {spatial_crs} to {hydrobasins.crs}")
+            
+            from rasterio.warp import transform_bounds
+            transformed_bounds = transform_bounds(spatial_crs, hydrobasins.crs, 
+                                                bounds.left, bounds.bottom, 
+                                                bounds.right, bounds.top)
+            intersection_geom = box(transformed_bounds[0] - buffer_degrees,
+                                  transformed_bounds[1] - buffer_degrees,
+                                  transformed_bounds[2] + buffer_degrees,
+                                  transformed_bounds[3] + buffer_degrees)
+        else:
+            intersection_geom = box(bounds.left - buffer_degrees, 
+                                  bounds.bottom - buffer_degrees,
+                                  bounds.right + buffer_degrees, 
+                                  bounds.top + buffer_degrees)
+        
+        # Use single geometry for intersection
+        test_geometries = [intersection_geom]
+    
+    elif input_type == 'geodataframe':
+        # Handle GeoDataFrame directly - use actual geometries
+        spatial_gdf = spatial_data.copy()
+        
+        if verbose:
+            print(f"GeoDataFrame shape: {spatial_gdf.shape}")
+            print(f"GeoDataFrame CRS: {spatial_gdf.crs}")
+        
+        # Transform to hydrobasins CRS if needed
+        if spatial_gdf.crs != hydrobasins.crs:
+            if verbose:
+                print(f"Transforming GeoDataFrame from {spatial_gdf.crs} to {hydrobasins.crs}")
+            spatial_gdf = spatial_gdf.to_crs(hydrobasins.crs)
+        
+        # Use all geometries for intersection testing
+        test_geometries = spatial_gdf.geometry.tolist()
+    
+    elif input_type == 'vector_path':
+        # Handle vector file path - use actual geometries
+        vsi_path = convert_s3_to_vsis3(str(spatial_data))
+        spatial_gdf = gpd.read_file(vsi_path)
+        
+        if verbose:
+            print(f"Vector file shape: {spatial_gdf.shape}")
+            print(f"Vector file CRS: {spatial_gdf.crs}")
+        
+        # Transform to hydrobasins CRS if needed
+        if spatial_gdf.crs != hydrobasins.crs:
+            if verbose:
+                print(f"Transforming vector from {spatial_gdf.crs} to {hydrobasins.crs}")
+            spatial_gdf = spatial_gdf.to_crs(hydrobasins.crs)
+        
+        # Use all geometries for intersection testing
+        test_geometries = spatial_gdf.geometry.tolist()
+    
+    else:
+        raise ValueError(f"Unsupported spatial data type: {type(spatial_data)}. "
+                        f"Expected raster file path, GeoDataFrame, or vector file path.")
+    
+    # Create a combined geometry for spatial index querying
+    if len(test_geometries) == 1:
+        query_geom = test_geometries[0]
+    else:
+        # For multiple geometries, use the union for spatial indexing
+        from shapely.ops import unary_union
+        query_geom = unary_union(test_geometries)
+    
+    # Use spatial index for initial filtering
+    sindex = hydrobasins.sindex
+    possible_matches_index = list(sindex.intersection(query_geom.bounds))
+    possible_matches = hydrobasins.iloc[possible_matches_index]
+    
+    if verbose:
+        print(f"Spatial index candidates: {len(possible_matches)}")
+    
+    # Perform actual intersection test with all test geometries
+    intersecting_indices = []
+    
+    for idx, basin in possible_matches.iterrows():
+        basin_geom = basin.geometry
+        
+        # Test intersection with any of the test geometries
+        intersects = False
+        for test_geom in test_geometries:
+            if basin_geom.intersects(test_geom):
+                intersects = True
+                break
+        
+        if intersects:
+            intersecting_indices.append(idx)
+    
+    # Get the intersecting hydrobasins
+    filtered_hydrobasins = hydrobasins.loc[intersecting_indices].copy()
+    
+    if verbose:
+        print(f"Final filtered count: {len(filtered_hydrobasins)}")
+        print(f"Reduction: {len(hydrobasins) - len(filtered_hydrobasins)} basins removed")
+    
+    return filtered_hydrobasins.reset_index(drop=True) #  Now idx will be sequential 0, 1, 2, 3...
