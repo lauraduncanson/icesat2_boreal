@@ -38,7 +38,7 @@ def truncate(number, digits) -> float:
 def process_atl08_boreal(polygon_id, polygon_gdf_fn, id_col_num = 'tile_num', t0_year=2020, t1_year=2020, minmonth=6, maxmonth=9, seg_length = 30, 
                          outdir='/projects/my-private-bucket/data/process_atl08_boreal',
                          atl08_cols_list=['rh25','rh50','rh60','rh70','rh75','rh80','rh90','h_can','h_max_can', 'ter_slp','h_te_best', 'seg_landcov','sol_el','y','m','doy'],
-                         RETURN_DF=False, DEBUG=False):
+                         RETURN_DF=False, DEBUG=False, VERSION_ATL08=7):
     
     '''Runs sliderule's implementation of PhoReal to process a clipped and filtered geodataframe of custom ATL08 along-track segments designed for boreal forests
         + finds ATL03 for a polygon_id from geodataframe at path gdf_fn
@@ -57,7 +57,7 @@ def process_atl08_boreal(polygon_id, polygon_gdf_fn, id_col_num = 'tile_num', t0
     if maxmonth in [1,3,5,7,8,10,12]: maxday = 31
     
     #outdir = os.path.join(outdir,f'{seg_length:03}m')
-    out_name = os.path.join(outdir, f'atl08_006_{seg_length:03}m_{t0_year}_{t1_year}_{minmonth:02}_{maxmonth:02}')
+    out_name = os.path.join(outdir, f'atl08_{VERSION_ATL08:03}_{seg_length:03}m_{t0_year}_{t1_year}_{minmonth:02}_{maxmonth:02}')
     
     # Get list of points dictionaries that have 'lat' and 'lon'
     points_dict_list = gdf_to_sliderulepoly(polygon_gdf)
