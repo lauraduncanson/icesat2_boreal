@@ -6,8 +6,11 @@ import branca
 import branca.colormap as cm
 import matplotlib.cm
 
+import folium
 from folium import Map, TileLayer, GeoJson, LayerControl, Icon, Marker, features, Figure, CircleMarker
 from folium import plugins
+from folium.elements import MacroElement
+from jinja2 import Template
 
 # !pip install cogeo_mosaic
 from cogeo_mosaic.mosaic import MosaicJSON
@@ -22,6 +25,7 @@ import requests
 #
 tiler_basemap_googleterrain = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}'
 tiler_basemap_gray =          'http://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+tiler_basemap_hillshade =     'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'
 tiler_basemap_image =         'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 tiler_basemap_natgeo =        'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}'
 basemaps = {
@@ -36,6 +40,13 @@ basemaps = {
         tiles=tiler_basemap_gray,
         opacity=1,
         name="ESRI gray",
+        attr="MAAP",
+        overlay=False
+    ),
+    'basemap_hillshade' : TileLayer(
+        tiles=tiler_basemap_hillshade,
+        opacity=1,
+        name="Hillshade",
         attr="MAAP",
         overlay=False
     ),
@@ -55,6 +66,220 @@ basemaps = {
     )
 }
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+
+# Correct color mapping from compute_trends.py for Kendall's Tau trend classes
+cmap_colors_kendall_classes = {
+    0: (1.0, 1.0, 1.0, 0.0),  # No data - transparent
+    1: (0.0, 0.0, 0.8, 1.0),  # Strong sig. positive - dark blue
+    2: (0.3, 0.3, 0.9, 1.0),  # Moderate sig. positive - medium blue
+    3: (0.5, 0.5, 1.0, 1.0),  # Weak sig. positive - light blue
+    4: (0.7, 0.7, 1.0, 1.0),  # Very weak sig. positive - very light blue
+    5: (0.8, 0.8, 0.8, 1.0),  # Non-sig. positive - light gray
+    6: (0.6, 0.6, 0.6, 1.0),  # Non-sig. negative - dark gray
+    7: (1.0, 0.7, 0.7, 1.0),  # Very weak sig. negative - very light red
+    8: (1.0, 0.5, 0.5, 1.0),  # Weak sig. negative - light red
+    9: (0.9, 0.3, 0.3, 1.0),  # Moderate sig. negative - medium red
+    10: (0.8, 0.0, 0.0, 1.0)  # Strong sig. negative - dark red
+}
+
+# Class labels from compute_trends.py
+class_labels_kendall_classes = {
+    0: 'No data',
+    1: 'Strong sig. [+]',
+    2: 'Mod. sig. [+]',
+    3: 'Weak sig. [+]',
+    4: 'Very weak sig. [+]',
+    5: 'Non-sig. [+]',
+    6: 'Non-sig. [-]',
+    7: 'Very weak sig. [-]',
+    8: 'Weak sig. [-]',
+    9: 'Mod. sig. [-]',
+    10: 'Strong sig. [-]'
+}
+
+def create_kendall_horizontal_legend(title="Aboveground carbon trend (ols) classes\nclassification of kendall's tau"):
+    """Create a horizontal legend for Kendall's Tau trend classes with positive trends on right, negative on left."""
+    
+    fig, ax = plt.subplots(figsize=(16, 8))
+    
+    # Add title
+    ax.text(0.5, 0.9, title, ha='center', va='center', fontsize=18, fontweight='bold')
+    
+    # Reorder classes: negative trends (10,9,8,7,6), positive trends (5,4,3,2,1) - exclude class 0
+    class_order = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+    
+    # Calculate positions for horizontal layout
+    n_classes = len(class_order)
+    positions = np.linspace(0.05, 0.95, n_classes)
+    
+    for i, class_val in enumerate(class_order):
+        x_pos = positions[i]
+        rgba_color = cmap_colors_kendall_classes[class_val]
+        label = class_labels_kendall_classes[class_val]
+        
+        facecolor = rgba_color[:3]  # Use RGB, ignore alpha
+        edgecolor = 'black'
+        linestyle = '-'
+        linewidth = 1.2
+        
+        # Color rectangle
+        rect = patches.Rectangle((x_pos - 0.035, 0.45), 0.07, 0.25, 
+                               facecolor=facecolor, 
+                               edgecolor=edgecolor, 
+                               linestyle=linestyle,
+                               linewidth=linewidth)
+        ax.add_patch(rect)
+        
+        # Class number - adjust text color based on background
+        if class_val == 1:  # Dark blue
+            text_color = 'white'
+        elif class_val == 10:  # Dark red
+            text_color = 'white'
+        else:
+            text_color = 'black'
+            
+        ax.text(x_pos, 0.575, f"{class_val}", 
+                ha='center', va='center', 
+                fontweight='bold', fontsize=16, color=text_color)
+        
+        # Label - split for better readability
+        ax.text(x_pos, 0.3, label, 
+                ha='center', va='center', 
+                fontsize=12, rotation=0)
+    
+    # Add trend direction indicators
+    ax.text(0.2, 0.05, "← Negative aboveground C trends", 
+            ha='center', va='center', 
+            fontsize=18, fontweight='bold', color='darkred')
+    
+    ax.text(0.8, 0.05, "Positive aboveground C trends →", 
+            ha='center', va='center', 
+            fontsize=18, fontweight='bold', color='darkblue')
+    
+    # Add a dashed box around the non-significant classes (6 and 5)
+    # Find positions of classes 5 and 6
+    class6_position = positions[class_order.index(6)]
+    class5_position = positions[class_order.index(5)]
+    
+    # Calculate box boundaries
+    box_left = class6_position - 0.045  # Left edge of class 6 box
+    box_right = class5_position + 0.045  # Right edge of class 5 box
+    box_bottom = 0.42  # Slightly below the color rectangles
+    box_top = 0.72     # Slightly above the color rectangles
+    box_width = box_right - box_left
+    box_height = box_top - box_bottom
+    
+    # Create dashed box around non-significant classes
+    nonsig_box = patches.Rectangle((box_left, box_bottom), box_width, box_height,
+                                 facecolor='none', 
+                                 edgecolor='black', 
+                                 linestyle='--',
+                                 linewidth=2,
+                                 alpha=0.7)
+    ax.add_patch(nonsig_box)
+    
+    # Add "Non-significant" label above the box
+    box_center = (box_left + box_right) / 2
+    ax.text(box_center, box_top + 0.05, "Non-significant", 
+            ha='center', va='center', 
+            fontsize=12, style='italic', alpha=0.7)
+    
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+    
+def create_classified_legend(class_dict, title="Classification"):
+    """
+    Create a custom legend for classified rasters.
+    
+    Parameters:
+    -----------
+    class_dict : dict
+        Dictionary mapping class values to {'label': str, 'color': str}
+    title : str
+        Legend title
+    """
+    
+    # Create HTML for custom legend
+    legend_html = f'''
+    <div style="position: fixed; 
+                top: 10px; right: 10px; width: 200px; height: auto; 
+                background-color: white; border:2px solid grey; z-index:9999; 
+                font-size:14px; padding: 10px">
+    <p><b>{title}</b></p>
+    '''
+    
+    for class_val, info in class_dict.items():
+        color = info['color']
+        label = info['label']
+        legend_html += f'''
+        <p><i class="fa fa-square" style="color:{color}"></i> {label}</p>
+        '''
+    
+    legend_html += '</div>'
+    
+    return legend_html
+
+# Define your AGB trend classes with colors
+AGB_TREND_CLASSES = {
+    0: {'label': 'Strong decline', 'color': '#8B0000'},      # Dark red
+    1: {'label': 'Moderate decline', 'color': '#DC143C'},    # Crimson
+    2: {'label': 'Weak decline', 'color': '#FF6B6B'},       # Light red
+    3: {'label': 'Very weak decline', 'color': '#FFB6C1'},  # Light pink
+    4: {'label': 'Non-sig. decline', 'color': '#D3D3D3'},   # Light gray
+    5: {'label': 'Non-sig. increase', 'color': '#C0C0C0'},  # Silver
+    6: {'label': 'Very weak increase', 'color': '#98FB98'}, # Pale green
+    7: {'label': 'Weak increase', 'color': '#90EE90'},      # Light green
+    8: {'label': 'Moderate increase', 'color': '#32CD32'},  # Lime green
+    9: {'label': 'Strong increase', 'color': '#006400'},    # Dark green
+    10: {'label': 'Very strong increase', 'color': '#004225'} # Very dark green
+}
+
+def make_tiles_layer_dict_with_custom_legend(mosaic_reg_id, mosaic_json_fn, NAME: str, 
+                                           class_dict: dict, SHOW_CBAR=True, 
+                                           PARAMS_DICT=None, PRINT=False):
+    """
+    Enhanced version that creates tiles with custom legend for classified data.
+    """
+    
+    if PARAMS_DICT is None:
+        PARAMS_DICT = {"rescale": "0,10", "bidx": "1", "colormap_name": 'RdBu_r'}
+    
+    # Build tiles URL
+    tiles = build_tiles_with_params(mosaic_reg_id, mosaic_json_fn, 
+                                  params_dict=PARAMS_DICT, 
+                                  titiler_endpoint="https://titiler.maap-project.org")
+    
+    # Create the tile layer
+    tiles_layer = folium.TileLayer(
+        tiles=tiles,
+        opacity=1,
+        name=NAME,
+        attr="MAAP",
+        overlay=True
+    )
+    
+    # Create custom legend if requested
+    custom_legend = None
+    if SHOW_CBAR and class_dict:
+        custom_legend = create_classified_legend(class_dict, NAME)
+    
+    return {
+        'layer': tiles_layer,
+        'legend_html': custom_legend,
+        'caption': NAME,
+        'show_cbar': SHOW_CBAR,
+        'cmap': 'RdBu_r', # qwik fix
+        'min_val': 0, # qwik fix
+        'max_val': 10 # qwik fix
+    }
+    
 def local_to_s3(url, user = 'nathanmthomas', type='public'):
     ''' A Function to convert local paths to s3 urls'''
     if type == 'public':
@@ -92,7 +317,7 @@ def register_mosaic_json_titiler(mosiac_json_fn, titiler_endpoint, print_info=Fa
         
     return mosaic_links
 
-def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_endpoint = "https://titiler.maap-project.org", DEBUG=False):
+def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_endpoint = "https://titiler.maap-project.org", DEBUG=True):
     
     '''
     Identifies or generates a mosaic json registration id with TiTiler (use mosaiclib.TITILER_MOSAIC_REG_DICT[TYPE][YEAR])
@@ -106,7 +331,8 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
 
         # colormap_name needs to be .lower() here
         params_dict_tmp = params_dict.copy()
-        params_dict_tmp['colormap_name'] = params_dict_tmp['colormap_name'].lower()
+        if 'colormap_name' in params_dict:
+            params_dict_tmp['colormap_name'] = params_dict_tmp['colormap_name'].lower()
         
         if DEBUG: print(f'Registering mosaic with Titiler: {mosiac_json_fn}')
         
@@ -118,7 +344,8 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
         if DEBUG: print(r_te_json)
             
         tiles = f"{r_te_json['tiles'][0]}"
-        tiles = tiles.replace(params_dict_tmp['colormap_name'], params_dict['colormap_name'])
+        if 'colormap_name' in params_dict:
+            tiles = tiles.replace(params_dict_tmp['colormap_name'], params_dict['colormap_name'])
     else:
         tiles = "".join([titiler_endpoint, "/mosaics/", mosaic_reg_id, "/tiles/{z}/{x}/{y}", "@1x?", urllib.parse.urlencode(params_dict)])
     
@@ -222,7 +449,8 @@ def MAP_REGISTERED_DPS_RESULTS(
                     map_width=1000, map_height=500,
                     ADD_TILELAYER = None,
                     ADD_GEOJSONLAYER = None,
-                    ADD_4326_GPKG = None
+                    ADD_4326_GPKG = None,
+                    enable_pixel_query=True, raster_query_configs=None
                    ):
     
     if ADD_TILELAYER is not None:
@@ -324,6 +552,7 @@ def MAP_REGISTERED_DPS_RESULTS(
     basemaps['Imagery'].add_to(m1)
     basemaps['ESRINatGeo'].add_to(m1)
     basemaps['basemap_gray'].add_to(m1)
+    basemaps['basemap_hillshade'].add_to(m1)
 
     if ecoboreal_geojson is not None:
         ecoboreal_layer.add_to(m1)
@@ -348,6 +577,11 @@ def MAP_REGISTERED_DPS_RESULTS(
         m1.add_child(minimap)
         #m1.add_child(colormap_AGBSE)
 
+    # Add pixel query tool if requested
+    if enable_pixel_query and raster_query_configs:
+        m1 = add_advanced_pixel_query_tool(m1, raster_query_configs)
+        m1 = add_coordinate_display(m1)
+    
     return m1
     
 def MAP_CONTROL(m):
@@ -356,416 +590,6 @@ def MAP_CONTROL(m):
     plugins.Fullscreen(position='bottomleft').add_to(m)
     plugins.MousePosition().add_to(m)
     return m
-    
-# def MAP_DPS_RESULTS(tiler_mosaic, 
-#                     boreal_tile_index, 
-#                     tile_index_matches,  
-#                     tile_index_check, 
-#                     MATCH_TILES_NAME='Match tiles', 
-#                     CHECK_TILES_NAME='Check tiles', 
-#                     plots = None,
-#                     mosaic_json_dict = {
-#                                         'agb_mosaic_json_s3_fn':    's3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/AGB_tindex_master_mosaic.json',
-#                                         'topo_mosaic_json_s3_fn':   's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/Topo_tindex_master_mosaic.json',
-#                                         'mscomp_mosaic_json_s3_fn': 's3://maap-ops-workspace/shared/nathanmthomas/DPS_tile_lists/HLS_tindex_master_mosaic.json',
-#                                         'worldcover_json_s3_fn': None,
-#                                         'tp_standage2020_json_s3_fn': None,
-#                                         'tp_tcc2020_json_s3_fn': None,
-#                                         'tp_tcc2020slope_json_s3_fn': None,
-#                                         'tp_tcc2020pvalue_json_s3_fn': None
-#                                     },
-#                     mscomp_rgb_dict = None,
-#                     #ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/Ecoregions2017_boreal_m.geojson',
-#                     ecoboreal_geojson = '/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve.geojson',
-#                     max_AGB_display = 50, max_AGBSE_display = 20,
-#                     MS_BAND_DICT = {
-#                         'name': 'NDVI',
-#                         'num': 8,
-#                         'min': 0,
-#                         'max': 1,
-#                         'cmap': 'viridis',
-#                         'legend_name': 'NDVI composite'
-#                     },
-#                     tiles_remove = [41995, 41807, 41619], # geo abyss,
-#                     SHOW_WIDGETS=False,
-#                     TOPO_OPACITY=0.15,
-#                     map_width=1000, map_height=500,
-#                     ADD_TILELAYER = None,
-#                     HLS_TILELAYER_LIST = None
-#                    ):
-    
-#     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
-        
-#         # TODO: find other valid 'colormap_names' for the tiler url that also work with cm.linear.xxxx.scale()
-#         agb_colormap = 'viridis'#'RdYlGn_11' #'RdYlGn' #'nipy_spectral'
-#         agb_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGB_display}&bidx=1&colormap_name={agb_colormap}"
-#         #colormap_AGB = cm.linear.viridis.scale(0, max_AGB_display).to_step(25)
-#         cmap = matplotlib.cm.get_cmap(agb_colormap, 25)
-#         colormap_AGB = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGB_display)
-#         colormap_AGB.caption = 'Mean of Aboveground Biomass Density [Mg/ha]'
-        
-#         agb_se_colormap = 'plasma'
-#         agb_se_tiles = f"{tiler_mosaic}?url={mosaic_json_dict['agb_mosaic_json_s3_fn']}&rescale=0,{max_AGBSE_display}&bidx=2&colormap_name={agb_se_colormap}"
-#         #colormap_AGBSE = cm.linear.plasma.scale(0, 20).to_step(5)
-#         cmap = matplotlib.cm.get_cmap(agb_se_colormap, 25)
-#         colormap_AGBSE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, max_AGBSE_display)
-#         colormap_AGBSE.caption = 'Standard Error of Aboveground Biomass Density [Mg/ha]'
-        
-#     if ADD_TILELAYER is not None:
-#         if isinstance(ADD_TILELAYER, list):
-#             ADD_TILELAYER_LIST = ADD_TILELAYER
-#         else:
-#             ADD_TILELAYER_LIST = [ADD_TILELAYER]
-            
-#         colormap_ADDED_TILELAYER_list = []
-#         for ADD_TILELAYER in ADD_TILELAYER_LIST:
-#             #cmap = matplotlib.cm.get_cmap('plasma', 30)
-#             #colormap_Ht = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, 30)
-#             #colormap_Ht.caption = 'Vegetation Height (m)'
-#             cmap = matplotlib.cm.get_cmap(ADD_TILELAYER["cmap"], 25)
-#             colormap_ADDED_TILELAYER = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, ADD_TILELAYER["max_val"])
-#             colormap_ADDED_TILELAYER.caption = ADD_TILELAYER["caption"]
-#             colormap_ADDED_TILELAYER_list.append(colormap_ADDED_TILELAYER)
-
-#     # Get Vector layers
-#     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/wwf_circumboreal_Dissolve.geojson'#'/projects/shared-buckets/nathanmthomas/boreal.geojson' 
-#     #boreal_geojson = '/projects/shared-buckets/lduncanson/misc_files/Ecoregions2017_boreal_m.geojson'
-#     #boreal = geopandas.read_file(boreal_geojson)
-
-#     # Style Vector Layers
-#     ecoboreal_style = {'fillColor': 'gray', 'color': 'gray'}
-#     boreal_style = {'fillColor': 'gray', 'color': 'gray'}
-#     boreal_subset_style = {'fillColor': 'red', 'color': 'red'}
-
-#     if ecoboreal_geojson is not None:
-
-#         ecoboreal = geopandas.read_file(ecoboreal_geojson)
-#         # Reproject Vector Layers
-#         p1, p2, clat, clon = [50, 70, 40, 160]
-#         proj_str_aea = '+proj=aea +lat_1={:.2f} +lat_2={:.2f} +lat_0={:.2f} +lon_0={:.2f}'.format(p1, p2, clat, clon)
-#         ecoboreal_aea = ecoboreal.to_crs(proj_str_aea)
-#         # Apply a buffer
-#         ecoboreal_aea_buf = ecoboreal_aea["geometry"].buffer(1e5)
-#         # Go back to GCS
-#         ecoboreal_buf = ecoboreal_aea_buf.to_crs(boreal_tile_index.crs)
-#         ecoboreal_layer = GeoJson(ecoboreal, name="Boreal extent from Ecoregions", style_function=lambda x:ecoboreal_style)
-#         #GeoJson(ecoboreal_aea_buf, name="Boreal extent from Ecoregions", style_function=lambda x:ecoboreal_style).add_to(m1)
-#         #GeoJson(boreal, name="Boreal extent", style_function=lambda x:boreal_style).add_to(m1)
-
-#     # Map the Layers
-#     #Map_Figure=Figure(width=map_width,height=map_height)
-#     Map_Figure=Figure()
-#     #------------------
-#     m1 = Map(
-#         width=map_width,height=map_height,
-#         #tiles="Stamen Toner",
-#         tiles='',
-#         location=(60, 5),
-#         zoom_start=3, 
-#         control_scale = True
-#     )
-#     Map_Figure.add_child(m1)
-
-#     boreal_tiles_style = {'fillColor': '#e41a1c', 'color': '#e41a1c', 'weight' : 0.5, 'opacity': 1, 'fillOpacity': 0}
-#     dps_subset_style = {'fillColor': '#377eb8', 'color': '#377eb8', 'weight' : 0.75, 'opacity': 1, 'fillOpacity': 0.5}
-#     dps_check_style = {'fillColor': 'red', 'color': 'red'}
-    
-#     # Set colormaps for legends
-#     # Choose colormap names from this set: 
-#     # plt.cm.datad.keys()
-#         #     dict_keys(['Blues', 'BrBG', 'BuGn', 'BuPu', 'CMRmap', 'GnBu', 'Greens', 'Greys', 'OrRd', 'Oranges',\
-#         #                          'PRGn', 'PiYG', 'PuBu', 'PuBuGn', 'PuOr', 'PuRd', 'Purples', 'RdBu', 'RdGy', 'RdPu', 'RdYlBu', 'RdYlGn', 'Reds', \
-#         #                          'Spectral', 'Wistia', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'afmhot', 'autumn', 'binary', 'bone', 'brg', 'bwr', 'cool', 'coolwarm', 'copper', 'cubehelix', \
-#         #                          'flag', 'gist_earth', 'gist_gray', 'gist_heat', 'gist_ncar', 'gist_rainbow', 'gist_stern', 'gist_yarg', 'gnuplot', 'gnuplot2', 'gray', 'hot', 'hsv', 'jet', \
-#         #                          'nipy_spectral', 'ocean', 'pink', 'prism', 'rainbow', 'seismic', 'spring', 'summer', 'terrain', 'winter', 'Accent', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', \
-#         #                          'Set1', 'Set2', 'Set3', 'tab10', 'tab20', 'tab20b', 'tab20c'])
-    
-#     if mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn'] is not None:
-#         TCC2020PVALUE_MAX = 1
-#         TCC2020PVALUE_COLORBAR = 'hot'
-#         cmap = matplotlib.cm.get_cmap(TCC2020PVALUE_COLORBAR, 12)
-#         colormap_TCC2020PVALUE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, TCC2020PVALUE_MAX)
-#         colormap_TCC2020PVALUE.caption = "Tree Canopy Cover trend p-value"
-#         m1.add_child(colormap_TCC2020PVALUE)
-        
-#     if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
-#         TCC2020SLOPE_MAX = 2
-#         TCC2020SLOPE_MIN = -2
-#         TCC2020SLOPE_COLORBAR = 'BrBG'
-#         cmap = matplotlib.cm.get_cmap(TCC2020SLOPE_COLORBAR, 12)
-#         colormap_TCC2020SLOPE = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(TCC2020SLOPE_MIN, TCC2020SLOPE_MAX)
-#         colormap_TCC2020SLOPE.caption = "Tree Canopy Cover trend (1984-2020)"
-#         m1.add_child(colormap_TCC2020SLOPE)
-        
-#     if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
-#         STANDAGE2020_MAX = 35
-#         STANDAGE2020_COLORBAR = 'jet'
-#         cmap = matplotlib.cm.get_cmap(STANDAGE2020_COLORBAR, 12)
-#         colormap_STANDAGE2020 = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, STANDAGE2020_MAX)
-#         colormap_STANDAGE2020.caption = "Stand Age (yrs in 2020)"
-#         m1.add_child(colormap_STANDAGE2020)
-        
-#     if mosaic_json_dict['tp_tcc2020_json_s3_fn'] is not None:
-#         TCC2020_MAX = 75
-#         TCC2020_COLORBAR = 'YlGn'
-#         cmap = matplotlib.cm.get_cmap(TCC2020_COLORBAR, 12)
-#         colormap_tcc2020 = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(0, TCC2020_MAX)
-#         colormap_tcc2020.caption = "Tree Canopy Cover (%, 2020)"
-#         m1.add_child(colormap_tcc2020)
-    
-#     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-#         cols_worldcover = ["black","#006400","#ffbb22","#ffff4c","#f096ff","#fa0000","#b4b4b4","#f0f0f0","#0064c8","#0096a0","#00cf75","#fae6a0"]
-#         names_worldcover = ['No Data','Trees', 'Shrubland', 'Grassland','Cropland','Built-up','Barren / sparse vegetation','Snow and ice','Open water','Herbaceous wetland','Mangroves','Moss and lichen']
-#         values_worldcover = [0,10,20,30,40,50,60,70,80,90,95,100]
-#         colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
-#         colormap_worldcover = cm.StepColormap(colors = cols_worldcover, vmin=min(values_worldcover), vmax=max(values_worldcover), index=values_worldcover, caption = 'ESA Worldcover v1')
-#         m1.add_child(colormap_worldcover)
-        
-#     if mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
-#         cmap = matplotlib.cm.get_cmap(MS_BAND_DICT["cmap"], 25)
-#         colormap_MSCOMP = branca.colormap.LinearColormap(colors=[matplotlib.colors.to_hex(cmap(i)) for i in range(cmap.N)]).scale(MS_BAND_DICT["min"], MS_BAND_DICT["max"])
-#         colormap_MSCOMP.caption = MS_BAND_DICT["name"]
-#         m1.add_child(colormap_MSCOMP)
-        
-#     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
-#         m1.add_child(colormap_AGB)
-#         m1.add_child(colormap_AGBSE)
-
-#     #GeoJson(atl08_gdf, name="ATL08"
-#     #       ).add_to(m)
-
-#     boreal_tile_index_layer = GET_BOREAL_TILE_LAYER(boreal_tile_index, tiles_remove, boreal_tiles_style)
-
-#     if tile_index_matches is not None and len(tile_index_matches) > 0:
-#         tile_matches_layer = GeoJson(
-#                 data=tile_index_matches,
-#                 style_function=lambda x:dps_subset_style,
-#                 name=f"{MATCH_TILES_NAME} completed",
-#                 tooltip=features.GeoJsonTooltip(
-#                     fields=['tile_num'],
-#                     aliases=['Tile num:'],
-#                     )
-#             )
-
-#     if tile_index_check is not None and len(tile_index_check) > 0:
-#         tile_index_check_layer = GeoJson(
-#                 data=tile_index_check,
-#                 style_function=lambda x:dps_check_style,
-#                 name=f"{CHECK_TILES_NAME} tiles"
-#             )
-
-#     if mosaic_json_dict['agb_mosaic_json_s3_fn'] is not None:
-#         agb_tiles_layer = TileLayer(
-#             tiles=agb_tiles,
-#             opacity=1,
-#             name="AGB",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         agb_tiles_layer.add_to(m1)
-
-#         agb_se_tiles_layer = TileLayer(
-#             tiles=agb_se_tiles,
-#             opacity=1,
-#             name="AGB SE",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         agb_se_tiles_layer.add_to(m1)
-        
-#     if mscomp_rgb_dict is not None:
-        
-#         mscomp_tiles_layer_red = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['red_bandmax']}&bidx={mscomp_rgb_dict['red_bandnum']}&colormap_name=reds",
-#             opacity=0.33,
-#             name=f"MS Composite: {mscomp_rgb_dict['red_bandnum']}",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         mscomp_tiles_layer_red.add_to(m1)
-#         mscomp_tiles_layer_green = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['green_bandmax']}&bidx={mscomp_rgb_dict['green_bandnum']}&colormap_name=greens",
-#             opacity=0.33,
-#             name=f"MS Composite: {mscomp_rgb_dict['green_bandnum']}",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         mscomp_tiles_layer_green.add_to(m1)
-#         mscomp_tiles_layer_blue = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale=0.01,{mscomp_rgb_dict['blue_bandmax']}&bidx={mscomp_rgb_dict['blue_bandnum']}&colormap_name=blues",
-#             opacity=0.33,
-#             name=f"MS Composite: {mscomp_rgb_dict['blue_bandnum']}",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         mscomp_tiles_layer_blue.add_to(m1)
-        
-#     elif mosaic_json_dict['mscomp_mosaic_json_s3_fn'] is not None:
-#         mscomp_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['mscomp_mosaic_json_s3_fn']}&rescale={MS_BAND_DICT['min']},{MS_BAND_DICT['max']}&bidx={MS_BAND_DICT['num']}&colormap_name={MS_BAND_DICT['cmap']}",
-#             opacity=1,
-#             name=MS_BAND_DICT['legend_name'],
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         mscomp_tiles_layer.add_to(m1)
-        
-#     ###########################    
-#     # TILE LAYERS
-#     if mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn'] is not None:
-#         tcc2020pvalue_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020pvalue_json_s3_fn']}&rescale=0,{TCC2020PVALUE_MAX}&bidx=1&colormap_name={TCC2020PVALUE_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
-#             opacity=1,
-#             name="Tree canopy cover trend significance",
-#             attr="TerraPulse",
-#             overlay=True
-#         )
-#         tcc2020pvalue_tiles_layer.add_to(m1)  
-        
-#     if mosaic_json_dict['tp_tcc2020slope_json_s3_fn'] is not None:
-#         tcc2020slope_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020slope_json_s3_fn']}&rescale={TCC2020SLOPE_MIN},{TCC2020SLOPE_MAX}&bidx=1&colormap_name={TCC2020SLOPE_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
-#             opacity=1,
-#             name="Tree canopy cover trend (1984-2020)",
-#             attr="TerraPulse",
-#             overlay=True
-#         )
-#         tcc2020slope_tiles_layer.add_to(m1)  
-        
-#     if mosaic_json_dict['tp_standage2020_json_s3_fn'] is not None:
-#         standage2020_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_standage2020_json_s3_fn']}&rescale=0,{STANDAGE2020_MAX}&bidx=1&colormap_name={STANDAGE2020_COLORBAR}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM ; try this: https://developmentseed.org/titiler/examples/code/tiler_with_custom_colormap/COLORBAR WE NEED
-#             opacity=1,
-#             name="Stand age 2020",
-#             attr="TerraPulse",
-#             overlay=True
-#         )
-#         standage2020_tiles_layer.add_to(m1)
-        
-#     if mosaic_json_dict['tp_tcc2020_json_s3_fn'] is not None:
-#         tcc2020_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['tp_tcc2020_json_s3_fn']}&rescale=0,{TCC2020_MAX}&bidx=1&colormap_name={TCC2020_COLORBAR.lower()}", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
-#             opacity=1,
-#             name="Tree canopy cover 2020",
-#             attr="TerraPulse",
-#             overlay=True
-#         )
-#         tcc2020_tiles_layer.add_to(m1)
-        
-#     if mosaic_json_dict['worldcover_json_s3_fn'] is not None:
-#         # encode the colormap so it works with a mosaic json?
-#         import urllib
-#         import json
-#         # colormap_worldcover_dict = [
-#         #         ((0, 10), '#006400'),
-#         #         ((10, 20) , '#ffbb22'),
-#         #         ((20, 30) , '#ffff4c'),
-#         #         ((30, 40) , '#f096ff'),
-#         #         ((40, 50) , '#fa0000'),
-#         #         ((50, 60) , '#b4b4b4'),
-#         #         ((60, 70) , '#f0f0f0'),
-#         #         ((70, 80) , '#0064c8'),
-#         #         ((80, 90) , '#0096a0'),
-#         #         ((90, 95) , '#00cf75'),
-#         #         ((95, 100) , '#fae6a0'),
-#         #         ((100, 255), '#000000')
-#         #     ]
-#         colormap_worldcover_dict = dict(zip([str(n) for n in values_worldcover], cols_worldcover))
-#         colormap_encode = urllib.parse.urlencode({"colormap": json.dumps(colormap_worldcover_dict)})
-#         colormap_worldcover = cm.linear.Set1_09.scale(0, 100).to_step(len(values_worldcover))
-#         worldcover_tiles_layer = TileLayer(
-#             #TODO: try this: https://developmentseed.org/titiler/examples/code/tiler_with_custom_colormap/
-#             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&{colormap_encode}",
-#             #TODO: get this to work?
-#             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap={colormap_worldcover_dict}", # <---- THIS IS NOT WORKING
-#             #TODO: try this: https://python-visualization.github.io/folium/latest/advanced_guide/colormaps.html
-            
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['worldcover_json_s3_fn']}&rescale=10,100&bidx=1&colormap_name=tab20", # <---- THIS IS WORKING, but DOESNT MATCH THE CUSTOM COLORBAR WE NEED
-#             opacity=1,
-#             name="Worldcover",
-#             attr="ESA",
-#             overlay=True
-#         )
-#         worldcover_tiles_layer.add_to(m1)
-    
-#     # Add the additional tile layer to map with its colorbar
-#     if HLS_TILELAYER_LIST is not None:
-#         for TILELAYER in HLS_TILELAYER_LIST:
-#             TILELAYER.add_to(m1)
-#         # Just need to add the colorbar once    
-#         m1.add_child(colormap_ADDED_TILELAYER)
-#     if ADD_TILELAYER is not None:
-#         for i, ADD_TILELAYER in enumerate(ADD_TILELAYER_LIST):
-#             ADD_TILELAYER["layer"].add_to(m1)
-#             print(f"Adding layer {ADD_TILELAYER['caption']}...")
-#             if ADD_TILELAYER["show_cbar"]:
-#                 m1.add_child(colormap_ADDED_TILELAYER_list[i])
-        
-#     # Overlay topo last with an opacity     
-#     if mosaic_json_dict['topo_mosaic_json_s3_fn'] is not None:
-#         topo_tiles_layer = TileLayer(
-#             tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,1&bidx=3&colormap_name=gist_gray", #tsri
-#             #tiles= f"{tiler_mosaic}?url={mosaic_json_dict['topo_mosaic_json_s3_fn']}&rescale=0,2&bidx=5&colormap_name=tab10", #slopemask
-#             opacity=TOPO_OPACITY,
-#             name="Topo Solar Rad. Idx",
-#             attr="MAAP",
-#             overlay=True
-#         )
-#         topo_tiles_layer.add_to(m1)
-        
-#     # Add custom basemaps
-#     basemaps['Google Terrain'].add_to(m1)
-#     basemaps['Imagery'].add_to(m1)
-#     basemaps['ESRINatGeo'].add_to(m1)
-#     basemaps['basemap_gray'].add_to(m1)
-
-#     if ecoboreal_geojson is not None:
-#         ecoboreal_layer.add_to(m1)
-
-#     # Layers are added on top. Last layer is top layer
-#     boreal_tile_index_layer.add_to(m1)
-    
-#     if tile_index_matches is not None and len(tile_index_matches) > 0:
-#         tile_matches_layer.add_to(m1)
-
-#     if tile_index_check is not None and len(tile_index_check) > 0:
-#         tile_index_check_layer.add_to(m1) 
-    
-#     # Add reference plots
-#     if plots is not None and len(plots) > 0:
-        
-#         #pal_heightref_cmap = cm.LinearColormap(colors = ['black','#636363','#fc8d59','#fee08b','#ffffbf','#d9ef8b','#91cf60','#1a9850'], vmin=0, vmax=35)
-#         pal_heightref_cmap = cm.LinearColormap(colors=['blue','white','red'], vmin=-10, vmax=10)
-#         pal_heightref_cmap.caption = 'Forest height from field'
-#         for lat, lon, ref_ht, pred_ht, diff_ht, diff_yr in zip(plots.geometry.y, plots.geometry.x, plots.ref_ht, plots.value_ht_L30_2020, plots.diff_ht, plots.diff_yr):
-#             plot = CircleMarker(location=[lat, lon],
-#                                 radius = 10,
-#                                 weight=0.75,
-#                                 tooltip=f"Ref ht: {str(round(ref_ht,2))}\nPred. ht: {str(round(pred_ht,2))}m\nDiff: {str(round(diff_ht,2))}m",
-#                                 fill=True,
-#                                 #fill_color=getfill(h_can),
-#                                 color = pal_heightref_cmap(diff_ht),
-#                                 opacity=1,
-#                                     overlay=True,
-#                                 name="Plots"
-                                
-#                    )
-#             plot.add_to(m1)
-
-#     if SHOW_WIDGETS:
-#         plugins.Geocoder().add_to(m1)
-        
-#     LayerControl().add_to(m1)
-#     plugins.Geocoder(position='bottomright').add_to(m1)
-#     plugins.Fullscreen(position='bottomleft').add_to(m1)
-#     plugins.MousePosition().add_to(m1)
-    
-#     if SHOW_WIDGETS:
-#         minimap = plugins.MiniMap()
-#         m1.add_child(minimap)
-#         #m1.add_child(colormap_AGBSE)
-
-#     return m1
 
 def map_tile_n_obs(tindex_master_fn='s3://maap-ops-workspace/shared/lduncanson/DPS_tile_lists/ATL08_filt_tindex_master.csv', 
                    map_name = '# of filtered ATL08 obs.',
@@ -1110,3 +934,232 @@ def MAP_LAYER_FOLIUM(LAYER=None, LAYER_COL_NAME=None, fig_w=1000, fig_h=400, lat
     foliumMap.add_child(minimap)
     
     return foliumMap
+
+def add_advanced_pixel_query_tool(folium_map, raster_configs):
+    """
+    Add advanced pixel query tool that can query multiple rasters.
+    
+    Parameters:
+    -----------
+    folium_map : folium.Map
+        The folium map object
+    raster_configs : list
+        List of dicts with raster configuration:
+        [{'name': 'Carbon', 'url': 'titiler_url', 'band': 1}, ...]
+    """
+    
+    # Create JavaScript configuration
+    raster_js_config = json.dumps(raster_configs)
+    
+    pixel_query_js = f"""
+    <script>
+    var rasterConfigs = {raster_js_config};
+    
+    // Add click event listener
+    {folium_map.get_name()}.on('click', function(e) {{
+        var lat = e.latlng.lat;
+        var lng = e.latlng.lng;
+        
+        var popupContent = `
+            <div style="font-family: Arial, sans-serif; min-width: 250px;">
+                <h4>Pixel Query</h4>
+                <p><strong>Coordinates:</strong> ${{lat.toFixed(6)}}, ${{lng.toFixed(6)}}</p>
+                <div id="pixel-values">Querying...</div>
+            </div>
+        `;
+        
+        var popup = L.popup()
+            .setLatLng(e.latlng)
+            .setContent(popupContent)
+            .openOn({folium_map.get_name()});
+        
+        // Query all configured rasters
+        var promises = rasterConfigs.map(config => {{
+            var queryUrl = `${{config.url}}/point/${{lng}},${{lat}}?bidx=${{config.band}}`;
+            return fetch(queryUrl)
+                .then(response => response.json())
+                .then(data => ({{
+                    name: config.name,
+                    value: data.values ? data.values[0] : 'No data',
+                    band: config.band
+                }}))
+                .catch(error => ({{
+                    name: config.name,
+                    value: 'Error',
+                    band: config.band
+                }}));
+        }});
+        
+        Promise.all(promises).then(results => {{
+            var valuesHtml = '<table style="width: 100%; border-collapse: collapse;">';
+            valuesHtml += '<tr><th style="border: 1px solid #ddd; padding: 5px;">Layer</th>';
+            valuesHtml += '<th style="border: 1px solid #ddd; padding: 5px;">Value</th>';
+            valuesHtml += '<th style="border: 1px solid #ddd; padding: 5px;">Band</th></tr>';
+            
+            results.forEach(result => {{
+                valuesHtml += `<tr>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${{result.name}}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${{result.value}}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${{result.band}}</td>
+                </tr>`;
+            }});
+            
+            valuesHtml += '</table>';
+            
+            document.getElementById('pixel-values').innerHTML = valuesHtml;
+        }});
+    }});
+    </script>
+    """
+    
+    # Add the JavaScript to the map
+    folium_map.get_root().html.add_child(folium.Element(pixel_query_js))
+    
+    return folium_map
+
+def add_coordinate_display(folium_map):
+    """Add coordinate display to folium map."""
+    
+    coordinate_js = f"""
+    <div id="coordinate-display" style="
+        position: fixed; 
+        bottom: 10px; 
+        left: 10px; 
+        background: rgba(255,255,255,0.9); 
+        padding: 5px 10px; 
+        border-radius: 3px; 
+        font-family: monospace; 
+        font-size: 12px;
+        z-index: 1000;
+        border: 1px solid #ccc;">
+        Lat: -, Lon: -
+    </div>
+    
+    <script>
+    {folium_map.get_name()}.on('mousemove', function(e) {{
+        var lat = e.latlng.lat.toFixed(6);
+        var lng = e.latlng.lng.toFixed(6);
+        document.getElementById('coordinate-display').innerHTML = 
+            `Lat: ${{lat}}, Lon: ${{lng}}`;
+    }});
+    
+    {folium_map.get_name()}.on('mouseout', function(e) {{
+        document.getElementById('coordinate-display').innerHTML = 
+            'Lat: -, Lon: -';
+    }});
+    </script>
+    """
+    
+    folium_map.get_root().html.add_child(folium.Element(coordinate_js))
+    return folium_map
+
+def add_pixel_query(m, query_layers, decimals=3):
+    """
+    Add click-to-query functionality to a folium map.
+
+    Each layer in `query_layers` is a dict with:
+        'name'      : display label (required)
+        'point_url' : URL with {lon},{lat} placeholders (required)
+        'units'     : optional unit suffix
+        'section'   : optional group heading; consecutive layers sharing
+                      the same section appear under one heading
+    """
+    layers_json = json.dumps(query_layers)
+    js = """
+    {% macro script(this, kwargs) %}
+    (function() {
+        var map = {{ this._parent.get_name() }};
+        var queryLayers = {{ this.layers_json }};
+        var decimals = {{ this.decimals }};
+
+        map.on('click', async function(e) {
+            var lat = e.latlng.lat;
+            var lon = e.latlng.lng;
+
+            var popup = L.popup({maxWidth: 420})
+                .setLatLng(e.latlng)
+                .setContent('<b>Loading…</b>')
+                .openOn(map);
+
+            // Fetch all values in parallel, preserving original index order
+            var results = await Promise.all(queryLayers.map(async function(layer, idx) {
+                var url = layer.point_url
+                    .replace('{lon}', lon.toFixed(6))
+                    .replace('{lat}', lat.toFixed(6));
+                var entry = {
+                    idx: idx,
+                    section: layer.section || null,
+                    name: layer.name,
+                    units: layer.units || ''
+                };
+                try {
+                    var resp = await fetch(url);
+                    if (!resp.ok) { entry.value = 'http ' + resp.status; return entry; }
+                    var txt = await resp.text();
+                    txt = txt.replace(/:\s*NaN/g, ': null')
+                             .replace(/:\s*-?Infinity/g, ': null');
+                    var data = JSON.parse(txt);
+                    var v = null;
+                    if (data.values && data.values.length) {
+                        var first = data.values[0];
+                        if (Array.isArray(first)) {
+                            v = (first.length >= 2 && Array.isArray(first[1]) && first[1].length)
+                                ? first[1][0] : null;
+                        } else {
+                            v = first;
+                        }
+                    }
+                    if (v === null || v === undefined || Number.isNaN(v) || !Number.isFinite(v)) {
+                        entry.value = 'no data';
+                    } else {
+                        entry.value = Number(v).toFixed(decimals) + (entry.units ? ' ' + entry.units : '');
+                    }
+                } catch (err) {
+                    entry.value = 'error';
+                }
+                return entry;
+            }));
+
+            // Build HTML, grouping consecutive entries by section
+            var html = '<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; min-width: 280px;">';
+            html += '<div style="border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 8px;">';
+            html += '<b style="color:#1f4d8c;">Pixel values</b><br>';
+            html += '<span style="color:#888; font-size: 0.95em;">lat ' + lat.toFixed(5) +
+                    ', lon ' + lon.toFixed(5) + '</span></div>';
+
+            var lastSection = '__init__';
+            results.forEach(function(r) {
+                if (r.section !== lastSection) {
+                    if (lastSection !== '__init__') {
+                        html += '</table>';   // close previous group
+                    }
+                    if (r.section) {
+                        html += '<div style="font-weight:600; color:#1f4d8c; ' +
+                                'margin: 8px 0 4px 0; font-size: 0.95em; ' +
+                                'text-transform: uppercase; letter-spacing: 0.03em;">' +
+                                r.section + '</div>';
+                    } else {
+                        html += '<div style="height: 8px;"></div>';   // spacer for ungrouped
+                    }
+                    html += '<table style="border-collapse:collapse; width:100%;">';
+                    lastSection = r.section;
+                }
+                html += '<tr>' +
+                        '<td style="padding: 1px 12px 1px 0; color:#555;">' + r.name + '</td>' +
+                        '<td style="font-family: monospace; padding: 1px 0; text-align:right;">' +
+                        '<b>' + r.value + '</b></td>' +
+                        '</tr>';
+            });
+            html += '</table></div>';
+
+            popup.setContent(html);
+        });
+    })();
+    {% endmacro %}
+    """
+    el = MacroElement()
+    el._template = Template(js)
+    el.layers_json = layers_json
+    el.decimals = decimals
+    m.add_child(el)
+    return m
