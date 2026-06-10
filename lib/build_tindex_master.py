@@ -108,7 +108,7 @@ def main():
     
     parser = argparse.ArgumentParser()
         
-    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'DECIDFRAC','CACC','TRENDOLS','TRENDCLASS','all'], help="Specify the type of tiles to index from DPS output")
+    parser.add_argument("-t", "--type", type=str, choices=['S1','S1_subtile','LC','HLS','Landsat', 'Topo', 'ATL08', 'ATL08_filt', 'ATL08_filt_extract', 'AGB','HT', 'TCC', 'TCCTREND', 'AGE', 'FORESTAGE100m','FORESTAGE', 'DECIDFRAC','CACC','TRENDOLS','TRENDCLASS','TTE','all'], help="Specify the type of tiles to index from DPS output")
     parser.add_argument("-y", "--dps_year", type=str, default=2022, help="Specify the year of the DPS output")
     parser.add_argument("-y_list", "--dps_year_list", nargs='+', type=str, default=None, help="Specify the list of years of the DPS output")
     parser.add_argument("-m", "--dps_month", type=str, default=None, help="Specify the start month of the DPS output as a zero-padded string")
@@ -181,7 +181,7 @@ def main():
     DEBUG = args.DEBUG
     dps_year = args.dps_year
     dps_year_list = args.dps_year_list
-    dps_month = args.dps_month
+    dps_month = args.dps_month 
     dps_month_list = args.dps_month_list
     alg_name = args.alg_name
     user = args.user
@@ -227,10 +227,10 @@ def main():
         str_exclude_list = ['SAMPLE', 'checkpoint']
         
         if HAS_MAAP:
-            if "FORESTAGE" in TYPE:
+            if "FORESTAGE" or "TTE" in TYPE:
                 if user is None: user = 'montesano' # *.VH_median_summer
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
-                if TYPE == 'FORESTAGE100m':
+                if TYPE == 'FORESTAGE100m' or TYPE == "TTE":
                     ends_with_str = ".tif"
                 else:
                     ends_with_str = "_cog.tif"
@@ -251,8 +251,8 @@ def main():
                 ends_with_str = "_cog.tif"
             if "HLS" in TYPE:
                 if user is None: user = 'nathanmthomas'
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}*/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
-                #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
+                #dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}*/{dps_year}/{dps_month}/{format(d, '02')}/**/*.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/**/*.tif"]
                 ends_with_str = ".tif"
             if "Landsat" in TYPE:
                 if user is None: user = 'nathanmthomas'
@@ -278,12 +278,19 @@ def main():
                 dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9].tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
                 ends_with_str = ".tif"
             if TYPE == 'TRENDCLASS':
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_kendallclasses.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{format(int(dps_month), '02')}/{format(d, '02')}/**/*_kendallclasses.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
             if  TYPE == 'TRENDOLS':
-                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{dps_month}/{format(d, '02')}/**/*_ols.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+                dps_out_searchkey_list = [f"{user}/dps_output/{alg_name}/{args.dps_identifier}/{dps_year}/{format(int(dps_month), '02')}/{format(d, '02')}/**/*_ols.tif" for d in range(args.dps_day_min, args.dps_day_max + 1) for dps_month in dps_month_list for dps_year in dps_year_list]
+            # if args.NO_DPS:
+            #     dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.tif"]
+            #     ends_with_str = ".tif"
             if args.NO_DPS:
-                dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*.tif"]
-                ends_with_str = ".tif"
+                if "filt" in TYPE or "ATL08" in TYPE:
+                    ext = ".parquet"
+                else:
+                    ext = ".tif"
+                dps_out_searchkey_list = [f"{user}/data/{args.dps_identifier}/*{ext}"]
+                ends_with_str = ext
                 
         else:
             if args.root_key is None:
@@ -354,7 +361,7 @@ def main():
                 i=3
             df['tile_num'] = df['file'].str.split('_', expand=True)[i].str.strip(ends_with_str)
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
-        if 'AGB' in TYPE or 'HT' in TYPE:
+        if 'AGB' in TYPE or 'HT' in TYPE or 'TTE' in TYPE:
             df['tile_num'] = df['file'].str.split('_', expand=True)[4].str.strip('*.tif')
             if DEBUG: print(f"Type is {TYPE}\n {df.head()}")
         if 'Topo' in TYPE:
