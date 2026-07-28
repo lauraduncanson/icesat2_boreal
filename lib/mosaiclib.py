@@ -532,6 +532,7 @@ MISC_MOSAIC_JSON_FN_DICT = {
     
    'TTE_2010': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TTE/download_gee_tiles_v1/tte_montesano_2010_30m/TTE_tindex_master_mosaic.json',
     'EFT_2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/EFT/download_gee_tiles_v1/eft_armstrong_2020_250m/TTE_tindex_master_mosaic.json',
+    'NDVI_trends_HLS': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/TRENDNDVI_SLOPE/main/TRENDNDVI_SLOPE_tindex_master_mosaic.json',
 }
 MISC_TINDEX_FN_DICT = dict()
 for key, value in MISC_MOSAIC_JSON_FN_DICT.items():

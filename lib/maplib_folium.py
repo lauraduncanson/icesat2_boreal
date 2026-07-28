@@ -351,7 +351,7 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
     
     return tiles
 
-def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=False, PARAMS_DICT = {"rescale": "0,30", "bidx":"1", "colormap_name": "inferno"}, PRINT=False):
+def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=False, SHOW_LAYER=False, PARAMS_DICT = {"rescale": "0,30", "bidx":"1", "colormap_name": "inferno"}, PRINT=False):
     
     '''
     Use mosaic json to check for registration, register, build tiles layer url with parameters
@@ -375,7 +375,8 @@ def make_tiles_layer_dict(mosaic_reg_id, mosaic_json_fn, NAME: str, SHOW_CBAR=Fa
             opacity=1,
             name=NAME,
             attr="MAAP",
-            overlay=True
+            overlay=True,
+            show=SHOW_LAYER
         )
     else:
         print('Custom colormap...')
