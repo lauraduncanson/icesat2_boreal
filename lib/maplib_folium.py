@@ -347,7 +347,7 @@ def build_tiles_with_params(mosaic_reg_id, mosiac_json_fn, params_dict, titiler_
         if 'colormap_name' in params_dict:
             tiles = tiles.replace(params_dict_tmp['colormap_name'], params_dict['colormap_name'])
     else:
-        tiles = "".join([titiler_endpoint, "/mosaics/", mosaic_reg_id, "/tiles/{z}/{x}/{y}", "@1x?", urllib.parse.urlencode(params_dict)])
+        tiles = "".join([titiler_endpoint, "/mosaics/", mosaic_reg_id, "/tiles/{z}/{x}/{y}", "?", urllib.parse.urlencode(params_dict)])
     
     return tiles
 
@@ -1066,7 +1066,7 @@ def add_pixel_query(m, query_layers, decimals=3):
                       the same section appear under one heading
     """
     layers_json = json.dumps(query_layers)
-    js = """
+    js = r"""
     {% macro script(this, kwargs) %}
     (function() {
         var map = {{ this._parent.get_name() }};
@@ -1101,7 +1101,16 @@ def add_pixel_query(m, query_layers, decimals=3):
                              .replace(/:\s*-?Infinity/g, ': null');
                     var data = JSON.parse(txt);
                     var v = null;
-                    if (data.values && data.values.length) {
+                    
+                    // Handle the titiler-pgstac response format
+                    if (data.assets && data.assets.length > 0) {
+                        var asset = data.assets[0];
+                        if (asset.values && asset.values.length > 0) {
+                            v = asset.values[0];
+                        }
+                    }
+                    // Fallback to old format if needed
+                    else if (data.values && data.values.length) {
                         var first = data.values[0];
                         if (Array.isArray(first)) {
                             v = (first.length >= 2 && Array.isArray(first[1]) && first[1].length)
@@ -1110,13 +1119,14 @@ def add_pixel_query(m, query_layers, decimals=3):
                             v = first;
                         }
                     }
+                    
                     if (v === null || v === undefined || Number.isNaN(v) || !Number.isFinite(v)) {
                         entry.value = 'no data';
                     } else {
                         entry.value = Number(v).toFixed(decimals) + (entry.units ? ' ' + entry.units : '');
                     }
                 } catch (err) {
-                    entry.value = 'error';
+                    entry.value = 'error: ' + err.message;
                 }
                 return entry;
             }));
