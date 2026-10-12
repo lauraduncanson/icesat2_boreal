@@ -141,16 +141,19 @@ get_extract_stats_df <- function(raster, polygons){
     }
 
 do_tile_band_stats_df <- function(r, tile_num, 
-                                  bnames=c('agbd_mean','agbd_sd'),
+                                  bnames=c('agbd_mean','agbd_sd','agbd_var','agb_var'),
   boreal_polygon_file='/projects/shared-buckets/nathanmthomas/analyze_agb/input_zones/wwf_circumboreal_Dissolve_reprj.geojson',
   #boreal_polygon_file='/projects/shared-buckets/montesano/databank/arc/wwf_circumboreal_Dissolve.geojson',
-                                  COMPUTE_VAR=TRUE
+                                  COMPUTE_VAR=FALSE
                                  ){
     
     #'''Return a tile-level raster csv of combined dataframes for each band of a raster for a full tile, its boreal compoonent, and its northern component 
     #'''
 
-    names(r) = bnames
+    Mg_per_pixel = 0.09
+    Mg_per_Pg = 1e9
+
+    names(r) = bnames[1:2]
     
     if(COMPUTE_VAR){
         bnames = c(bnames, 'agbd_var') 
@@ -169,9 +172,15 @@ do_tile_band_stats_df <- function(r, tile_num,
     for(bnum in bnum_list){
         bname = bnames[bnum]
         if(bname=='agbd_var'){
-            # This creates a 'variance' band and gets the same stats, whcih include 'sum' needed later for full uncertainty accounting of a tile/boreal/north total variabne 
-            add(r) = r[['agbd_sd']]^2   
+            # This creates a 'variance' density band and gets the same stats, whcih include 'sum' needed later for full uncertainty accounting of a tile/boreal/north total variabne 
+            add(r) = r[['agbd_sd']]^2  
+            names(r)[bnum] = bnames[bnum]
             }
+        if(bname=='agb_var'){
+            # This creates a 'variance' stock band in Pg
+            add(r) = (r[['agbd_sd']] * Mg_per_pixel/Mg_per_Pg)^2  
+            names(r)[bnum] = bnames[bnum]
+        }
         
         ####
         # Full tile
@@ -222,41 +231,6 @@ do_tile_band_stats_df <- function(r, tile_num,
             df_band_north <- data.frame(matrix(0, nrow = 1, ncol = length(new_colnames)))
             colnames(df_band_north) <- new_colnames
             }
-        
-        # r_4326 <- project(r[[bnum]], "epsg:4326") #### TODO <-- does this change the area of a pixel?
-        # # May be modified below depending on extent logic
-
-        # #get mean and total for northern
-        # if(ymin(r_4326)<51.6){  # should be =< ?
-        #     if(ymax(r_4326)>51.6){
-        #         #print('Tile straddles 51.6')
-        #         new_ext <- ext(xmin(r_4326), xmax(r_4326), 51.6, ymax(r_4326))
-        #         crop_r_4326 <- crop(r_4326, new_ext)
-        #         df_band_north = get_global_stats_df(crop_r_4326)
-        #         cnt_north = global(crop_r_4326, fun="notNA")$notNA
-        #         rm(crop_r_4326)
-
-        #     } else{
-        #         #print('Tile completely south of 51.6')
-        #         cnt_north = 0
-        #         # northern_tile_total_agb <- 0.0
-        #         # northern_tile_total_var <- 0.0
-                
-        #         # Get empty df with the same names as the full df
-        #         new_colnames = str_replace(colnames(df_band_full), 'full','north')
-        #         df_band_north <- data.frame(matrix(0, nrow = 1, ncol = length(new_colnames)))
-        #         colnames(df_band_north) <- new_colnames
-        #     }
-        # } else {
-        #     #print('Tile completely north of 51.6')
-        #     cnt_north = global(r_4326, fun="notNA")$notNA
-        #     # northern_tile_total_agb <- (0.09*global(mean_agb, 'sum', na.rm=TRUE)$sum)/1000000000
-        #     # northern_tile_total_var <- global(var_agb, 'sum', na.rm=TRUE)$sum
-        #     # Get df that matches the full one
-        #     new_colnames = str_replace(colnames(df_band_full), 'full','north')
-        #     df_band_north <- df_band_full
-        #     colnames(df_band_north) <- new_colnames
-        #     }
 
         df_band_full_list[[  paste0(bnames[bnum],'_full')  ]] = df_band_full
         df_band_boreal_list[[paste0(bnames[bnum],'_boreal')]] = df_band_boreal
@@ -281,8 +255,10 @@ do_tile_band_stats_df <- function(r, tile_num,
 compute_tile_stats <- function(tindex_fn, 
                                outdir_main='/projects/my-public-bucket/DPS_tile_lists/BOREAL_MAP',
                                start_idx=1, stop_idx=6000,
+                               BANDNAMES = c('agbd_mean','agbd_sd'),
                                TILE_NUM=NA,
-                               REDO=FALSE
+                               REDO=FALSE,
+                               BUCKET = 's3://maap-ops-workspace/'
                               ){
     #'''Return a csv for a list of tile rasters, run the tile-level dataframes of the raster band stats for each extent (full, boreal, north)
     #'''
@@ -314,11 +290,12 @@ compute_tile_stats <- function(tindex_fn,
     dps_version_str = str_split(tindex_fn,'/')[[1]][8] 
     map_version_str = str_split(tindex_fn,'/')[[1]][9]
     run_version_str = str_split(tindex_fn,'/')[[1]][10]
-    
+    print(dps_version_str)
     # release_version_str should be our names v2.1, v2.1, v3.0 etc
     if(dps_version_str == 'dev_v1.5' && map_version_str == 'AGB_H30_2020'){release_version_str = 'v2.1'}
     if(dps_version_str == 'dev_v1.5' && map_version_str == 'AGB_S1H30_2020'){release_version_str = 'v2.2'}
     if(dps_version_str == 'v3.0.0'   && map_version_str == 'AGB_H30_2020'){release_version_str = 'v3.0'}
+    if( (dps_version_str == 'v3.1.0' || dps_version_str == 'dev_v1.16') && map_version_str == 'AGB_H30_2020'){release_version_str = 'v3.1'}
 
     print(paste(release_version_str, map_version_str, sep=' '))
 
@@ -372,58 +349,90 @@ compute_tile_stats <- function(tindex_fn,
             #raster_data = aws.s3::s3read_using(terra::rast, object = fn) # <-- this wont let values get read from raster_data
             #raster_data = terra::rast(str_replace(fn, "s3://","/vsis3/")) # <-- this will, but its slow
             #df = extract_raster_stats(terra::rast(str_replace(fn, "s3://","/vsis3/")), as.numeric(tile_num))
+            r = terra::rast(str_replace(fn, "s3://","/vsis3/"))
+            names(r) = BANDNAMES
             df = do_tile_band_stats_df(terra::rast(str_replace(fn, "s3://","/vsis3/")), as.numeric(tile_num))
-            
-            ###########################
-            # randomForest stats
-            # These rF stats data are ONLY from the first rF model from all versions v3.0 and earlier
-            #
-            #df = setNames(data.frame(matrix(ncol = 3)),  c('tile_num', 'r2', 'rmse'))
-            #print('Read RDS')
-            
-            stats = aws.s3::s3read_using(readRDS, object = gsub('.tif', '_stats.Rds' , fn))
-            #print(fn)  
-            #df$tile_num = as.numeric(tile_num)
-            
-            df$r2 = stats[[1]]
-            df$rmse = stats[[2]]
-            imp_sorted <- as.data.frame(stats$importance) %>% arrange(desc(IncNodePurity))
-            imp_sorted$variable <- rownames(imp_sorted)
-            df$imp_var_1 = imp_sorted$variable[1]
-            df$imp_var_2 = imp_sorted$variable[2]
-            df$imp_var_3 = imp_sorted$variable[3]
-            df$imp_var_4 = imp_sorted$variable[4]
-            df$imp_val_1 = imp_sorted$IncNodePurity[1]
-            df$imp_val_2 = imp_sorted$IncNodePurity[2]
-            df$imp_val_3 = imp_sorted$IncNodePurity[3]
-            df$imp_val_4 = imp_sorted$IncNodePurity[4]
-    
-            ##############################
-            # mean & sd of TILE TOTALS (from 250 iterations)
-            #
-            # TILE TOTAL AGB STOCK (MEAN & SD): totals summed across all pixels in [1] tile [2] boreal for each iterations (n=250)
-            # These data are useful totals across any version
-            #
-            smry = aws.s3::s3read_using(read.csv, object = gsub('.tif', '_summary.csv' , fn))
-            df$tile_total_agb_mean_pg   = mean(smry$tile_total)
-            df$tile_total_agb_sd_pg     = sd(smry$tile_total) # This, divided by sqrt(n=250) is a standard error 
-            df$boreal_total_agb_mean_pg = mean(smry$boreal_total)
-            df$boreal_total_agb_sd_pg   = sd(smry$boreal_total) # This, divided by sqrt(n=250) is a standard error 
-            ###############################
-            # TILE TOTAL AGB DENSITY (MEAN & SD)
-    
-            df = df %>%
-                        mutate(tile_total_agb_mean_mgha   = tile_total_agb_mean_pg *   (Pg_to_Mg / ha_per_tile),
-                               tile_total_agb_sd_mgha     = tile_total_agb_sd_pg *     (Pg_to_Mg / ha_per_tile),
-                               boreal_total_agb_mean_mgha = boreal_total_agb_mean_pg * (Pg_to_Mg / ha_per_tile),
-                               boreal_total_agb_sd_mgha   = boreal_total_agb_sd_pg *   (Pg_to_Mg / ha_per_tile)
-                              )
-
-            # Write the tile level data frame for each tile
-            write.csv(df, out_tile_csv_fn, row.names=FALSE)
-            #write.csv(df, paste0(outdir,'/tile_stats_',map_version_str,'_',release_version_str,'_',current_idx,'_of_',total_list_len,EXPORT_TIME_STR,'.csv'))
+            rm(r)
             
             single_map_version_tile_stats_df_list[[tile_num]] = df
+            
+            version_num = as.numeric(str_replace(release_version_str, 'v', ''))
+            if(version_num >= '3.1'){
+                
+                fn_base = unlist(str_split(basename(fn),'.tif'))[1]
+                fn_parts_list = unlist(str_split(fn_base, '_'))
+                tile_num = fn_parts_list[length(fn_parts_list)]
+
+                df_extent_list = list()
+                for(EXTENT in c('boreal','north','overall')){
+                    
+                    csv_fn = gsub('.tif', paste0('_',EXTENT,'.csv') , fn)
+                    CSV_EXISTS=aws.s3::object_exists(bucket=BUCKET, object=str_replace(csv_fn, BUCKET, ''))
+                    if(CSV_EXISTS){
+                        
+                        df_extent = data.frame(aws.s3::s3read_using(read.csv, object = csv_fn) ) %>% 
+                            dplyr::select(!any_of(`EXTENT`)) %>% 
+                            dplyr::filter(iter==-1)
+                        
+                        df_extent$tile_num = as.numeric(tile_num)
+                        df_extent$extent = EXTENT
+            
+                        df_extent_list[[paste0(tile_num,EXTENT)]] = df_extent # TODO: Nothing is being captured downstream of this list yet
+                        }
+                    }
+            }else{
+                # For v3.0 and earlier
+                ###########################
+                # randomForest stats
+                # These rF stats data are ONLY from the first rF model from all versions v3.0 and earlier
+                #
+                #df = setNames(data.frame(matrix(ncol = 3)),  c('tile_num', 'r2', 'rmse'))
+                #print('Read RDS')
+                
+                stats = aws.s3::s3read_using(readRDS, object = gsub('.tif', '_stats.Rds' , fn))
+                #print(fn)  
+                #df$tile_num = as.numeric(tile_num)
+                
+                df$r2 = stats[[1]]
+                df$rmse = stats[[2]]
+                imp_sorted <- as.data.frame(stats$importance) %>% arrange(desc(IncNodePurity))
+                imp_sorted$variable <- rownames(imp_sorted)
+                df$imp_var_1 = imp_sorted$variable[1]
+                df$imp_var_2 = imp_sorted$variable[2]
+                df$imp_var_3 = imp_sorted$variable[3]
+                df$imp_var_4 = imp_sorted$variable[4]
+                df$imp_val_1 = imp_sorted$IncNodePurity[1]
+                df$imp_val_2 = imp_sorted$IncNodePurity[2]
+                df$imp_val_3 = imp_sorted$IncNodePurity[3]
+                df$imp_val_4 = imp_sorted$IncNodePurity[4]
+        
+                ##############################
+                # mean & sd of TILE TOTALS (from 250 iterations)
+                #
+                # TILE TOTAL AGB STOCK (MEAN & SD): totals summed across all pixels in [1] tile [2] boreal for each iterations (n=250)
+                # These data are useful totals across any version
+                #
+                smry = aws.s3::s3read_using(read.csv, object = gsub('.tif', '_summary.csv' , fn))
+                df$tile_total_agb_mean_pg   = mean(smry$tile_total)
+                df$tile_total_agb_sd_pg     = sd(smry$tile_total) # This, divided by sqrt(n=250) is a standard error 
+                df$boreal_total_agb_mean_pg = mean(smry$boreal_total)
+                df$boreal_total_agb_sd_pg   = sd(smry$boreal_total) # This, divided by sqrt(n=250) is a standard error 
+                ###############################
+                # TILE TOTAL AGB DENSITY (MEAN & SD)
+        
+                df = df %>%
+                            mutate(tile_total_agb_mean_mgha   = tile_total_agb_mean_pg *   (Pg_to_Mg / ha_per_tile), # TODO: update using COUNT of pixels
+                                   tile_total_agb_sd_mgha     = tile_total_agb_sd_pg *     (Pg_to_Mg / ha_per_tile),
+                                   boreal_total_agb_mean_mgha = boreal_total_agb_mean_pg * (Pg_to_Mg / ha_per_tile),
+                                   boreal_total_agb_sd_mgha   = boreal_total_agb_sd_pg *   (Pg_to_Mg / ha_per_tile)
+                                  )
+    
+                # Write the tile level data frame for each tile
+                write.csv(df, out_tile_csv_fn, row.names=FALSE)
+                #write.csv(df, paste0(outdir,'/tile_stats_',map_version_str,'_',release_version_str,'_',current_idx,'_of_',total_list_len,EXPORT_TIME_STR,'.csv'))
+                
+                single_map_version_tile_stats_df_list[[tile_num]] = df
+            }
             
         }, error = function(e) {
             # Handle the error
@@ -437,8 +446,7 @@ compute_tile_stats <- function(tindex_fn,
           })
     }
     
-    borealstats_df = do.call('rbind', single_map_version_tile_stats_df_list)
-    
+    borealstats_df = do.call('rbind', single_map_version_tile_stats_df_list) # TODO: also want to do this for df_extent_list
     borealstats_df$DPS_VERSION = dps_version_str
     borealstats_df$MAP_VERSION = map_version_str
     borealstats_df$RUN_VERSION = run_version_str
@@ -446,6 +454,10 @@ compute_tile_stats <- function(tindex_fn,
 
     EXPORT_TIME_STR = format(Sys.time(), "_%Y%m%d")
     write.csv(borealstats_df, paste0(outdir,'/tile_stats_',map_version_str,'_',release_version_str,'_',start_idx,'_of_',stop_idx,EXPORT_TIME_STR,'.csv'), row.names=FALSE)
+
+    borealstats_df_extent =  do.call('rbind', df_extent_list)
+    write.csv(borealstats_df_extent, paste0(outdir,'/tile_stats_EXTENTS_',map_version_str,'_',release_version_str,'_',start_idx,'_of_',stop_idx,EXPORT_TIME_STR,'.csv'), row.names=FALSE)
+
 }
 
 # # Get command line arguments

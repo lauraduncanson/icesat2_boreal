@@ -575,7 +575,13 @@ def get_tile_matches_gdf(tindex_master_fn,
     tindex_master = pd.read_csv(tindex_master_fn)
     
     vector_tile_index = geopandas.read_file(vector_tile_index_path)
-    vector_tile_index["tile_num"] = vector_tile_index["tile_num"].astype(int) 
+    
+    # Only cast to int if all tile_nums are purely numeric;
+    # leave as string for geographic IDs like '166W61N'
+    if vector_tile_index['tile_num'].astype(str).str.match(r'^\d+$').all():
+        vector_tile_index['tile_num'] = vector_tile_index['tile_num'].astype(str).astype(int)
+    #vector_tile_index["tile_num"] = vector_tile_index["tile_num"].astype(int) 
+    
     JOIN_COL_LIST = ["tile_num"]
     if 'subtile_num' in vector_tile_index.columns:
         vector_tile_index["subtile_num"] = vector_tile_index["subtile_num"].astype(int) 

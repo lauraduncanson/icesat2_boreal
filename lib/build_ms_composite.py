@@ -696,7 +696,7 @@ def main():
     The ms composite will have the following bands:
     
     'Blue', 'Green', 'Red', 'NIR', 'SWIR', 'SWIR2': surface reflectance values for ms composite obs.
-    'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'NBR', 'NBR2' : indices calc'd from the surface reflectance values of the ms composite obs.
+    'NDVI', 'SAVI', 'MSAVI', 'NDMI', 'EVI', 'EVI2', 'NBR', 'NBR2' : indices calc'd from the surface reflectance values of the ms composite obs.
     'TCB', 'TCG', 'TCW' : tasseled cap values from the ms composite obs.
     'ValidMask' : a mask identifing valid vegetation obs.
     'Xgeo' : x coordinate
