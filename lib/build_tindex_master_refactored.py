@@ -47,6 +47,16 @@ def modification_date(filename):
 #   needs_n_obs     : whether to compute per-file n_obs (ATL08_filt only)
 
 TYPE_CONFIG = {
+    # Seasonal S1 RTC composites (aliz237 s1-seasonal-rtc), e.g.
+    # aliz237/dps_output/s1-seasonal-rtc/v0.1.1-rc.1/2026/10/16/02/48/40/597501/SAR_S1_2019_3929.tif
+    # The path date is the DPS run date; the S1 year is in the file name (content_tag), so one
+    # identifier can hold several S1 years: build one tindex per year with --content_tag <year>.
+    'S1_SEASONAL': dict(
+        user='aliz237', ext='.tif',
+        path_template='{user}/dps_output/{alg_name}/{dps_id}/{year}/{month}/{day}/**/SAR_S1_*.tif',
+        tile_regex=r'SAR_S1_\d{4}_(\d+)\.tif$',
+        content_tag_regex=r'SAR_S1_(\d{4})_\d+\.tif$',
+    ),
     'S1': dict(
         user='montesano', ext='_cog.tif',
         path_template='{user}/dps_output/{alg_name}/{dps_id}/{year}/{month}/{day}/**/*.tif',
@@ -259,6 +269,10 @@ def handle_duplicates(df, focal_fields, return_dups=False, return_creation_time=
     if return_creation_time:
         df['creation time'] = df['local_path'].parallel_apply(modification_date)
         df.sort_values(by=['creation time'], ascending=False, inplace=True)
+    else:
+        # No file times (e.g. another user's bucket): DPS paths contain the run date-time
+        # (.../YYYY/MM/DD/HH/MM/SS/...), so the reverse-sorted path puts the newest run first
+        df.sort_values(by=['s3_path'], ascending=False, inplace=True)
 
     dropped = df[df.duplicated(subset=focal_fields, keep='first')].copy()
     if len(dropped):
@@ -357,6 +371,9 @@ def process_type(type_name, args, s3, bucket, has_maap):
             sys.exit(0)
 
     # Filter to files matching the requested content year, if specified
+    if args.file_year and 'file_year' not in df.columns:
+        print(f"WARNING: --file_year {args.file_year} ignored: no file_year column for TYPE {type_name}. "
+              f"Use --content_tag if the TYPE has a content_tag_regex that captures the year.")
     if args.file_year and 'file_year' in df.columns:
         n_before = len(df)
         df = df[df['file_year'] == args.file_year].reset_index(drop=True)
@@ -464,20 +481,139 @@ def process_type(type_name, args, s3, bucket, has_maap):
 
 
 # =============================================================================
+# DPS STAC pipeline (--DPS_STAC)
+# =============================================================================
+# DPS output is now registered as items in the DPS STAC (one collection per
+# <user>__<algorithm>__<version>), so the tindex comes straight from a STAC search:
+# no s3 glob, no file-name parsing, and the footprints come from the items
+# (proj:bbox + proj:wkt2), not from a separate tiles gpkg.
+
+def parse_stac_filter(filter_list):
+    """['prop=value', ...] -> CQL2-JSON filter ('and' of '=' ops), or None."""
+    if not filter_list:
+        return None
+    ops = []
+    for f in filter_list:
+        if '=' not in f:
+            sys.exit(f"--stac_filter must look like property=value, got: {f}")
+        prop, value = f.split('=', 1)
+        ops.append({'op': '=', 'args': [{'property': prop}, value]})
+    return ops[0] if len(ops) == 1 else {'op': 'and', 'args': ops}
+
+
+def search_dps_stac(args):
+    """Search the DPS STAC; return a GeoDataFrame of one row per tile (newest item kept)
+    plus a DataFrame of the dropped duplicates."""
+    import geopandas as gpd
+    from pystac_client import Client
+    from shapely.geometry import box
+
+    stac_filter = parse_stac_filter(args.stac_filter)
+    print(f"\nSearching DPS STAC: {args.stac_url}")
+    print(f"  Collections: {args.stac_collections}")
+    print(f"  Filter:      {stac_filter}")
+
+    search = Client.open(args.stac_url).search(collections=args.stac_collections, filter=stac_filter)
+    items = list(search.items())
+    print(f"  Items found: {len(items)}")
+    if not items:
+        sys.exit('No STAC items found. Check collections and filter. Exiting.')
+
+    rows = []
+    for i in items:
+        if args.stac_tile_property not in i.properties:
+            sys.exit(f"Item {i.id} has no property '{args.stac_tile_property}' (check --stac_tile_property)")
+        if args.stac_asset not in i.assets:
+            sys.exit(f"Item {i.id} has no asset '{args.stac_asset}'; it has {list(i.assets)} (check --stac_asset)")
+        s3_path = i.assets[args.stac_asset].href
+        # user from the href (s3://maap-ops-workspace/<user>/dps_output/...) so local_path round-trips
+        # through CovariateUtils.get_stack_fn the same way the glob-based tindex does
+        user = s3_path.split('/')[3]
+        rows.append({
+            'tile_num':     i.properties[args.stac_tile_property],
+            's3_path':      s3_path,
+            'local_path':   s3_to_local(s3_path, user=user),
+            'file':         os.path.basename(s3_path),
+            'stac_item_id': i.id,
+            'collection':   i.collection_id,
+            'created':      i.properties.get('created'),
+            'crs':          i.properties['proj:wkt2'],
+            'geometry':     box(*i.properties['proj:bbox']),
+        })
+    df = pd.DataFrame(rows)
+
+    # Tiles from several collections (e.g. versions) or re-runs: keep the newest item per tile
+    df = df.sort_values('created', ascending=False)
+    dropped = df[df.duplicated(subset=['tile_num'], keep='first')].copy()
+    for _, r in dropped.iterrows():
+        print(f"Duplicate tile {r.tile_num}: dropping {r.stac_item_id} ({r.collection}, created {r.created})")
+    df = df.drop_duplicates(subset=['tile_num'], keep='first')
+
+    if df['tile_num'].astype(str).str.match(r'^\d+$').all():
+        df['tile_num'] = df['tile_num'].astype(int)
+    df = df.sort_values('tile_num').reset_index(drop=True)
+
+    # proj:bbox is in each item's own CRS: build per CRS, then reproject to the most common one
+    crs_list = df['crs'].value_counts().index.tolist()
+    if len(crs_list) > 1:
+        print(f"WARNING: {len(crs_list)} CRSs among items; reprojecting all to the most common one")
+    gdf = pd.concat([
+        gpd.GeoDataFrame(df[df['crs'] == c].drop(columns='crs'), crs=c).to_crs(crs_list[0])
+        for c in crs_list
+    ])
+    gdf = gpd.GeoDataFrame(gdf, crs=crs_list[0]).sort_values('tile_num').reset_index(drop=True)
+
+    print(f"# of duplicate tiles: {len(dropped)}")
+    print(f"Final # of tiles: {len(gdf)}")
+    return gdf, dropped.drop(columns=['crs', 'geometry'])
+
+
+def process_dps_stac(args):
+    """Build tindex csv, footprint gpkg, and mosaic json from a DPS STAC search."""
+    gdf, dropped = search_dps_stac(args)
+
+    tag_suffix = f"_{args.content_tag}" if args.content_tag else ""
+    out_tindex_fn = os.path.join(args.outdir, f'{args.type}_tindex_master{tag_suffix}.csv')
+    gpkg_fn = os.path.splitext(out_tindex_fn)[0] + '.gpkg'
+
+    if args.RETURN_DUPS and len(dropped):
+        dropped_fn = os.path.splitext(out_tindex_fn)[0] + '_duplicates.csv'
+        print(f'Writing duplicates: {dropped_fn}')
+        dropped.to_csv(dropped_fn, mode='w')
+
+    print(f'Writing tindex master: {out_tindex_fn}')
+    pd.DataFrame(gdf.drop(columns='geometry')).to_csv(out_tindex_fn, mode='w', index_label='index')
+
+    # The gpkg holds the STAC footprints, so it is always written: it is the
+    # vector tile index that build_mosaic_json joins the csv to
+    print(f'Writing tindex gpkg: {gpkg_fn}')
+    gdf.to_file(gpkg_fn, mode='w')
+
+    ExtractUtils.build_mosaic_json(
+        out_tindex_fn,
+        vector_tile_index_path=gpkg_fn,
+        BAD_TILE_LIST=[],
+        cols_list=['tile_num'],   # other columns come from the gpkg; repeating them would give s3_path_x/_y
+    )
+    return gdf
+
+
+# =============================================================================
 # CLI
 # =============================================================================
 
 def parse_args():
     valid_types = list(TYPE_CONFIG.keys()) + ['all']
     p = argparse.ArgumentParser()
-    p.add_argument('-t', '--type', type=str, choices=valid_types, required=True)
+    p.add_argument('-t', '--type', type=str, required=True,
+                   help=f"One of {valid_types}; with --DPS_STAC any name (used for the output file name)")
     p.add_argument('-y', '--dps_year', type=str, default='2022')
     p.add_argument('-y_list', '--dps_year_list', nargs='+', type=str, default=None)
     p.add_argument('-m', '--dps_month', type=str, default=None)
     p.add_argument('-m_list', '--dps_month_list', nargs='+', type=str, default=None)
     p.add_argument('-d_min', '--dps_day_min', type=int, default=1)
     p.add_argument('-d_max', '--dps_day_max', type=int, default=31)
-    p.add_argument('-alg_name', type=str, required=True)
+    p.add_argument('-alg_name', type=str, default=None, help='Required unless --DPS_STAC')
     p.add_argument('--dps_identifier', type=str, default='master')
     p.add_argument('--user', type=str, default=None)
     p.add_argument('-o', '--outdir', type=str,
@@ -503,8 +639,30 @@ def parse_args():
     p.add_argument('--content_tag', type=str, default=None,
                help='Filter tindex to files whose extracted content_tag matches this value '
                     '(e.g., "2024" for single-year, "2024_2019" for diff maps)')
+    # DPS STAC mode: build the tindex from a STAC search instead of an s3 glob of dps_output
+    p.add_argument('--DPS_STAC', action='store_true',
+               help='Build the tindex from DPS STAC items; date/alg/identifier args are not used')
+    p.add_argument('--stac_url', type=str, default='https://dps-stac.maap-project.org')
+    p.add_argument('--stac_collections', nargs='+', default=None,
+               help='DPS STAC collections, e.g. aliz237__s1-seasonal-rtc__v0.1.1-rc.1')
+    p.add_argument('--stac_filter', nargs='+', default=None,
+               help='property=value pairs, ANDed, e.g. s1-composite:year=2019')
+    p.add_argument('--stac_tile_property', type=str, default=None,
+               help='Item property holding the tile number, e.g. s1-composite:identifier')
+    p.add_argument('--stac_asset', type=str, default=None,
+               help='Item asset key of the raster to index, e.g. composite')
 
     args = p.parse_args()
+
+    if args.DPS_STAC:
+        missing = [a for a in ('stac_collections', 'stac_tile_property', 'stac_asset') if not getattr(args, a)]
+        if missing:
+            p.error(f"--DPS_STAC needs: {', '.join('--' + a for a in missing)}")
+    else:
+        if args.type not in valid_types:
+            p.error(f"-t/--type must be one of {valid_types}")
+        if args.alg_name is None:
+            p.error('-alg_name is required (unless --DPS_STAC)')
     args.dps_month_list = args.dps_month_list or [args.dps_month]
     args.dps_year_list  = args.dps_year_list  or [args.dps_year]
 
@@ -516,6 +674,11 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    if args.DPS_STAC:
+        process_dps_stac(args)
+        return
+
     s3 = s3fs.S3FileSystem(anon=True)
 
     try:

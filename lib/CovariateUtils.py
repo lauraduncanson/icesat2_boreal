@@ -441,13 +441,17 @@ def get_stack_fn(stack_list_fn, in_tile_num, user, col_name='local_path', return
     if return_s3:
         col_name = 's3'
     
-    stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
-    
+    # Match on the tindex's tile_num column when it has one: file names don't all have '_<tile>_'
+    # (e.g. SAR_S1_2019_3929.tif ends in '_<tile>.tif')
+    if 'tile_num' in all_stacks_df.columns and pd.to_numeric(all_stacks_df['tile_num'], errors='coerce').notna().all():
+        stack_for_tile = all_stacks_df[pd.to_numeric(all_stacks_df['tile_num']).astype(int) == int(in_tile_num)]
+    else:
+        stack_for_tile = all_stacks_df[all_stacks_df[col_name].str.contains("_"+str(in_tile_num)+"_")]
+
     print("\nGetting stack fn from: ", stack_list_fn)
     [print(i) for i in stack_for_tile[col_name].to_list()]
-    stack_for_tile_fn = stack_for_tile[col_name].to_list()[0]
-    
+
     if len(stack_for_tile)==0:
-        stack_for_tile_fn = None
-        
-    return stack_for_tile_fn
+        return None
+
+    return stack_for_tile[col_name].to_list()[0]
