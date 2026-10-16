@@ -467,8 +467,11 @@ S1_subtile_mosaic_json_fn = 's3://maap-ops-workspace/shared/montesano/DPS_tile_l
 
 # SAR stacked with boreal tiles
 SAR_MOSAIC_JSON_FN_DICT = {
-    '2019': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023_2/build_stack_S1/SAR_S1_2019/S1_tindex_master_mosaic.json',
-    '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023_2/build_stack_S1/SAR_S1_2020/S1_tindex_master_mosaic.json',
+    # Old S1 comps from GEE
+    # '2019': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023_2/build_stack_S1/SAR_S1_2019/S1_tindex_master_mosaic.json',
+    # '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/run_build_stack/build_stack_v2023_2/build_stack_S1/SAR_S1_2020/S1_tindex_master_mosaic.json',
+    # New S1 comps from Ali that are in DPS STAC
+    '2020': 's3://maap-ops-workspace/shared/montesano/DPS_tile_lists/SAR/s1-seasonal-rtc/SAR_S1_2019/S1_SEASONAL_tindex_master_mosaic.json',
 }
 SAR_TINDEX_FN_DICT = dict()
 for key, value in SAR_MOSAIC_JSON_FN_DICT.items():
