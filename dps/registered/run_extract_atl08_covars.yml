@@ -1,6 +1,6 @@
 algorithm_description: run the extract_atl08_covars.py script
 algorithm_name: run_extract_atl08_covars
-algorithm_version: extract_atl08_covars
+algorithm_version: extract_atl08_covars_v2
 build_command: icesat2_boreal/dps/build_command_4.1.0.sh
 disk_space: 10GB
 docker_container_url: mas.maap-project.org/root/maap-workspaces/base_images/python:v4.1.1
@@ -16,6 +16,10 @@ inputs:
     description: a list of s3 paths to tindex csvs that hold the s3 paths of the tiled raster covars whose pixels will be extracted to atl08
     name: tindex_fn_list
     required: true
+  - default: ''
+    description: optional band renames as "old1:new1,old2:new2" (old = band description or b<N>); no spaces. Sentinel-1 names are standardized automatically
+    name: band_rename
+    required: false
 queue: maap-dps-worker-8gb
 repository_url: https://github.com/lauraduncanson/icesat2_boreal.git
 run_command: icesat2_boreal/dps/alg_2-4/run_extract_atl08_covars.sh
