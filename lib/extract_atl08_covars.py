@@ -20,7 +20,8 @@ import CovariateUtils
 # Sentinel-1 band names the models expect (as in the 2019/2020 build_stack_S1 stacks)
 S1_SEASONS = ('frozen', 'summer', 'shoulder')
 S1_POLS = ('vv', 'vh')
-S1_CANONICAL = [f'{p}_median_{s}' for s in S1_SEASONS for p in S1_POLS] + [f'n_{s}' for s in S1_SEASONS]
+#S1_CANONICAL = [f'{p}_median_{s}' for s in S1_SEASONS for p in S1_POLS] + [f'n_{s}' for s in S1_SEASONS]
+S1_CANONICAL = [f'{p}mean_{s}' for s in S1_SEASONS for p in S1_POLS] 
 
 def parse_rename_map(rename_str):
     '''Parse "old1:new1,old2:new2" into a dict. Written without spaces or quotes so it passes through the DPS shell unchanged.'''
