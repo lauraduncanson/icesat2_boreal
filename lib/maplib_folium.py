@@ -1064,6 +1064,8 @@ def add_pixel_query(m, query_layers, decimals=3):
         'units'     : optional unit suffix
         'section'   : optional group heading; consecutive layers sharing
                       the same section appear under one heading
+        'uncertainty_bidx' : optional band index of the uncertainty (e.g. 2);
+                      shown as '<value> ± <uncertainty> <units>'
     """
     layers_json = json.dumps(query_layers)
     js = r"""
@@ -1087,6 +1089,10 @@ def add_pixel_query(m, query_layers, decimals=3):
                 var url = layer.point_url
                     .replace('{lon}', lon.toFixed(6))
                     .replace('{lat}', lat.toFixed(6));
+                // Request the uncertainty band in the same call: values come back as [value, uncertainty]
+                if (layer.uncertainty_bidx) {
+                    url += '&bidx=' + layer.uncertainty_bidx;
+                }
                 var entry = {
                     idx: idx,
                     section: layer.section || null,
@@ -1097,16 +1103,29 @@ def add_pixel_query(m, query_layers, decimals=3):
                     var resp = await fetch(url);
                     if (!resp.ok) { entry.value = 'http ' + resp.status; return entry; }
                     var txt = await resp.text();
+                    // No tile in the mosaic here: titiler returns 204 (empty body) or no assets
+                    if (resp.status === 204 || !txt.trim()) {
+                        entry.value = 'tile not yet processed';
+                        return entry;
+                    }
                     txt = txt.replace(/:\s*NaN/g, ': null')
                              .replace(/:\s*-?Infinity/g, ': null');
                     var data = JSON.parse(txt);
                     var v = null;
-                    
+                    var u = null;
+
                     // Handle the titiler-pgstac response format
+                    if (data.assets && data.assets.length === 0) {
+                        entry.value = 'tile not yet processed';
+                        return entry;
+                    }
                     if (data.assets && data.assets.length > 0) {
                         var asset = data.assets[0];
                         if (asset.values && asset.values.length > 0) {
                             v = asset.values[0];
+                            if (layer.uncertainty_bidx && asset.values.length > 1) {
+                                u = asset.values[1];
+                            }
                         }
                     }
                     // Fallback to old format if needed
@@ -1123,7 +1142,11 @@ def add_pixel_query(m, query_layers, decimals=3):
                     if (v === null || v === undefined || Number.isNaN(v) || !Number.isFinite(v)) {
                         entry.value = 'no data';
                     } else {
-                        entry.value = Number(v).toFixed(decimals) + (entry.units ? ' ' + entry.units : '');
+                        entry.value = Number(v).toFixed(decimals);
+                        if (u !== null && u !== undefined && Number.isFinite(u)) {
+                            entry.value += ' ± ' + Number(u).toFixed(decimals);
+                        }
+                        entry.value += (entry.units ? ' ' + entry.units : '');
                     }
                 } catch (err) {
                     entry.value = 'error: ' + err.message;
